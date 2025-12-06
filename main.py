@@ -147,14 +147,22 @@ async def like(media_id: int, request: Request):
     conn.commit()
     return {"success": True}
 
+# Health check endpoint (required for Render)
+@app.get("/")
+async def root():
+    return {"status": "OK", "service": "IMAGIFHUB"}
+
 # ==================== STARTUP ====================
 async def on_startup():
     await bot.set_my_commands([types.BotCommand(command="start", description="Open mini app")])
     print("IMAGIFHUB BOT + API IS LIVE!")
 
-if __name__ == "__main__":
-    async def main():
-        dp.startup.register(on_startup)
-        await dp.start_polling(bot)
+async def run_bot():
+    dp.startup.register(on_startup)
+    await dp.start_polling(bot)
 
-    asyncio.run(main())
+if __name__ == "__main__":
+    # Run bot in background + FastAPI on $PORT for Render health check
+    asyncio.create_task(run_bot())
+    port = int(os.environ.get("PORT", 10000))
+    uvicorn.run(app, host="0.0.0.0", port=port)
