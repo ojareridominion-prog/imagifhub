@@ -11,6 +11,7 @@ from aiogram.types import FSInputFile, BufferedInputFile, Message, CallbackQuery
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.fsm.storage.memory import MemoryStorage
+from aiogram.client.default import DefaultBotProperties
 import sqlite3
 from datetime import datetime, timedelta
 import uvicorn
