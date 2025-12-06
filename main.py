@@ -11,7 +11,11 @@ from aiogram.types import FSInputFile, BufferedInputFile, Message, CallbackQuery
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.fsm.storage.memory import MemoryStorage
-from aiogram.client.default import DefaultBotProperties
+from aiogram.client.session.aiohttp import AiohttpSession
+
+session = AiohttpSession(proxy="http://proxy.server:3128")
+bot = Bot(token=BOT_TOKEN, default=DefaultBotProperties(parse_mode="HTML"), session=session)
+dp = Dispatcher(storage=MemoryStorage())
 import sqlite3
 from datetime import datetime, timedelta
 import uvicorn
