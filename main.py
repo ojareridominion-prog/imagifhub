@@ -12,8 +12,10 @@ from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.client.session.aiohttp import AiohttpSession
+from aiohttp_socks import ProxyConnector
 
-session = AiohttpSession(proxy="http://proxy.server:3128")
+connector = ProxyConnector.from_url('http://proxy.server:3128')
+session = AiohttpSession(connector=connector)
 bot = Bot(token=BOT_TOKEN, default=DefaultBotProperties(parse_mode="HTML"), session=session)
 dp = Dispatcher(storage=MemoryStorage())
 import sqlite3
