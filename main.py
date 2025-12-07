@@ -27,6 +27,7 @@ cloudinary.config(
     api_secret=os.environ["CLOUDINARY_API_SECRET"]
 )
 
+# ==================== BOT & DISPATCHER ====================
 bot = Bot(token=BOT_TOKEN, default=DefaultBotProperties(parse_mode="HTML"))
 storage = MemoryStorage()
 dp = Dispatcher(storage=storage)
@@ -68,16 +69,15 @@ async def admin_panel(message: Message, state: FSMContext):
         await message.reply("🚫 Access denied.")
         return
     try:
-        # Use InlineKeyboardButton objects (correct for aiogram 3)
         keyboard = InlineKeyboardMarkup(inline_keyboard=[
             [InlineKeyboardButton(text="Upload Image", callback_data="upload_image")],
             [InlineKeyboardButton(text="Upload GIF", callback_data="upload_gif")]
         ])
         await message.reply("Welcome Admin! What do you want to upload?", reply_markup=keyboard)
-        logging.info(f"Admin panel sent to user {message.from_user.id}")
+        logging.info(f"Admin panel sent to {message.from_user.id}")
     except Exception as e:
         logging.error(f"Admin panel error: {e}")
-        await message.reply("Admin panel error — try again in 1 min.")
+        await message.reply("Admin panel error — try again.")
 
 @dp.callback_query(F.data.in_(["upload_image", "upload_gif"]))
 async def choose_type(call: CallbackQuery, state: FSMContext):
@@ -102,7 +102,6 @@ async def receive_media(message: Message, state: FSMContext):
         url = resp['secure_url']
         await state.update_data(url=url)
 
-        # Use InlineKeyboardButton objects for categories
         keyboard = InlineKeyboardMarkup(inline_keyboard=[
             [InlineKeyboardButton(text=cat, callback_data=f"cat_{cat}") for cat in CATEGORIES[i:i+3]]
             for i in range(0, len(CATEGORIES), 3)
@@ -155,7 +154,6 @@ async def get_media(category: str = "all", search: str = "", type: str = "all"):
 
 @app.post("/like/{media_id}")
 async def like(media_id: int, request: Request):
-    # Basic auth (add initData validation later)
     c.execute("UPDATE media SET likes = likes + 1 WHERE id = ?", (media_id,))
     conn.commit()
     return {"success": True}
@@ -169,9 +167,21 @@ async def on_startup():
     await bot.set_my_commands([types.BotCommand(command="start", description="Open mini app")])
     print("IMAGIFHUB BOT + API IS LIVE!")
 
-async def main():
+async def run_bot():
     dp.startup.register(on_startup)
-    await dp.start_polling(bot, skip_updates=True)  # Skip old messages to avoid flood
+    await dp.start_polling(bot, skip_updates=True)
+
+async def run_server():
+    port = int(os.getenv("PORT", 10000))
+    config = uvicorn.Config(app, host="0.0.0.0", port=port, log_level="info")
+    server = uvicorn.Server(config)
+    await server.serve()
+
+async def main():
+    # Run bot and server concurrently
+    bot_task = asyncio.create_task(run_bot())
+    server_task = asyncio.create_task(run_server())
+    await asyncio.gather(bot_task, server_task, return_exceptions=True)
 
 if __name__ == "__main__":
     asyncio.run(main())
