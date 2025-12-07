@@ -6,7 +6,7 @@ import cloudinary.uploader
 from fastapi import FastAPI, Request, HTTPException
 from aiogram import Bot, Dispatcher, types, F
 from aiogram.filters import Command
-from aiogram.types import BufferedInputFile, Message, CallbackQuery, InlineKeyboardMarkup
+from aiogram.types import FSInputFile, BufferedInputFile, Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.fsm.storage.memory import MemoryStorage
@@ -68,10 +68,10 @@ async def admin_panel(message: Message, state: FSMContext):
         await message.reply("🚫 Access denied.")
         return
     try:
-        # Use dicts for buttons (fixes Pydantic error)
+        # Use InlineKeyboardButton objects (correct for aiogram 3)
         keyboard = InlineKeyboardMarkup(inline_keyboard=[
-            [[{"text": "Upload Image", "callback_data": "upload_image"}]],
-            [[{"text": "Upload GIF", "callback_data": "upload_gif"}]]
+            [InlineKeyboardButton(text="Upload Image", callback_data="upload_image")],
+            [InlineKeyboardButton(text="Upload GIF", callback_data="upload_gif")]
         ])
         await message.reply("Welcome Admin! What do you want to upload?", reply_markup=keyboard)
         logging.info(f"Admin panel sent to user {message.from_user.id}")
@@ -102,9 +102,9 @@ async def receive_media(message: Message, state: FSMContext):
         url = resp['secure_url']
         await state.update_data(url=url)
 
-        # Use dicts for category buttons
+        # Use InlineKeyboardButton objects for categories
         keyboard = InlineKeyboardMarkup(inline_keyboard=[
-            [[{"text": cat, "callback_data": f"cat_{cat}"} for cat in CATEGORIES[i:i+3]]]
+            [InlineKeyboardButton(text=cat, callback_data=f"cat_{cat}") for cat in CATEGORIES[i:i+3]]
             for i in range(0, len(CATEGORIES), 3)
         ])
         await message.reply("Media received! Choose category:", reply_markup=keyboard)
