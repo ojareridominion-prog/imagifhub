@@ -6,7 +6,7 @@ import cloudinary.uploader
 from fastapi import FastAPI, Request, HTTPException
 from aiogram import Bot, Dispatcher, types, F
 from aiogram.filters import Command
-from aiogram.types import FSInputFile, BufferedInputFile, Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
+from aiogram.types import BufferedInputFile, Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.fsm.storage.memory import MemoryStorage
@@ -27,7 +27,6 @@ cloudinary.config(
     api_secret=os.environ["CLOUDINARY_API_SECRET"]
 )
 
-# ==================== BOT & DISPATCHER ====================
 bot = Bot(token=BOT_TOKEN, default=DefaultBotProperties(parse_mode="HTML"))
 storage = MemoryStorage()
 dp = Dispatcher(storage=storage)
@@ -40,13 +39,6 @@ c.execute('''CREATE TABLE IF NOT EXISTS media (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     url TEXT, type TEXT, category TEXT, keywords TEXT,
     likes INTEGER DEFAULT 0, uploaded_at TEXT
-)''')
-c.execute('''CREATE TABLE IF NOT EXISTS users (
-    user_id INTEGER PRIMARY KEY,
-    is_premium INTEGER DEFAULT 0,
-    premium_until TEXT,
-    saves_today INTEGER DEFAULT 0,
-    save_date TEXT
 )''')
 conn.commit()
 
@@ -64,20 +56,14 @@ CATEGORIES = [
 
 # ==================== ADMIN PANEL ====================
 @dp.message(Command("admin"))
-async def admin_panel(message: Message, state: FSMContext):
+async def admin_panel(message: Message):
     if message.from_user.id != ADMIN_ID:
-        await message.reply("🚫 Access denied.")
-        return
-    try:
-        keyboard = InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text="Upload Image", callback_data="upload_image")],
-            [InlineKeyboardButton(text="Upload GIF", callback_data="upload_gif")]
-        ])
-        await message.reply("Welcome Admin! What do you want to upload?", reply_markup=keyboard)
-        logging.info(f"Admin panel sent to {message.from_user.id}")
-    except Exception as e:
-        logging.error(f"Admin panel error: {e}")
-        await message.reply("Admin panel error — try again.")
+        return await message.reply("Access denied.")
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="Upload Image", callback_data="upload_image")],
+        [InlineKeyboardButton(text="Upload GIF", callback_data="upload_gif")]
+    ])
+    await message.reply("Welcome Admin! What do you want to upload?", reply_markup=keyboard)
 
 @dp.callback_query(F.data.in_(["upload_image", "upload_gif"]))
 async def choose_type(call: CallbackQuery, state: FSMContext):
@@ -91,15 +77,39 @@ async def receive_media(message: Message, state: FSMContext):
         data = await state.get_data()
         file_id = (message.photo[-1].file_id if message.photo else
                    message.animation.file_id if message.animation else message.document.file_id)
-        file = await bot.get_file(file_id)
-        file_bytes = await bot.download_file(file.file_path)
 
-        resp = cloudinary.uploader.upload(
-            BufferedInputFile(file_bytes.read(), filename="media"),
-            resource_type="image" if data['media_type'] == "image" else "video",
-            folder="imagifhub"
-        )
-        url = resp['secure_url']
+        # Robust download with retry
+        file = None
+        for _ in range(3):
+            try:
+                file = await bot.get_file(file_id)
+                break
+            except:
+                await asyncio.sleep(2)
+        if not file:
+            return await message.reply("Failed to get file from Telegram — try again.")
+
+        file_bytes = await bot.download_file(file.file_path, timeout=90)
+
+        # Robust Cloudinary upload with retry
+        url = None
+        for _ in range(3):
+            try:
+                resp = cloudinary.uploader.upload(
+                    BufferedInputFile(file_bytes.read(), filename="media"),
+                    resource_type="image" if data['media_type'] == "image" else "video",
+                    folder="imagifhub",
+                    timeout=180
+                )
+                url = resp['secure_url']
+                break
+            except Exception as e:
+                logging.error(f"Cloudinary error: {e}")
+                await asyncio.sleep(3)
+
+        if not url:
+            return await message.reply("Upload to Cloudinary failed — try again.")
+
         await state.update_data(url=url)
 
         keyboard = InlineKeyboardMarkup(inline_keyboard=[
@@ -109,14 +119,14 @@ async def receive_media(message: Message, state: FSMContext):
         await message.reply("Media received! Choose category:", reply_markup=keyboard)
         await state.set_state(AdminUpload.waiting_category)
     except Exception as e:
-        logging.error(f"Media upload error: {e}")
+        logging.error(f"Upload error: {e}")
         await message.reply("Upload failed — try again.")
 
 @dp.callback_query(F.data.startswith("cat_"))
 async def choose_category(call: CallbackQuery, state: FSMContext):
     category = call.data[4:]
     await state.update_data(category=category)
-    await call.message.edit_text(f"Category: {category}\nNow type keywords/subcategories (comma separated):")
+    await call.message.edit_text(f"Category: {category}\nNow type keywords (comma separated):")
     await state.set_state(AdminUpload.waiting_keywords)
 
 @dp.message(AdminUpload.waiting_keywords)
@@ -129,13 +139,13 @@ async def final_step(message: Message, state: FSMContext):
                   (data['url'], data['media_type'], data['category'], keywords, datetime.now().isoformat()))
         conn.commit()
 
-        await message.reply(f"Successfully uploaded!\nCategory: {data['category']}\nKeywords: {keywords}")
-        await bot.send_photo(message.chat.id, data['url'], caption=f"New drop in #{data['category'].replace(' ', '')}")
+        await message.reply(f"Uploaded!\nCategory: {data['category']}\nKeywords: {keywords}")
+        await bot.send_photo(message.chat.id, data['url'],
+                             caption=f"New drop in #{data['category'].replace(' ', '')}")
         await state.clear()
-        logging.info(f"Media uploaded: {data['url']}")
     except Exception as e:
-        logging.error(f"Final step error: {e}")
-        await message.reply("Upload failed — try again.")
+        logging.error(f"Save error: {e}")
+        await message.reply("Save failed — try again.")
 
 # ==================== API ENDPOINTS ====================
 @app.get("/media")
@@ -153,7 +163,7 @@ async def get_media(category: str = "all", search: str = "", type: str = "all"):
     return [{"id": r[0], "url": r[1], "type": r[2], "category": r[3], "likes": r[4]} for r in rows]
 
 @app.post("/like/{media_id}")
-async def like(media_id: int, request: Request):
+async def like(media_id: int):
     c.execute("UPDATE media SET likes = likes + 1 WHERE id = ?", (media_id,))
     conn.commit()
     return {"success": True}
@@ -162,13 +172,8 @@ async def like(media_id: int, request: Request):
 async def health():
     return {"status": "IMAGIFHUB Live"}
 
-# ==================== STARTUP ====================
-async def on_startup():
-    await bot.set_my_commands([types.BotCommand(command="start", description="Open mini app")])
-    print("IMAGIFHUB BOT + API IS LIVE!")
-
+# ==================== RUN BOT + SERVER ====================
 async def run_bot():
-    dp.startup.register(on_startup)
     await dp.start_polling(bot, skip_updates=True)
 
 async def run_server():
@@ -178,10 +183,7 @@ async def run_server():
     await server.serve()
 
 async def main():
-    # Run bot and server concurrently
-    bot_task = asyncio.create_task(run_bot())
-    server_task = asyncio.create_task(run_server())
-    await asyncio.gather(bot_task, server_task, return_exceptions=True)
+    await asyncio.gather(run_bot(), run_server())
 
 if __name__ == "__main__":
     asyncio.run(main())
