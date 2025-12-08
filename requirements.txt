@@ -1,6 +1,5 @@
-fastapi==0.104.1
-uvicorn==0.24.0
-aiogram==3.4.1
-cloudinary==1.40.0
-requests==2.31.0
-sqlite3
+fastapi==0.115.0
+uvicorn[standard]==0.30.6
+aiogram==3.13.1
+cloudinary==1.41.0
+requests==2.32.3
