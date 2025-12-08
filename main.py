@@ -1,9 +1,8 @@
 import os
 import asyncio
 import logging
-import cloudinary
-import cloudinary.uploader
-from fastapi import FastAPI, Request, HTTPException
+import requests
+from fastapi import FastAPI, Request
 from aiogram import Bot, Dispatcher, types, F
 from aiogram.filters import Command
 from aiogram.types import BufferedInputFile, Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
@@ -20,12 +19,7 @@ logging.basicConfig(level=logging.INFO)
 # ==================== CONFIG ====================
 BOT_TOKEN = os.environ["BOT_TOKEN"]
 ADMIN_ID = int(os.environ["ADMIN_ID"])
-
-cloudinary.config(
-    cloud_name=os.environ["CLOUDINARY_CLOUD_NAME"],
-    api_key=os.environ["CLOUDINARY_API_KEY"],
-    api_secret=os.environ["CLOUDINARY_API_SECRET"]
-)
+IMGBB_API_KEY = os.environ["IMGBB_API_KEY"]  # Get free at https://imgbb.com
 
 bot = Bot(token=BOT_TOKEN, default=DefaultBotProperties(parse_mode="HTML"))
 storage = MemoryStorage()
@@ -37,22 +31,26 @@ conn = sqlite3.connect("imagifhub.db", check_same_thread=False)
 c = conn.cursor()
 c.execute('''CREATE TABLE IF NOT EXISTS media (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    url TEXT, type TEXT, category TEXT, keywords TEXT,
-    likes INTEGER DEFAULT 0, uploaded_at TEXT
+    url TEXT,
+    type TEXT,
+    category TEXT,
+    keywords TEXT,
+    likes INTEGER DEFAULT 0,
+    uploaded_at TEXT
 )''')
 conn.commit()
 
-# ==================== STATES ====================
-class AdminUpload(StatesGroup):
-    waiting_media = State()
-    waiting_category = State()
-    waiting_keywords = State()
-
+# ==================== CATEGORIES ====================
 CATEGORIES = [
     "Nature", "Space", "City", "Superhero", "Supervillain", "Robotic",
     "Anime", "Cars", "Wildlife", "Funny", "Seasonal Greetings",
     "Dark Aesthetic", "Luxury", "Gaming", "Ancient World"
 ]
+
+class AdminUpload(StatesGroup):
+    waiting_media = State()
+    waiting_category = State()
+    waiting_keywords = State()
 
 # ==================== ADMIN PANEL ====================
 @dp.message(Command("admin"))
@@ -68,55 +66,51 @@ async def admin_panel(message: Message):
 @dp.callback_query(F.data.in_(["upload_image", "upload_gif"]))
 async def choose_type(call: CallbackQuery, state: FSMContext):
     await state.update_data(media_type="image" if call.data == "upload_image" else "gif")
-    await call.message.edit_text(f"Send me the {'image' if call.data == 'upload_image' else 'GIF'} now.")
+    await call.message.edit_text(f"Send me the {'image' if call.data == 'upload_image' else 'GIF(s)'}\n\nYou can send up to 10 at once!")
     await state.set_state(AdminUpload.waiting_media)
 
-@dp.message(AdminUpload.waiting_media, F.photo | F.animation | F.document)
-async def receive_media(message: Message, state: FSMContext):
+# ==================== UPLOAD (SINGLE OR ALBUM) ====================
+@dp.message(AdminUpload.waiting_media, F.media_group_id | F.photo | F.animation)
+async def receive_media(message: Message, state: FSMContext, album: list[Message] | None = None):
     try:
         data = await state.get_data()
-        file_id = (message.photo[-1].file_id if message.photo else
-                   message.animation.file_id if message.animation else message.document.file_id)
+        messages = album or [message]  # Handle album or single
 
-        # Robust download with retry
-        file = None
-        for _ in range(3):
-            try:
-                file = await bot.get_file(file_id)
-                break
-            except:
-                await asyncio.sleep(2)
-        if not file:
-            return await message.reply("Failed to get file from Telegram — try again.")
+        uploaded_urls = []
+        for msg in messages:
+            file_id = (msg.photo[-1].file_id if msg.photo else
+                       msg.animation.file_id if msg.animation else msg.document.file_id)
+            file = await bot.get_file(file_id)
+            file_bytes = await bot.download_file(file.file_path)
 
-        file_bytes = await bot.download_file(file.file_path, timeout=90)
+            # Upload to ImgBB with retry
+            url = None
+            for _ in range(3):
+                try:
+                    file_bytes.seek(0)
+                    files = {'image': file_bytes.read()}
+                    params = {'key': IMGBB_API_KEY}
+                    resp = requests.post("https://api.imgbb.com/1/upload", params=params, files=files, timeout=60)
+                    resp.raise_for_status()
+                    url = resp.json()['data']['url']
+                    break
+                except Exception as e:
+                    logging.error(f"ImgBB error: {e}")
+                    await asyncio.sleep(2)
 
-        # Robust Cloudinary upload with retry
-        url = None
-        for _ in range(3):
-            try:
-                resp = cloudinary.uploader.upload(
-                    BufferedInputFile(file_bytes.read(), filename="media"),
-                    resource_type="image" if data['media_type'] == "image" else "video",
-                    folder="imagifhub",
-                    timeout=180
-                )
-                url = resp['secure_url']
-                break
-            except Exception as e:
-                logging.error(f"Cloudinary error: {e}")
-                await asyncio.sleep(3)
+            if url:
+                uploaded_urls.append(url)
 
-        if not url:
-            return await message.reply("Upload to Cloudinary failed — try again.")
+        if not uploaded_urls:
+            return await message.reply("Upload failed — try again.")
 
-        await state.update_data(url=url)
+        await state.update_data(urls=uploaded_urls)
 
         keyboard = InlineKeyboardMarkup(inline_keyboard=[
             [InlineKeyboardButton(text=cat, callback_data=f"cat_{cat}") for cat in CATEGORIES[i:i+3]]
             for i in range(0, len(CATEGORIES), 3)
         ])
-        await message.reply("Media received! Choose category:", reply_markup=keyboard)
+        await message.reply(f"Received {len(uploaded_urls)} media!\nChoose category:", reply_markup=keyboard)
         await state.set_state(AdminUpload.waiting_category)
     except Exception as e:
         logging.error(f"Upload error: {e}")
@@ -134,14 +128,17 @@ async def final_step(message: Message, state: FSMContext):
     try:
         data = await state.get_data()
         keywords = message.text.strip()
+        urls = data.get("urls", [data.get("url")])
 
-        c.execute("INSERT INTO media (url, type, category, keywords, uploaded_at) VALUES (?, ?, ?, ?, ?)",
-                  (data['url'], data['media_type'], data['category'], keywords, datetime.now().isoformat()))
+        for url in urls:
+            c.execute("""INSERT INTO media (url, type, category, keywords, uploaded_at)
+                         VALUES (?, ?, ?, ?, ?)""",
+                      (url, data['media_type'], data['category'], keywords, datetime.now().isoformat()))
         conn.commit()
 
-        await message.reply(f"Uploaded!\nCategory: {data['category']}\nKeywords: {keywords}")
-        await bot.send_photo(message.chat.id, data['url'],
-                             caption=f"New drop in #{data['category'].replace(' ', '')}")
+        await message.reply(f"Successfully uploaded {len(urls)} item(s)!\n"
+                            f"Category: {data['category']}\n"
+                            f"Keywords: {keywords}")
         await state.clear()
     except Exception as e:
         logging.error(f"Save error: {e}")
@@ -177,7 +174,7 @@ async def run_bot():
     await dp.start_polling(bot, skip_updates=True)
 
 async def run_server():
-    port = int(os.getenv("PORT", 10000))
+    port = int(os.environ.get("PORT", 10000))
     config = uvicorn.Config(app, host="0.0.0.0", port=port, log_level="info")
     server = uvicorn.Server(config)
     await server.serve()
