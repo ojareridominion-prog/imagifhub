@@ -9,7 +9,7 @@ from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKe
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.fsm.storage.memory import MemoryStorage
-from aiяемogram.client.default import DefaultBotProperties
+from aiogram.client.default import DefaultBotProperties
 import sqlite3
 from datetime import datetime
 import uvicorn
@@ -19,7 +19,7 @@ logging.basicConfig(level=logging.INFO)
 # ==================== CONFIG ====================
 BOT_TOKEN = os.environ["BOT_TOKEN"]
 ADMIN_ID = int(os.environ["ADMIN_ID"])
-IMGBB_API_KEY = os.environ["IMGBB_API_KEY"]  # Only one key needed
+IMGBB_API_KEY = os.environ["IMGBB_API_KEY"]   # Only this key needed
 
 bot = Bot(token=BOT_TOKEN, default=DefaultBotProperties(parse_mode="HTML"))
 storage = MemoryStorage()
@@ -36,17 +36,17 @@ c.execute('''CREATE TABLE IF NOT EXISTS media (
 )''')
 conn.commit()
 
-# ==================== STATES ====================
-class AdminUpload(StatesGroup):
-    waiting_media = State()
-    waiting_category = State()
-    waiting_keywords = State()
-
+# ==================== CATEGORIES & STATES ====================
 CATEGORIES = [
     "Nature", "Space", "City", "Superhero", "Supervillain", "Robotic",
     "Anime", "Cars", "Wildlife", "Funny", "Seasonal Greetings",
     "Dark Aesthetic", "Luxury", "Gaming", "Ancient World"
 ]
+
+class AdminUpload(StatesGroup):
+    waiting_media = State()
+    waiting_category = State()
+    waiting_keywords = State()
 
 # ==================== ADMIN PANEL ====================
 @dp.message(Command("admin"))
@@ -65,6 +65,7 @@ async def choose_type(call: CallbackQuery, state: FSMContext):
     await call.message.edit_text("Send me the image/GIF now (you can send up to 10 at once!)")
     await state.set_state(AdminUpload.waiting_media)
 
+# ==================== UPLOAD (SINGLE OR ALBUM) ====================
 @dp.message(AdminUpload.waiting_media, F.photo | F.animation | F.document | F.media_group_id)
 async def receive_media(message: Message, state: FSMContext, album: list[Message] | None = None):
     try:
@@ -78,7 +79,6 @@ async def receive_media(message: Message, state: FSMContext, album: list[Message
             file = await bot.get_file(file_id)
             file_bytes = await bot.download_file(file.file_path)
 
-            # Upload to ImgBB
             file_bytes.seek(0)
             files = {'image': file_bytes.read()}
             params = {'key': IMGBB_API_KEY}
@@ -93,7 +93,7 @@ async def receive_media(message: Message, state: FSMContext, album: list[Message
             [InlineKeyboardButton(text=cat, callback_data=f"cat_{cat}") for cat in CATEGORIES[i:i+3]]
             for i in range(0, len(CATEGORIES), 3)
         ])
-        await message.reply(f"Received {len(uploaded_urls)} item(s)! Choose category:", reply_markup=keyboard)
+        await message.reply(f"Received {len(uploaded_urls)} media! Choose category:", reply_markup=keyboard)
         await state.set_state(AdminUpload.waiting_category)
     except Exception as e:
         logging.error(f"Upload error: {e}")
@@ -103,7 +103,7 @@ async def receive_media(message: Message, state: FSMContext, album: list[Message
 async def choose_category(call: CallbackQuery, state: FSMContext):
     category = call.data[4:]
     await state.update_data(category=category)
-    await call.message.edit_text(f"Category: {category}\nType keywords (comma separated):")
+    await call.message.edit_text(f"Category: {category}\nNow type keywords (comma separated):")
     await state.set_state(AdminUpload.waiting_keywords)
 
 @dp.message(AdminUpload.waiting_keywords)
@@ -118,8 +118,8 @@ async def final_step(message: Message, state: FSMContext):
                       (url, data['media_type'], data['category'], keywords, datetime.now().isoformat()))
         conn.commit()
 
-        await message.reply(f"Uploaded {len(urls)} item(s)!\nCategory: {data['category']}\nKeywords: {keywords}")
-        await state.clear()
+        await message.reply(f"Successfully uploaded {len(urls)} item(s)!\nCategory: {data['category']}\nKeywords: {keywords}")
+        await state.false()
     except Exception as e:
         logging.error(f"Save error: {e}")
         await message.reply("Save failed — try again.")
@@ -147,9 +147,9 @@ async def like(media_id: int):
 
 @app.get("/")
 async def health():
-    return {"status": "IMAGIFHUB Live - ImgBB Mode"}
+    return {"status": "IMAGIFHUB Live - ImgBB Only"}
 
-# ==================== RUN ====================
+# ==================== RUN BOT + SERVER ====================
 async def run_bot():
     await dp.start_polling(bot, skip_updates=True)
 
