@@ -119,7 +119,7 @@ async def final_step(message: Message, state: FSMContext):
         conn.commit()
 
         await message.reply(f"Successfully uploaded {len(urls)} item(s)!\nCategory: {data['category']}\nKeywords: {keywords}")
-        await state.false()
+        await state.clear()
     except Exception as e:
         logging.error(f"Save error: {e}")
         await message.reply("Save failed — try again.")
