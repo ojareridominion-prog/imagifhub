@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+  <title>IMAGIFHUB</title>
+  <script src="https://unpkg.com/@telegram-apps/sdk@7.2.0/dist/core.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.js"></script>
+  <link href="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.css" rel="stylesheet"/>
+  <style>
+    :root {
+      --bg: #000; --text: #fff; --accent: #9c4dff; --bar: #111;
+    }
+    [data-theme="white"] {--bg:#f9f9f9; --text:#000; --bar:#fff;}
+    [data-theme="red"] {--accent:#ff3333;}
+    [data-theme="green"] {--accent:#00ff7f;}
+    [data-theme="darkblue"] {--accent:#1e3a8a;}
+    [data-theme="skyblue"] {--accent:#0ea5e9;}
+    [data-theme="grey"] {--accent:#6b7280;}
+    [data-theme="purple"] {--accent:#8b5cf6;}
+    [data-theme="pink"] {--accent:#ec4899;}
+    [data-theme="orange"] {--accent:#f97316;}
+    [data-theme="smoke"] {--accent:#9ca3af;}
+    [data-theme="brightyellow"] {--accent:#eab308;}
+    [data-theme="paleyellow"] {--accent:#fef3c7;}
+    body,html,#app{height:100%;margin:0;background:var(--bg);color:var(--text);font-family:system-ui;overflow:hidden;}
+    .bar{position:fixed;top:0;left:0;right:0;height:56px;background:var(--bar);z-index:1000;display:flex;align-items:center;padding:0 12px;box-sizing:border-box;gap:8px;border-bottom:1px solid #333;}
+    .btn{background:var(--accent);color:#fff;padding:8px 14px;border-radius:8px;font-size:14px;font-weight:600;border:none;cursor:pointer;}
+    .cat-bar{position:fixed;top:56px;left:0;right:0;height:48px;background:var(--bar);overflow-x:auto;white-space:nowrap;padding:8px 12px;box-sizing:border-box;z-index:999;border-bottom:1px solid #333;}
+    .cat-btn{display:inline-block;padding:8px 16px;background:#333;border-radius:20px;margin-right:8px;font-size:14px;border:none;cursor:pointer;}
+    .cat-btn.active{background:var(--accent);}
+    .swiper{width:100%;height:100%;padding-top:104px !important;}
+    .slide{display:flex;align-items:center;justify-content:center;background:#000;position:relative;}
+    img,video{max-width:100%;max-height:100%;object-fit:contain;}
+    .bottom-bar{position:fixed;bottom:0;left:0;right:0;height:70px;background:var(--bar);display:flex;align-items:center;justify-content:space-around;z-index:1000;border-top:1px solid #333;}
+    .icon{font-size:28px;cursor:pointer;}
+    .search-bar{position:fixed;top:104px;left:0;right:0;background:var(--bar);padding:8px 12px;z-index:998;}
+    .search-input{background:#333;color:var(--text);border:none;border-radius:8px;padding:8px;width:100%;box-sizing:border-box;}
+    .premium-btn{position:fixed;top:10px;right:10px;z-index:1001;}
+  </style>
+</head>
+<body data-theme="dark">
+  <div id="app">
+    <!-- Premium button -->
+    <button class="btn premium-btn" onclick="goPremium()">Go Premium ($5/mo)</button>
+
+    <!-- Top bar -->
+    <div class="bar">
+      <button class="btn" onclick="Telegram.WebApp.openTelegramLink('https://t.me/imagifhub')">Channel</button>
+      <button class="btn" onclick="Telegram.WebApp.openTelegramLink('https://t.me/share/url?url=https://t.me/IMAGIFHUB&text=Check out IMAGIFHUB!')">Share</button>
+      <button class="btn active" id="allBtn">All</button>
+      <button class="btn" id="imgBtn">Images</button>
+      <button class="btn" id="gifBtn">GIFs</button>
+    </div>
+
+    <!-- Search bar -->
+    <div class="search-bar">
+      <input type="text" class="search-input" id="searchInput" placeholder="Search keywords..." oninput="loadFeed(currentCat, currentType, this.value)">
+    </div>
+
+    <!-- Category bar -->
+    <div class="cat-bar" id="catBar"></div>
+
+    <!-- Swiper feed -->
+    <div class="swiper-container">
+      <div class="swiper" id="swiper">
+        <div class="swiper-wrapper" id="feed"></div>
+      </div>
+    </div>
+
+    <!-- Bottom bar -->
+    <div class="bottom-bar">
+      <span class="icon" id="likeBtn" onclick="likeCurrent()">❤️ <span id="likeCount">0</span></span>
+      <span class="icon" onclick="saveCurrent()">💾 Save</span>
+      <span class="icon" onclick="shareCurrent()">📤 Share</span>
+      <span class="icon" onclick="openPlaylist()">📋 Playlist</span>
+    </div>
+  </div>
+
+<script>
+  const API_BASE = "https://imagifhub.onrender.com";
+  let currentMedia = [], currentIndex = 0, currentCat = "all", currentType = "all", searchTerm = "";
+  let isPremium = false; // Check with API later
+
+  const categories = ["All", "Nature", "Space", "City", "Superhero", "Supervillain", "Robotic", "Anime", "Cars", "Wildlife", "Funny", "Seasonal Greetings", "Dark Aesthetic", "Luxury", "Gaming", "Ancient World"];
+
+  // Init
+  Telegram.WebApp.ready();
+  Telegram.WebApp.expand();
+  if (!isPremium) Telegram.WebApp.showPopup({title: "3-Day Free Trial", message: "Try premium features free for 3 days!", buttons: [{text: "Start Trial", onClick: () => isPremium = true; loadFeed(); }]}); // Fake for now
+
+  // Category bar
+  const catBar = document.getElementById("catBar");
+  categories.forEach(cat => {
+    const btn = document.createElement("button");
+    btn.className = "cat-btn" + (cat === "All" ? " active" : "");
+    btn.textContent = cat;
+    btn.onclick = () => {
+      document.querySelectorAll(".cat-btn").forEach(b => b.classList.remove("active"));
+      btn.classList.add("active");
+      currentCat = cat === "All" ? "all" : cat;
+      loadFeed(currentCat, currentType, searchTerm);
+    };
+    catBar.appendChild(btn);
+  });
+
+  // Type buttons
+  document.getElementById("allBtn").onclick = () => { currentType = "all"; loadFeed(currentCat, currentType, searchTerm); document.querySelectorAll(".btn").forEach(b => b.classList.remove("active")); this.classList.add("active"); };
+  document.getElementById("imgBtn").onclick = () => { currentType = "image"; loadFeed(currentCat, currentType, searchTerm); document.querySelectorAll(".btn").forEach(b => b.classList.remove("active")); this.classList.add("active"); };
+  document.getElementById("gifBtn").onclick = () => { currentType = "gif"; loadFeed(currentCat, currentType, searchTerm); document.querySelectorAll(".btn").forEach(b => b.classList.remove("active")); this.classList.add("active"); };
+
+  async function loadFeed(cat = "all", type = "all", search = "") {
+    if (!isPremium && Math.random() < 0.3) { // Fake ad for ordinary users
+      Telegram.WebApp.showPopup({title: "Support Us!", message: "Watch ad to continue?", buttons: [{text: "Watch", onClick: () => loadFeed(cat, type, search)}, {text: "Go Premium", onClick: goPremium}]});
+      return;
+    }
+    const params = new URLSearchParams({category: cat, type});
+    if (search) params.append("search", search);
+    const res = await fetch(`\( {API_BASE}/media? \){params}`);
+    currentMedia = await res.json();
+    currentIndex = 0;
+    renderFeed();
+  }
+
+  function renderFeed() {
+    const wrapper = document.getElementById("feed");
+    wrapper.innerHTML = "";
+    currentMedia.forEach((m, idx) => {
+      const slide = document.createElement("div");
+      slide.className = "swiper-slide slide";
+      slide.dataset.id = m.id;
+      slide.dataset.likes = m.likes;
+      if (m.type === "image") {
+        const img = document.createElement("img");
+        img.src = m.url;
+        img.loading = "lazy";
+        slide.appendChild(img);
+      } else {
+        const vid = document.createElement("video");
+        vid.src = m.url;
+        vid.autoplay = true;
+        vid.loop = true;
+        vid.muted = true;
+        vid.playsInline = true;
+        slide.appendChild(vid);
+      }
+      wrapper.appendChild(slide);
+    });
+    initSwiper();
+  }
+
+  let swiper;
+  function initSwiper() {
+    swiper = new Swiper("#swiper", {
+      direction: "vertical",
+      loop: false,
+      slidesPerView: 1,
+      spaceBetween: 0,
+      mousewheel: true,
+      on: { slideChange: (e) => { currentIndex = e.activeIndex; updateLikeCount(); } }
+    });
+  }
+
+  function updateLikeCount() {
+    const activeSlide = document.querySelector(".swiper-slide-active");
+    const id = activeSlide?.dataset.id;
+    const media = currentMedia.find(x => x.id == id);
+    document.getElementById("likeCount").textContent = media?.likes || 0;
+  }
+
+  async function likeCurrent() {
+    const activeSlide = document.querySelector(".swiper-slide-active");
+    const id = activeSlide?.dataset.id;
+    if (!id) return;
+    await fetch(`\( {API_BASE}/like/ \){id}`, {method: "POST"});
+    const media = currentMedia.find(x => x.id == id);
+    if (media) { media.likes++; updateLikeCount(); }
+  }
+
+  function saveCurrent() {
+    if (!isPremium && localStorage.getItem("savesToday") >= 5) {
+      Telegram.WebApp.showAlert("Ordinary users can save 5/day. Go premium for unlimited!");
+      return;
+    }
+    // Save logic (localStorage for now)
+    Telegram.WebApp.showAlert("Saved to gallery!");
+  }
+
+  function shareCurrent() {
+    const activeSlide = document.querySelector(".swiper-slide-active img, .swiper-slide-active video");
+    const url = activeSlide?.src || "";
+    Telegram.WebApp.openTelegramLink(`https://t.me/share/url?url=${encodeURIComponent(url)}&text=Check this from @IMAGIFHUB!`);
+  }
+
+  function openPlaylist() {
+    Telegram.WebApp.showAlert("Playlist: Saved items here (premium: infinite, ordinary: 5/day)");
+  }
+
+  function goPremium() {
+    Telegram.WebApp.openInvoice("premium_invoice_id", 500, "USD"); // Replace with real Stars invoice from backend
+  }
+
+  // Event listeners
+  document.getElementById("likeBtn").onclick = likeCurrent;
+  document.querySelector(".swiper-container").addEventListener("dblclick", likeCurrent);
+
+  // Theme picker (premium only)
+  if (isPremium) {
+    const themes = ["dark", "white", "red", "green", "darkblue", "skyblue", "grey", "purple", "pink", "orange", "smoke", "brightyellow", "paleyellow"];
+    // Add theme picker button to bar
+  } else {
+    document.querySelector("[data-theme]").setAttribute("data-theme", "dark"); // Default
+  }
+
+  // Initial load
+  loadFeed();
+</script>
+</body>
+</html>
