@@ -37,57 +37,102 @@
     .search-bar{position:fixed;top:104px;left:0;right:0;background:var(--bar);padding:8px 12px;z-index:998;}
     .search-input{background:#333;color:var(--text);border:none;border-radius:8px;padding:8px;width:100%;box-sizing:border-box;}
     .premium-btn{position:fixed;top:10px;right:10px;z-index:1001;}
+    .music-btn{position:fixed;top:10px;left:10px;z-index:1001;background:var(--accent);color:#fff;padding:6px 10px;border-radius:50%;font-size:20px;}
   </style>
 </head>
 <body data-theme="dark">
   <div id="app">
-    <!-- Premium button -->
+    <!-- Music Button -->
+    <button class="music-btn" onclick="toggleMusic()">♪</button>
+
+    <!-- Premium Button -->
     <button class="btn premium-btn" onclick="goPremium()">Go Premium ($5/mo)</button>
 
-    <!-- Top bar -->
+    <!-- Top Bar -->
     <div class="bar">
       <button class="btn" onclick="Telegram.WebApp.openTelegramLink('https://t.me/imagifhub')">Channel</button>
-      <button class="btn" onclick="Telegram.WebApp.openTelegramLink('https://t.me/share/url?url=https://t.me/IMAGIFHUB&text=Check out IMAGIFHUB!')">Share</button>
+      <button class="btn" onclick="shareBot()">Share</button>
       <button class="btn active" id="allBtn">All</button>
       <button class="btn" id="imgBtn">Images</button>
       <button class="btn" id="gifBtn">GIFs</button>
     </div>
 
-    <!-- Search bar -->
+    <!-- Search Bar -->
     <div class="search-bar">
-      <input type="text" class="search-input" id="searchInput" placeholder="Search keywords..." oninput="loadFeed(currentCat, currentType, this.value)">
+      <input type="text" class="search-input" id="searchInput" placeholder="Search keywords..." oninput="searchTerm = this.value; loadFeed(currentCat, currentType, this.value)">
     </div>
 
-    <!-- Category bar -->
+    <!-- Category Bar -->
     <div class="cat-bar" id="catBar"></div>
 
-    <!-- Swiper feed -->
-    <div class="swiper-container">
-      <div class="swiper" id="swiper">
-        <div class="swiper-wrapper" id="feed"></div>
-      </div>
+    <!-- Swiper Feed -->
+    <div class="swiper" id="swiper">
+      <div class="swiper-wrapper" id="feed"></div>
     </div>
 
-    <!-- Bottom bar -->
+    <!-- Bottom Bar -->
     <div class="bottom-bar">
-      <span class="icon" id="likeBtn" onclick="likeCurrent()">❤️ <span id="likeCount">0</span></span>
+      <span class="icon" onclick="likeCurrent()">❤️ <span id="likeCount">0</span></span>
       <span class="icon" onclick="saveCurrent()">💾 Save</span>
       <span class="icon" onclick="shareCurrent()">📤 Share</span>
       <span class="icon" onclick="openPlaylist()">📋 Playlist</span>
     </div>
   </div>
 
+<!-- Background Music -->
+<audio id="bgMusic" loop>
+  <source src="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3" type="audio/mpeg">
+</audio>
+
 <script>
   const API_BASE = "https://imagifhub.onrender.com";
   let currentMedia = [], currentIndex = 0, currentCat = "all", currentType = "all", searchTerm = "";
-  let isPremium = false; // Check with API later
+  let isPremium = localStorage.getItem("premium") === "true" || false;
+  let savesToday = parseInt(localStorage.getItem("savesToday") || "0");
+  let playlist = JSON.parse(localStorage.getItem("playlist") || "[]");
+  let musicPlaying = false;
 
-  const categories = ["All", "Nature", "Space", "City", "Superhero", "Supervillain", "Robotic", "Anime", "Cars", "Wildlife", "Funny", "Seasonal Greetings", "Dark Aesthetic", "Luxury", "Gaming", "Ancient World"];
+  // BACKGROUND MUSIC TRACKS (FREE FOR ALL USERS)
+  const musicTracks = [
+    "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3",   // Chill lo-fi
+    "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3",   // Upbeat
+    "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3",   // Calm
+    // ADD MORE HERE — just paste direct MP3 links (free royalty-free from soundhelix or pixabay)
+    // Example: "https://pixabay.com/music/link-to-mp3"
+  ];
+  let currentTrack = 0;
+  const audio = document.getElementById("bgMusic");
 
-  // Init
+  function toggleMusic() {
+    if (musicPlaying) {
+      audio.pause();
+      musicPlaying = false;
+    } else {
+      audio.src = musicTracks[currentTrack];
+      audio.play();
+      musicPlaying = true;
+    }
+  }
+
+  // Premium users can change track
+  function nextTrack() {
+    if (!isPremium) return Telegram.WebApp.showAlert("Premium feature!");
+    currentTrack = (currentTrack + 1) % musicTracks.length;
+    audio.src = musicTracks[currentTrack];
+    audio.play();
+  }
+
+  // TO ADD/REMOVE MUSIC: Edit the musicTracks array above
+  // Find free royalty-free MP3s on:
+  // - https://soundhelix.com
+  // - https://pixabay.com/music
+  // - https://freesound.org
+  // Just copy the direct .mp3 link and add to the array
+
+  const categories = ["All","Nature","Space","City","Superhero","Supervillain","Robotic","Anime","Cars","Wildlife","Funny","Seasonal Greetings","Dark Aesthetic","Luxury","Gaming","Ancient World"];
+
   Telegram.WebApp.ready();
   Telegram.WebApp.expand();
-  if (!isPremium) Telegram.WebApp.showPopup({title: "3-Day Free Trial", message: "Try premium features free for 3 days!", buttons: [{text: "Start Trial", onClick: () => isPremium = true; loadFeed(); }]}); // Fake for now
 
   // Category bar
   const catBar = document.getElementById("catBar");
@@ -105,114 +150,99 @@
   });
 
   // Type buttons
-  document.getElementById("allBtn").onclick = () => { currentType = "all"; loadFeed(currentCat, currentType, searchTerm); document.querySelectorAll(".btn").forEach(b => b.classList.remove("active")); this.classList.add("active"); };
-  document.getElementById("imgBtn").onclick = () => { currentType = "image"; loadFeed(currentCat, currentType, searchTerm); document.querySelectorAll(".btn").forEach(b => b.classList.remove("active")); this.classList.add("active"); };
-  document.getElementById("gifBtn").onclick = () => { currentType = "gif"; loadFeed(currentCat, currentType, searchTerm); document.querySelectorAll(".btn").forEach(b => b.classList.remove("active")); this.classList.add("active"); };
+  document.getElementById("allBtn").onclick = () => { currentType = "all"; loadFeed(); };
+  document.getElementById("imgBtn").onclick = () => { currentType = "image"; loadFeed(); };
+  document.getElementById("gifBtn").onclick = () => { currentType = "gif"; loadFeed(); };
 
-  async function loadFeed(cat = "all", type = "all", search = "") {
-    if (!isPremium && Math.random() < 0.3) { // Fake ad for ordinary users
-      Telegram.WebApp.showPopup({title: "Support Us!", message: "Watch ad to continue?", buttons: [{text: "Watch", onClick: () => loadFeed(cat, type, search)}, {text: "Go Premium", onClick: goPremium}]});
-      return;
-    }
-    const params = new URLSearchParams({category: cat, type});
-    if (search) params.append("search", search);
+  async function loadFeed() {
+    const params = new URLSearchParams({category: currentCat, type: currentType});
+    if (searchTerm) params.append("search", searchTerm);
     const res = await fetch(`\( {API_BASE}/media? \){params}`);
     currentMedia = await res.json();
-    currentIndex = 0;
     renderFeed();
   }
 
   function renderFeed() {
     const wrapper = document.getElementById("feed");
     wrapper.innerHTML = "";
-    currentMedia.forEach((m, idx) => {
+    currentMedia.forEach(m => {
       const slide = document.createElement("div");
       slide.className = "swiper-slide slide";
       slide.dataset.id = m.id;
-      slide.dataset.likes = m.likes;
-      if (m.type === "image") {
-        const img = document.createElement("img");
-        img.src = m.url;
-        img.loading = "lazy";
-        slide.appendChild(img);
-      } else {
-        const vid = document.createElement("video");
-        vid.src = m.url;
-        vid.autoplay = true;
-        vid.loop = true;
-        vid.muted = true;
-        vid.playsInline = true;
-        slide.appendChild(vid);
+      const elem = m.type === "image" ? document.createElement("img") : document.createElement("video");
+      elem.src = m.url;
+      elem.loading = "lazy";
+      if (m.type === "gif") {
+        elem.autoplay = elem.loop = elem.muted = elem.playsInline = true;
       }
+      slide.appendChild(elem);
       wrapper.appendChild(slide);
     });
-    initSwiper();
+    new Swiper("#swiper", {
+      direction: "vertical",
+      mousewheel: true,
+      on: { slideChange: () => updateLikeCount() }
+    });
   }
 
-  let swiper;
-  function initSwiper() {
-    swiper = new Swiper("#swiper", {
-      direction: "vertical",
-      loop: false,
-      slidesPerView: 1,
-      spaceBetween: 0,
-      mousewheel: true,
-      on: { slideChange: (e) => { currentIndex = e.activeIndex; updateLikeCount(); } }
-    });
+  async function likeCurrent() {
+    const id = document.querySelector(".swiper-slide-active")?.dataset.id;
+    if (id) {
+      await fetch(`\( {API_BASE}/like/ \){id}`, {method: "POST"});
+      const media = currentMedia.find(x => x.id == id);
+      if (media) media.likes++;
+      updateLikeCount();
+    }
   }
 
   function updateLikeCount() {
-    const activeSlide = document.querySelector(".swiper-slide-active");
-    const id = activeSlide?.dataset.id;
+    const id = document.querySelector(".swiper-slide-active")?.dataset.id;
     const media = currentMedia.find(x => x.id == id);
     document.getElementById("likeCount").textContent = media?.likes || 0;
   }
 
-  async function likeCurrent() {
-    const activeSlide = document.querySelector(".swiper-slide-active");
-    const id = activeSlide?.dataset.id;
-    if (!id) return;
-    await fetch(`\( {API_BASE}/like/ \){id}`, {method: "POST"});
-    const media = currentMedia.find(x => x.id == id);
-    if (media) { media.likes++; updateLikeCount(); }
-  }
-
   function saveCurrent() {
-    if (!isPremium && localStorage.getItem("savesToday") >= 5) {
-      Telegram.WebApp.showAlert("Ordinary users can save 5/day. Go premium for unlimited!");
+    if (!isPremium && savesToday >= 5) {
+      Telegram.WebApp.showAlert("Free users: 5 saves/day. Go premium for unlimited!");
       return;
     }
-    // Save logic (localStorage for now)
-    Telegram.WebApp.showAlert("Saved to gallery!");
+    const url = document.querySelector(".swiper-slide-active img, .swiper-slide-active video")?.src;
+    playlist.push(url);
+    localStorage.setItem("playlist", JSON.stringify(playlist));
+    savesToday++;
+    localStorage.setItem("savesToday", savesToday);
+    Telegram.WebApp.showAlert("Saved!");
   }
 
   function shareCurrent() {
-    const activeSlide = document.querySelector(".swiper-slide-active img, .swiper-slide-active video");
-    const url = activeSlide?.src || "";
-    Telegram.WebApp.openTelegramLink(`https://t.me/share/url?url=${encodeURIComponent(url)}&text=Check this from @IMAGIFHUB!`);
+    const url = document.querySelector(".swiper-slide-active img, .swiper-slide-active video")?.src;
+    Telegram.WebApp.openTelegramLink(`https://t.me/share/url?url=${encodeURIComponent(url)}&text=From @IMAGIFHUB`);
+  }
+
+  function shareBot() {
+    Telegram.WebApp.openTelegramLink('https://t.me/share/url?url=https://t.me/IMAGIFHUB&text=Check out IMAGIFHUB — endless images & GIFs!');
   }
 
   function openPlaylist() {
-    Telegram.WebApp.showAlert("Playlist: Saved items here (premium: infinite, ordinary: 5/day)");
+    Telegram.WebApp.showAlert(`Playlist (${playlist.length} items saved)`);
   }
 
   function goPremium() {
-    Telegram.WebApp.openInvoice("premium_invoice_id", 500, "USD"); // Replace with real Stars invoice from backend
+    Telegram.WebApp.showPopup({
+      title: "Go Premium",
+      message: "Unlimited saves, more themes, no ads, exclusive music — $5/month",
+      buttons: [{text: "Buy with Stars", type: "default"}, {text: "Cancel", type: "cancel"}]
+    });
   }
 
-  // Event listeners
-  document.getElementById("likeBtn").onclick = likeCurrent;
-  document.querySelector(".swiper-container").addEventListener("dblclick", likeCurrent);
+  // Double tap like
+  document.querySelector(".swiper").addEventListener("dblclick", likeCurrent);
 
-  // Theme picker (premium only)
-  if (isPremium) {
-    const themes = ["dark", "white", "red", "green", "darkblue", "skyblue", "grey", "purple", "pink", "orange", "smoke", "brightyellow", "paleyellow"];
-    // Add theme picker button to bar
-  } else {
-    document.querySelector("[data-theme]").setAttribute("data-theme", "dark"); // Default
-  }
+  // Start music on first interaction (Telegram rule)
+  document.body.addEventListener("touchstart", () => {
+    if (!musicPlaying) toggleMusic();
+  }, {once: true});
 
-  // Initial load
   loadFeed();
 </script>
 </body>
