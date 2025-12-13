@@ -19,7 +19,7 @@ logging.basicConfig(level=logging.INFO)
 # ==================== CONFIG ====================
 BOT_TOKEN = os.environ["BOT_TOKEN"]
 ADMIN_ID = int(os.environ["ADMIN_ID"])
-IMGBB_API_KEY = os.environ["IMGBB_API_KEY"]   # Only this key needed
+IMGBB_API_KEY = os.environ["IMGBB_API_KEY"]
 
 bot = Bot(token=BOT_TOKEN, default=DefaultBotProperties(parse_mode="HTML"))
 storage = MemoryStorage()
@@ -36,46 +36,45 @@ c.execute('''CREATE TABLE IF NOT EXISTS media (
 )''')
 conn.commit()
 
-# ==================== CATEGORIES & STATES ====================
+# ==================== STATES ====================
+class AdminUpload(StatesGroup):
+    waiting_media = State()
+    waiting_category = State()
+    waiting_keywords = State()
+
 CATEGORIES = [
     "Nature", "Space", "City", "Superhero", "Supervillain", "Robotic",
     "Anime", "Cars", "Wildlife", "Funny", "Seasonal Greetings",
     "Dark Aesthetic", "Luxury", "Gaming", "Ancient World"
 ]
 
-class AdminUpload(StatesGroup):
-    waiting_media = State()
-    waiting_category = State()
-    waiting_keywords = State()
-
-# ==================== ADMIN PANEL ====================
+# ==================== ADMIN PANEL (Images Only) ====================
 @dp.message(Command("admin"))
 async def admin_panel(message: Message):
     if message.from_user.id != ADMIN_ID:
         return await message.reply("Access denied.")
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="Upload Image", callback_data="upload_image")],
-        [InlineKeyboardButton(text="Upload GIF", callback_data="upload_gif")]
+        [InlineKeyboardButton(text="Upload Image", callback_data="upload_image")]
+        # Removed GIF button
     ])
-    await message.reply("Welcome Admin! What do you want to upload?", reply_markup=keyboard)
+    await message.reply("Welcome Admin! Upload images (up to 10 at once)", reply_markup=keyboard)
 
-@dp.callback_query(F.data.in_(["upload_image", "upload_gif"]))
+@dp.callback_query(F.data == "upload_image")
 async def choose_type(call: CallbackQuery, state: FSMContext):
-    await state.update_data(media_type="image" if call.data == "upload_image" else "gif")
-    await call.message.edit_text("Send me the image/GIF now (you can send up to 10 at once!)")
+    await call.message.edit_text("Send me the image(s) now (up to 10 at once!)")
     await state.set_state(AdminUpload.waiting_media)
 
-# ==================== UPLOAD (SINGLE OR ALBUM) ====================
-@dp.message(AdminUpload.waiting_media, F.photo | F.animation | F.document | F.media_group_id)
+# ==================== UPLOAD (Photos Only — Single or Album) ====================
+@dp.message(AdminUpload.waiting_media, F.photo | F.media_group_id)
 async def receive_media(message: Message, state: FSMContext, album: list[Message] | None = None):
     try:
-        data = await state.get_data()
         messages = album or [message]
-
         uploaded_urls = []
+
         for msg in messages:
-            file_id = (msg.photo[-1].file_id if msg.photo else
-                       msg.animation.file_id if msg.animation else msg.document.file_id)
+            if not msg.photo:
+                continue  # Skip non-photos
+            file_id = msg.photo[-1].file_id
             file = await bot.get_file(file_id)
             file_bytes = await bot.download_file(file.file_path)
 
@@ -87,13 +86,16 @@ async def receive_media(message: Message, state: FSMContext, album: list[Message
             url = resp.json()['data']['url']
             uploaded_urls.append(url)
 
+        if not uploaded_urls:
+            return await message.reply("No valid images found — try again.")
+
         await state.update_data(urls=uploaded_urls)
 
         keyboard = InlineKeyboardMarkup(inline_keyboard=[
             [InlineKeyboardButton(text=cat, callback_data=f"cat_{cat}") for cat in CATEGORIES[i:i+3]]
             for i in range(0, len(CATEGORIES), 3)
         ])
-        await message.reply(f"Received {len(uploaded_urls)} media! Choose category:", reply_markup=keyboard)
+        await message.reply(f"Received {len(uploaded_urls)} image(s)! Choose category:", reply_markup=keyboard)
         await state.set_state(AdminUpload.waiting_category)
     except Exception as e:
         logging.error(f"Upload error: {e}")
@@ -111,14 +113,14 @@ async def final_step(message: Message, state: FSMContext):
     try:
         data = await state.get_data()
         keywords = message.text.strip()
-        urls = data.get("urls", [data.get("url")])
+        urls = data.get("urls", [])
 
         for url in urls:
             c.execute("INSERT INTO media (url, type, category, keywords, uploaded_at) VALUES (?, ?, ?, ?, ?)",
-                      (url, data['media_type'], data['category'], keywords, datetime.now().isoformat()))
+                      (url, "image", data['category'], keywords, datetime.now().isoformat()))
         conn.commit()
 
-        await message.reply(f"Successfully uploaded {len(urls)} item(s)!\nCategory: {data['category']}\nKeywords: {keywords}")
+        await message.reply(f"Successfully uploaded {len(urls)} image(s)!\nCategory: {data['category']}\nKeywords: {keywords}")
         await state.clear()
     except Exception as e:
         logging.error(f"Save error: {e}")
@@ -147,9 +149,9 @@ async def like(media_id: int):
 
 @app.get("/")
 async def health():
-    return {"status": "IMAGIFHUB Live - ImgBB Only"}
+    return {"status": "IMAGIFHUB Live - Images Only"}
 
-# ==================== RUN BOT + SERVER ====================
+# ==================== RUN ====================
 async def run_bot():
     await dp.start_polling(bot, skip_updates=True)
 
