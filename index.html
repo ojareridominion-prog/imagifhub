@@ -12,46 +12,38 @@
       --bg: #000; --text: #fff; --accent: #9c4dff; --bar: #111; --like: #fff; --liked: #ff0000;
     }
     body,html,#app{height:100%;margin:0;background:var(--bg);color:var(--text);font-family:system-ui;overflow:hidden;position:relative;}
-    .bar{position:fixed;top:0;left:0;right:0;height:56px;background:var(--bar);z-index:1000;display:flex;align-items:center;padding:0 12px;box-sizing:border-box;gap:12px;border-bottom:1px solid #333;}
-    .btn{background:var(--accent);color:#fff;padding:8px 16px;border-radius:20px;font-size:14px;font-weight:600;cursor:pointer;}
-    .menu-btn{position:fixed;top:12px;left:12px;z-index:1001;font-size:24px;cursor:pointer;}
-    .music-btn{position:fixed;top:12px;right:12px;z-index:1001;background:var(--accent);color:#fff;padding:8px 12px;border-radius:50%;font-size:18px;cursor:pointer;}
-    .search-bar{position:fixed;top:56px;left:0;right:0;background:var(--bar);padding:8px;z-index:998;}
-    .search-input{background:#333;color:var(--text);border:none;border-radius:20px;padding:10px;width:100%;box-sizing:border-box;}
-    .cat-bar{position:fixed;top:104px;left:0;right:0;height:48px;background:var(--bar);overflow-x:auto;white-space:nowrap;padding:8px 12px;box-sizing:border-box;z-index:999;display:flex;gap:8px;}
-    .cat-btn{padding:8px 16px;background:#333;color:#fff;border-radius:20px;font-size:14px;cursor:pointer;transition:0.3s;}
+    .top-bar{position:fixed;top:0;left:0;right:0;height:56px;background:var(--bar);z-index:1000;display:flex;align-items:center;justify-content:space-between;padding:0 16px;box-sizing:border-box;border-bottom:1px solid #333;}
+    .hamburger{font-size:28px;cursor:pointer;}
+    .search-container{display:flex;align-items:center;flex:1;margin:0 16px;}
+    .search-input{background:#333;color:var(--text);border:none;border-radius:20px;padding:10px 40px 10px 16px;width:100%;box-sizing:border-box;}
+    .music-btn{background:var(--accent);color:#fff;padding:8px 12px;border-radius:50%;font-size:20px;cursor:pointer;}
+    .cat-bar{position:fixed;top:56px;left:0;right:0;height:56px;background:var(--bar);overflow-x:auto;display:flex;align-items:center;padding:0 16px;gap:12px;z-index:999;border-bottom:1px solid #333;white-space:nowrap;}
+    .cat-btn{padding:10px 20px;background:#333;color:#fff;border-radius:20px;font-size:14px;cursor:pointer;transition:0.3s;}
     .cat-btn.active{background:#fff;color:#000;font-weight:bold;}
-    .swiper{width:100%;height:100%;padding-top:152px !important;padding-bottom:80px !important;}
-    .slide{display:flex;align-items:center;justify-content:center;background:#000;position:relative;}
+    .swiper{width:100%;height:100%;padding-top:112px !important;padding-bottom:90px !important;}
+    .slide{display:flex;align-items:center;justify-content:center;background:#000;}
     img{max-width:100%;max-height:100%;object-fit:contain;}
-    .bottom-bar{position:fixed;bottom:0;left:0;right:0;height:80px;background:var(--bar);z-index:1000;display:flex;align-items:center;justify-content:space-around;border-top:1px solid #333;}
-    .icon{font-size:28px;cursor:pointer;}
+    .bottom-bar{position:fixed;bottom:0;left:0;right:0;height:90px;background:var(--bar);z-index:1000;display:flex;align-items:center;justify-content:space-around;border-top:1px solid #333;}
+    .icon{font-size:30px;cursor:pointer;position:relative;}
     .like-icon{color:var(--like);}
     .liked{color:var(--liked);}
-    .keyword-title{position:absolute;bottom:90px;left:16px;background:rgba(0,0,0,0.7);padding:4px 8px;border-radius:8px;font-size:12px;max-width:80%;}
-    .menu-panel{position:fixed;top:0;left:-100%;width:80%;height:100%;background:var(--bar);z-index:1002;transition:0.3s;padding:60px 20px;box-sizing:border-box;}
+    .like-count{position:absolute;top:-8px;right:-12px;background:#333;padding:2px 6px;border-radius:10px;font-size:12px;}
+    .keyword-title{position:absolute;bottom:100px;left:16px;background:rgba(0,0,0,0.7);padding:6px 12px;border-radius:12px;font-size:14px;max-width:80%;}
+    .menu-panel{position:fixed;top:0;left:-100%;width:80%;height:100%;background:var(--bar);z-index:1002;transition:left 0.3s;padding:70px 20px 20px;box-sizing:border-box;overflow-y:auto;}
     .menu-panel.open{left:0;}
-    .menu-item{padding:16px 0;border-bottom:1px solid #333;cursor:pointer;}
-    .premium-lock{color:#888;}
+    .menu-item{padding:16px 0;border-bottom:1px solid #444;font-size:16px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;}
+    .lock{color:#888;}
   </style>
 </head>
 <body>
   <div id="app">
-    <!-- Menu Button -->
-    <div class="menu-btn" onclick="toggleMenu()">☰</div>
-
-    <!-- Music Button -->
-    <div class="music-btn" onclick="toggleMusic()">♪</div>
-
     <!-- Top Bar -->
-    <div class="bar">
-      <div class="btn" onclick="Telegram.WebApp.openTelegramLink('https://t.me/imagifhub')">Channel</div>
-      <div class="btn" onclick="shareBot()">Share</div>
-    </div>
-
-    <!-- Search Bar -->
-    <div class="search-bar">
-      <input type="text" class="search-input" id="searchInput" placeholder="Search keywords..." oninput="searchTerm=this.value;loadFeed()">
+    <div class="top-bar">
+      <div class="hamburger" onclick="toggleMenu()">☰</div>
+      <div class="search-container">
+        <input type="text" class="search-input" id="searchInput" placeholder="Search keywords..." oninput="searchTerm=this.value;loadFeed()">
+      </div>
+      <div class="music-btn" onclick="toggleMusic()">♪</div>
     </div>
 
     <!-- Category Bar (Scrollable) -->
@@ -64,45 +56,47 @@
 
     <!-- Bottom Bar -->
     <div class="bottom-bar">
-      <span class="icon like-icon" id="likeBtn" onclick="likeCurrent()">❤️ <span id="likeCount">0</span></span>
-      <span class="icon" onclick="commentCurrent()">💬</span>
-      <span class="icon" onclick="downloadCurrent()">↓</span>
-      <span class="icon" onclick="giftStars()">⭐</span>
-      <span class="icon" onclick="saveToPlaylist()">📌</span>
+      <div class="icon like-icon" onclick="likeCurrent()">
+        ❤️ <span class="like-count" id="likeCount">0</span>
+      </div>
+      <div class="icon" onclick="commentCurrent()">💬</div>
+      <div class="icon" onclick="downloadCurrent()">↓</div>
+      <div class="icon" onclick="giftStars()">⭐</div>
+      <div class="icon" onclick="saveToPlaylist()">📌</div>
     </div>
 
     <!-- Keyword Title -->
     <div class="keyword-title" id="keywordTitle"></div>
 
-    <!-- Hamburger Menu Panel -->
+    <!-- Hamburger Menu -->
     <div class="menu-panel" id="menuPanel">
       <div class="menu-item" onclick="checkIn()">Check In (7 days = 6h Premium)</div>
       <div class="menu-item" onclick="Telegram.WebApp.openTelegramLink('https://t.me/imagifhub')">Channel</div>
       <div class="menu-item" onclick="shareBot()">Share Bot</div>
       <div class="menu-item" onclick="openPlaylist()">Playlist</div>
-      <div class="menu-item">Wallpaper Colors <span class="premium-lock">🔒 Premium</span></div>
+      <div class="menu-item" onclick="openWallpaper()">Wallpaper Colors <span class="lock">🔒 Premium</span></div>
       <div class="menu-item" onclick="goPremium()">Go Premium</div>
     </div>
   </div>
 
   <!-- Background Music -->
-  <audio id id="bgMusic" loop></audio>
+  <audio id="bgMusic"></audio>
 
   <script>
     const API_BASE = "https://imagifhub.onrender.com";
     let currentMedia = [], currentIndex = 0, currentCat = "all", searchTerm = "";
-    let isPremium = localStorage.getItem("premium") === "true";
+    let isPremium = localStorage.getItem("premium") === "true" || false;
     let savesToday = parseInt(localStorage.getItem("savesToday") || "0");
     let playlist = JSON.parse(localStorage.getItem("playlist") || "[]");
     let musicPlaying = true;
 
-    // CATEGORY-SPECIFIC MUSIC (add your links here)
+    // CATEGORY MUSIC (add your royalty-free MP3 links)
     const categoryMusic = {
       "all": "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3",
       "Nature": "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3",
       "Cars": "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3",
-      "Anime": "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-4.mp3",
-      // Add more: "Space": "link", "Superhero": "link", etc.
+      "Superhero": "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-4.mp3",
+      // Add more categories with links
     };
     const audio = document.getElementById("bgMusic");
 
@@ -111,7 +105,7 @@
     Telegram.WebApp.ready();
     Telegram.WebApp.expand();
 
-    // Category Bar
+    // Build category bar (horizontal scroll)
     const catBar = document.getElementById("catBar");
     categories.forEach(cat => {
       const btn = document.createElement("div");
@@ -120,17 +114,18 @@
       btn.onclick = () => {
         document.querySelectorAll(".cat-btn").forEach(b => b.classList.remove("active"));
         btn.classList.add("active");
-        currentCat = cat.toLowerCase();
+        currentCat = cat;
         loadFeed();
-        playCategoryMusic(currentCat);
+        playCategoryMusic(cat);
       };
       catBar.appendChild(btn);
     });
 
     async function loadFeed() {
-      const params = new URLSearchParams({category: currentCat === "all" ? "all" : currentCat});
-      if (searchTerm) params.append("search", searchTerm);
-      const res = await fetch(`\( {API_BASE}/media? \){params}`);
+      let url = `${API_BASE}/media?category=all`;
+      if (currentCat !== "all") url = `\( {API_BASE}/media?category= \){currentCat}`;
+      if (searchTerm) url += `&search=${searchTerm}`;
+      const res = await fetch(url);
       currentMedia = await res.json();
       renderFeed();
     }
@@ -138,7 +133,7 @@
     function renderFeed() {
       const wrapper = document.getElementById("feed");
       wrapper.innerHTML = "";
-      currentMedia.forEach((m, i) => {
+      currentMedia.forEach(m => {
         const slide = document.createElement("div");
         slide.className = "swiper-slide slide";
         slide.dataset.id = m.id;
@@ -152,23 +147,22 @@
       new Swiper("#swiper", {
         direction: "vertical",
         mousewheel: true,
-        on: { slideChange: () => updateUI() }
+        on: { slideChange: updateUI }
       });
       updateUI();
-      playCategoryMusic(currentCat);
     }
 
     function updateUI() {
       const active = document.querySelector(".swiper-slide-active");
-      const id = active?.dataset.id;
       const keywords = active?.dataset.keywords || "";
       document.getElementById("keywordTitle").textContent = keywords;
+      const id = active?.dataset.id;
       const media = currentMedia.find(x => x.id == id);
-      document.getElementById("likeCount").textContent = formatLikes(media?.likes || 0);
-      document.querySelector(".like-icon").classList.toggle("liked", false); // reset, add real liked check later
+      document.getElementById("likeCount").textContent = formatNumber(media?.likes || 0);
     }
 
-    function formatLikes(n) {
+    function formatNumber(n) {
+      if (n >= 1000000) return (n/1000000).toFixed(1) + "M";
       if (n >= 1000) return (n/1000).toFixed(1) + "K";
       return n;
     }
@@ -180,26 +174,28 @@
         const media = currentMedia.find(x => x.id == id);
         media.likes++;
         updateUI();
-        document.querySelector(".like-icon").classList.add("liked");
       }
     }
 
     function commentCurrent() {
-      const comment = prompt("Your comment:");
-      if (comment) Telegram.WebApp.showAlert("Comment posted! (real feature soon)");
+      const comment = prompt("Write comment:");
+      if (comment) Telegram.WebApp.showAlert("Comment posted!");
     }
 
     function downloadCurrent() {
-      if (!isPremium && savesToday >= 5) return Telegram.WebApp.showAlert("5 downloads/day free. Go premium!");
+      if (!isPremium && savesToday >= 5) {
+        Telegram.WebApp.showAlert("Free: 5 downloads/day. Go premium for unlimited!");
+        return;
+      }
       const url = document.querySelector(".swiper-slide-active img")?.src;
-      Telegram.WebApp.sendData(`download:${url}`);
-      Telegram.WebApp.showAlert("Download started!");
+      Telegram.WebApp.openLink(url); // Opens in browser → user can save
       savesToday++;
       localStorage.setItem("savesToday", savesToday);
+      Telegram.WebApp.showAlert("Save from browser!");
     }
 
     function giftStars() {
-      Telegram.WebApp.showPopup({title: "Send Gift", message: "Send Stars to support!", buttons: [{text: "Send 50 Stars", type: "default"}]});
+      Telegram.WebApp.openInvoice({ /* real Stars later */ });
     }
 
     function saveToPlaylist() {
@@ -210,11 +206,15 @@
     }
 
     function openPlaylist() {
-      Telegram.WebApp.openLink("playlist.html"); // create this page next
+      location.href = "playlist.html";
+    }
+
+    function openWallpaper() {
+      location.href = "premium.html";
     }
 
     function shareBot() {
-      Telegram.WebApp.openTelegramLink('https://t.me/share/url?url=https://t.me/IMAGIFHUB&text=Check out IMAGIFHUB — endless beautiful images!');
+      Telegram.WebApp.openTelegramLink('https://t.me/share/url?url=https://t.me/IMAGIFHUB&text=Best image hub ever!');
     }
 
     function toggleMenu() {
@@ -222,15 +222,14 @@
     }
 
     function checkIn() {
-      // Simple 7-day streak check-in logic (fake premium time)
-      Telegram.WebApp.showAlert("Checked in! 7 days = 6h premium");
+      Telegram.WebApp.showAlert("Check-in complete! Come back tomorrow.");
     }
 
     function goPremium() {
       Telegram.WebApp.showPopup({
         title: "Premium",
-        message: "Unlimited downloads, exclusive themes, no ads, playlist sync — $5/month",
-        buttons: [{text: "Buy with Stars", type: "default"}, {text: "Cancel", type: "cancel"}]
+        message: "Unlimited downloads, playlist sync, exclusive music & themes",
+        buttons: [{text: "Buy with Stars", type: "default"}]
       });
     }
 
@@ -244,16 +243,12 @@
     }
 
     function playCategoryMusic(cat) {
-      const track = categoryMusic[cat] || categoryMusic["all"];
+      const track = categoryMusic[cat.toLowerCase()] || categoryMusic["all"];
       audio.src = track;
-      audio.play();
+      audio.play().catch(() => {}); // Ignore autoplay block
       musicPlaying = true;
-      // Auto next track after end + 3-4s delay
       audio.onended = () => setTimeout(() => playCategoryMusic(cat), 3500);
     }
-
-    // Double tap like
-    document.querySelector(".swiper").addEventListener("dblclick", likeCurrent);
 
     // Start music on first touch
     document.body.addEventListener("touchstart", () => playCategoryMusic("all"), {once: true});
@@ -261,4 +256,4 @@
     loadFeed();
   </script>
 </body>
-  </html>
+</html>
