@@ -3,7 +3,7 @@ import asyncio
 import logging
 import requests
 from fastapi import FastAPI, Request
-from aiogram import Bot, Dispatcher, types, F
+from aiogram import Bot, Dispatcher, F
 from aiogram.filters import Command
 from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.fsm.context import FSMContext
@@ -13,7 +13,6 @@ from aiogram.client.default import DefaultBotProperties
 
 # NEW IMPORTS FOR SUPABASE
 from supabase import create_client, Client
-from datetime import datetime
 import uvicorn
 
 logging.basicConfig(level=logging.INFO)
@@ -29,23 +28,25 @@ SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
 
 if not SUPABASE_URL or not SUPABASE_KEY:
     logging.error("SUPABASE_URL or SUPABASE_KEY not set in environment.")
-    # Exit or raise error, depending on deployment strategy
+    # In a production environment, you might stop the app here.
 
 # Initialize Supabase Client
-supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
-logging.info("Supabase client initialized.")
-# ===========================
+try:
+    supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+    logging.info("Supabase client initialized.")
+except Exception as e:
+     logging.error(f"Failed to initialize Supabase client: {e}")
+     # Proceed with partial functionality if initialization is non-fatal
+
+# ==================== DATABASE REMOVAL ====================
+# Removed: import sqlite3
+# Removed: conn = sqlite3.connect(...)
+# Removed: c.execute(...)
 
 bot = Bot(token=BOT_TOKEN, default=DefaultBotProperties(parse_mode="HTML"))
 storage = MemoryStorage()
 dp = Dispatcher(storage=storage)
 app = FastAPI()
-
-# ==================== OLD DATABASE REMOVED ====================
-# Removed: import sqlite3
-# Removed: conn = sqlite3.connect("imagifhub.db", check_same_thread=False)
-# Removed: c = conn.cursor()
-# Removed: c.execute(...)
 
 # ==================== STATES ====================
 class AdminUpload(StatesGroup):
@@ -66,7 +67,6 @@ async def admin_panel(message: Message):
         return await message.reply("Access denied.")
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="Upload Image", callback_data="upload_image")]
-        # Removed GIF button
     ])
     await message.reply("Welcome Admin! Upload images (up to 10 at once)", reply_markup=keyboard)
 
@@ -128,30 +128,46 @@ async def final_step(message: Message, state: FSMContext):
         
         insert_count = 0
         
-        # === NEW: INSERT INTO SUPABASE ===
+        # === NEW: INSERT INTO SUPABASE (FIXED LOGIC) ===
         for url in urls:
-            supabase_data, count = supabase.table('media_content').insert({
+            # 1. Prepare the data payload, using the column names from your Supabase table
+            payload = {
                 "url": url,
                 "category": data['category'],
-                "Keyword": keywords,  # Column name from Supabase table
-                "Likes": 0,           # Column name from Supabase table
+                "Keyword": keywords, # Maps to the "Keyword" column in Supabase
+                "Likes": 0,           # Maps to the "Likes" column in Supabase
                 # 'Uploaded' is set automatically by the 'now()' default
-            }).execute()
+            }
             
-            if count and count > 0:
+            # 2. Execute the insertion
+            response = supabase.table('media_content').insert(payload).execute()
+            
+            # 3. Check for successful insertion (fixes the 'tuple' and 'int' error)
+            # The inserted row data is in the .data property if successful
+            if response.data and len(response.data) > 0:
                 insert_count += 1
-        # =================================
+            else:
+                logging.error(f"Supabase insertion failed for URL: {url}. Response: {response.json()}")
 
-        await message.reply(f"Successfully uploaded {insert_count} image(s) to Supabase!\nCategory: {data['category']}\nKeywords: {keywords}")
+        # 4. Final Bot Reply
+        if insert_count > 0:
+            await message.reply(f"✅ Successfully uploaded {insert_count} image(s) to Supabase!\nCategory: {data['category']}\nKeywords: {keywords}")
+        else:
+             await message.reply("❌ Error: ImgBB upload succeeded, but no data was saved to Supabase.")
+
         await state.clear()
+        
     except Exception as e:
+        # This catches errors during ImgBB upload or other unexpected Supabase errors
         logging.error(f"Save error: {e}")
-        await message.reply(f"Save failed — try again. Error: {e}")
+        # The Supabase response often contains details in the error object:
+        await message.reply(f"❌ Save failed — try again. Error: {e}")
 
 # ==================== API ENDPOINTS ====================
 @app.get("/media")
-async def get_media(category: str = "all", search: str = "", type: str = "all"):
+async def get_media(category: str = "all", search: str = ""): # Removed 'type' as you only have images now
     # === NEW: FETCH FROM SUPABASE ===
+    # Select the columns, mapping 'Keyword' and 'Likes' to expected keys for frontend
     query = supabase.table('media_content').select('id, url, category, "Keyword", "Likes"')
     
     if category != "all":
@@ -163,36 +179,36 @@ async def get_media(category: str = "all", search: str = "", type: str = "all"):
         
     # Order by ID descending (most recent first) and limit results
     try:
-        # The execute() method returns a SupabaseResponse object
         response = query.order('id', desc=True).limit(50).execute()
         
-        # Map the results to match the expected JSON structure
+        # Format the results for the frontend
         rows = response.data
         return [{"id": r['id'], "url": r['url'], "type": "image", "category": r['category'], "keywords": r['Keyword'], "likes": r['Likes']} for r in rows]
 
     except Exception as e:
         logging.error(f"Supabase GET /media error: {e}")
         return {"error": "Could not fetch media content from database."}, 500
-    # =================================
 
 @app.post("/like/{media_id}")
 async def like(media_id: int):
     # === NEW: UPDATE LIKES IN SUPABASE ===
     try:
-        # Use rpc('increment_likes') for a cleaner update if you had a function,
-        # but the standard update is fine here:
+        # We can use the fetch-then-update pattern for a simple increment
         
         # 1. Fetch current likes
+        # Note: If the ID column is UUID (as previously discussed), media_id should be string
+        # Assuming ID is convertible to integer/serial type for now based on previous code.
         current_data = supabase.table('media_content').select('Likes').eq('id', media_id).single().execute()
         current_likes = current_data.data['Likes'] if current_data.data else 0
         new_likes = current_likes + 1
         
         # 2. Update the Likes column
-        data, count = supabase.table('media_content').update({
+        response = supabase.table('media_content').update({
             "Likes": new_likes
         }).eq('id', media_id).execute()
         
-        if count and count > 0:
+        # Check if update was successful (response.count is more reliable here)
+        if response.count and response.count > 0:
              # Return the new like count for the Mini App to update
              return {"success": True, "new_likes": new_likes}
         else:
@@ -201,7 +217,6 @@ async def like(media_id: int):
     except Exception as e:
         logging.error(f"Supabase POST /like error: {e}")
         return {"success": False, "message": "Database update failed."}, 500
-    # =======================================
 
 @app.get("/")
 async def health():
@@ -209,13 +224,10 @@ async def health():
 
 # ==================== RUN ====================
 async def run_bot():
-    # Setting skip_updates=False for a production bot might be preferred 
-    # to process updates that occurred while the bot was offline.
     await dp.start_polling(bot, skip_updates=True)
 
 async def run_server():
     port = int(os.environ.get("PORT", 10000))
-    # Note: Using the main application instance for uvicorn config
     config = uvicorn.Config(app, host="0.0.0.0", port=port, log_level="info")
     server = uvicorn.Server(config)
     await server.serve()
@@ -225,4 +237,3 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
-            
