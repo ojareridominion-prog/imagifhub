@@ -1,475 +1,233 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
-  <title>IMAGIFHUB</title>
-  <script src="https://unpkg.com/@telegram-apps/sdk@7.2.0/dist/core.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.js"></script>
-  <link href="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.css" rel="stylesheet"/>
-  <link href="style.css" rel="stylesheet"/> 
-  <style>
-    :root {
-  /* Default Dark Theme for Ordinary Users */
-  --bg: #000;
-  --text: #fff;
-  --accent: #9c4dff; /* Purple for general buttons */
-  --bar: #1a1a1a;
-  --like: #fff;
-  --liked: #ff3040;
-  --cat-bg: #333;
-  --cat-text: #fff;
-  --cat-active-bg: #fff;
-  --cat-active-text: #000;
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+<title>IMAGIFHUB</title>
+
+<!-- Telegram SDK -->
+<script src="https://unpkg.com/@telegram-apps/sdk@7.2.0/dist/core.min.js"></script>
+
+<!-- Swiper -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.css"/>
+<script src="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.js"></script>
+
+<style>
+:root {
+  --bg:#000; --text:#fff; --bar:#1a1a1a; --accent:#9c4dff;
+  --cat-bg:#333; --cat-text:#fff; --cat-active-bg:#fff; --cat-active-text:#000;
 }
 
-/* White Theme variables (applied when switching theme) */
-.white-theme {
-  --bg: #fff;
-  --text: #000;
-  --bar: #f0f0f0;
-  --cat-bg: #ddd;
-  --cat-text: #000;
-  --cat-active-bg: #000;
-  --cat-active-text: #fff;
+body,html {
+  margin:0; height:100%; background:var(--bg); color:var(--text);
+  font-family:system-ui; overflow:hidden;
 }
-
-/* Premium Themes (applied based on user choice) */
-.red-theme { --bg: #300; --accent: #ff0000; }
-.green-theme { --bg: #030; --accent: #00ff00; }
-/* ... Add CSS for all other premium colors here (dark blue, sky blue, etc.) */
-
-/* GLOBAL STYLES */
-body,html,#app{height:100%;margin:0;background:var(--bg);color:var(--text);font-family:system-ui;overflow:hidden;position:relative;}
 
 /* TOP BAR */
-.top-bar{position:fixed;top:0;left:0;right:0;height:56px;background:var(--bar);z-index:1000;display:flex;align-items:center;padding:0 16px;box-sizing:border-box;border-bottom:1px solid #333;}
-.hamburger{font-size:28px;cursor:pointer;margin-right:8px;}
-.search-container{flex:1;margin:0 16px;}
-.search-input{background:var(--cat-bg);color:var(--text);border:none;border-radius:20px;padding:10px 16px;width:100%;box-sizing:border-box;}
-.music-btn{background:var(--accent);color:#fff;width:38px;height:38px;border-radius:50%;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;}
+.top-bar {
+  position:fixed; top:0; left:0; right:0;
+  height:56px; background:var(--bar);
+  display:flex; align-items:center; padding:0 12px;
+  z-index:3000;
+}
+.hamburger { font-size:26px; cursor:pointer; }
+.search-container { flex:1; margin:0 12px; }
+.search-input {
+  width:100%; padding:8px 14px; border:none; border-radius:20px;
+  background:#333; color:#fff;
+}
+.music-btn {
+  width:36px; height:36px; border-radius:50%;
+  background:var(--accent); color:#fff;
+  display:flex; align-items:center; justify-content:center;
+  cursor:pointer;
+}
 
 /* CATEGORY BAR */
-.cat-bar{position:fixed;top:56px;left:0;right:0;height:48px;background:var(--bar);overflow-x:auto;overflow-y:hidden;display:flex;align-items:center;padding:0 16px;gap:12px;z-index:999;border-bottom:1px solid #333;white-space:nowrap;-webkit-overflow-scrolling:touch;}
-.cat-bar::-webkit-scrollbar {display:none;}
-.cat-btn{padding:8px 16px;background:var(--cat-bg);color:var(--cat-text);border-radius:20px;font-size:14px;cursor:pointer;transition:0.3s;flex-shrink:0;}
-.cat-btn.active{background:var(--cat-active-bg);color:var(--cat-active-text);font-weight:bold;}
+.cat-bar {
+  position:fixed; top:56px; left:0; right:0;
+  height:48px; background:var(--bar);
+  display:flex; gap:10px; align-items:center;
+  padding:0 12px; overflow-x:auto;
+  z-index:2500;
+}
+.cat-bar::-webkit-scrollbar{display:none;}
+.cat-btn {
+  padding:6px 14px; border-radius:20px;
+  background:var(--cat-bg); color:var(--cat-text);
+  white-space:nowrap; cursor:pointer;
+}
+.cat-btn.active {
+  background:var(--cat-active-bg);
+  color:var(--cat-active-text);
+  font-weight:bold;
+}
 
-/* SWIPER FEED & MEDIA */
-.swiper{width:100%;height:100%;padding-top:104px !important;padding-bottom:20px !important;} /* 56px (Top Bar) + 48px (Cat Bar) */
-.slide{display:flex;align-items:center;justify-content:center;background:var(--bg);}
-img{max-width:100%;max-height:100%;object-fit:contain;}
+/* SWIPER */
+.swiper {
+  position:absolute;
+  top:104px;
+  left:0; right:0; bottom:0;
+  z-index:1;
+}
+.swiper-slide {
+  display:flex; align-items:center; justify-content:center;
+}
+img { max-width:100%; max-height:100%; }
 
 /* RIGHT ACTIONS */
-.right-actions{position:fixed;right:16px;bottom:100px;z-index:1000;display:flex;flex-direction:column;gap:20px;align-items:center;}
-.action-icon{font-size:28px;cursor:pointer;transition:0.3s;text-align:center;}
-.like-icon{color:var(--like);}
-.liked{color:var(--liked);transform:scale(1.1);}
-.action-count{font-size:11px;margin-top:2px;color:var(--text);}
-
-/* KEYWORD TITLE */
-.keyword-title{position:fixed;bottom:20px;left:16px;background:rgba(0,0,0,0.6);color:#fff;padding:6px 12px;border-radius:12px;font-size:14px;max-width:80%;z-index:1000;}
-
-/* MENU PANEL */
-.menu-panel{position:fixed;top:0;left:-100%;width:80%;height:100%;background:var(--bar);z-index:1002;transition:left 0.3s;padding:56px 0 20px;box-sizing:border-box;overflow-y:auto;border-right:1px solid #333;}
-.menu-panel.open{left:0;}
-.menu-close{position:absolute;top:16px;left:16px;font-size:28px;cursor:pointer;z-index:1003;}
-.menu-panel h2 {padding: 0 20px; margin-top: 0;}
-.menu-item{padding:16px 20px;border-bottom:1px solid #444;font-size:16px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;}
-.lock{color:#888;font-size:20px;}
-
-/* WALLPAPER SUBMENU */
-.wallpaper-options{display:flex;flex-wrap:wrap;gap:16px;padding:20px;}
-.wallpaper-option{width:60px;height:60px;border-radius:12px;position:relative;cursor:pointer;overflow:hidden;box-shadow:0 2px 5px rgba(0,0,0,0.3);}
-.wallpaper-option.locked:after {
-  content: '🔒'; position: absolute; top: 0; left: 0; right: 0; bottom: 0;
-  background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center;
-  font-size: 24px; color: #fff;
+.right-actions {
+  position:fixed; right:14px; bottom:90px;
+  display:flex; flex-direction:column; gap:18px;
+  z-index:3000;
 }
-/* Style for the two-tone wallpaper icon */
-.wallpaper-option div {
-  width: 50%; height: 100%; float: left;
+.action-icon { font-size:26px; cursor:pointer; text-align:center; }
+.action-count { font-size:11px; }
+
+/* MENU */
+.menu-panel {
+  position:fixed; top:0; left:-100%;
+  width:80%; height:100%;
+  background:#111; padding-top:56px;
+  transition:0.3s; z-index:5000;
 }
-.theme-icon-default-1 { background-color: #f0f0f0; }
-.theme-icon-default-2 { background-color: #1a1a1a; }
-/* ... Add specific color styles based on your images/requirements ... */
-    
-  </style>
+.menu-panel.open { left:0; }
+.menu-item {
+  padding:16px; border-bottom:1px solid #333; cursor:pointer;
+}
+.menu-close {
+  position:absolute; top:12px; left:12px;
+  font-size:24px; cursor:pointer;
+}
+
+/* KEYWORD */
+.keyword-title {
+  position:fixed; bottom:20px; left:14px;
+  background:rgba(0,0,0,.6);
+  padding:6px 12px; border-radius:12px;
+  z-index:3000;
+}
+</style>
 </head>
+
 <body>
-  <div id="app">
-    
-    <div class="top-bar">
-      <div class="hamburger" id="hamburgerBtn" onclick="toggleMenu()">☰</div>
-      <div class="search-container">
-        <input type="text" class="search-input" id="searchInput" placeholder="Search keywords..." onchange="searchTerm=this.value;loadFeed()">
-      </div>
-      <div class="music-btn" id="musicBtn" onclick="toggleMusic()">♪</div>
+<div id="app">
+
+  <div class="top-bar">
+    <div class="hamburger" onclick="toggleMenu()">☰</div>
+    <div class="search-container">
+      <input class="search-input" placeholder="Search keywords..."
+        onchange="searchTerm=this.value;loadFeed()">
     </div>
-
-    <div class="cat-bar" id="catBar"></div>
-
-    <div class="swiper" id="swiper">
-      <div class="swiper-wrapper" id="feed"></div>
-    </div>
-
-    <div class="right-actions">
-      <div class="action-icon like-icon" id="likeBtn" onclick="likeCurrent()">
-        ❤️
-        <div class="action-count" id="likeCount">0</div>
-      </div>
-      <div class="action-icon" onclick="commentCurrent()">💬</div>
-      <div class="action-icon" onclick="downloadCurrent()">↓<div class="action-count" id="downloadCount"></div></div>
-      <div class="action-icon" onclick="giftStars()">⭐</div>
-      <div class="action-icon" onclick="saveToPlaylist()">📌</div>
-    </div>
-
-    <div class="keyword-title" id="keywordTitle"></div>
-
-    <div class="menu-panel" id="menuPanel">
-      <div class="menu-close" onclick="toggleMenu()">✕</div>
-      <div class="menu-item" id="checkinBtn" onclick="checkIn()">Check In: 7 days = 6h Premium</div>
-      <div class="menu-item" onclick="Telegram.WebApp.openTelegramLink('https://t.me/your_channel_link')">Channel</div>
-      <div class="menu-item" onclick="shareBot()">Share Bot</div>
-      <div class="menu-item" onclick="openPlaylist()">Playlist</div>
-      <div class="menu-item" onclick="openWallpaperMenu()">Wallpaper Colors</div>
-      <div class="menu-item premium-btn" onclick="goPremium()">Go Premium</div>
-    </div>
-
-    <div class="menu-panel sub-menu-panel" id="wallpaperMenu">
-      <div class="menu-close" onclick="closeWallpaperMenu()">← Back</div>
-      <h2>Wallpaper</h2>
-      <div class="wallpaper-options" id="wallpaperOptions">
-        </div>
-    </div>
+    <div class="music-btn" id="musicBtn" onclick="toggleMusic()">♪</div>
   </div>
 
-  <audio id="bgMusic" preload="auto"></audio>
+  <div class="cat-bar" id="catBar"></div>
 
-  <script src="script.js">
-    const API_BASE = "https://imagifhub.onrender.com"; // **UPDATE THIS**
-const CHANNEL_LINK = "https://t.me/imagifhub"; // **UPDATE THIS**
+  <div class="swiper" id="swiper">
+    <div class="swiper-wrapper" id="feed"></div>
+  </div>
 
-let currentMedia = [];
-let currentCat = "all";
-let searchTerm = "";
-let musicPlaying = false;
-let downloadsToday = 0; // Use local storage or backend for persistence
-const MAX_FREE_DOWNLOADS = 5;
+  <div class="right-actions">
+    <div class="action-icon">❤️<div class="action-count" id="likeCount">0</div></div>
+    <div class="action-icon">💬</div>
+    <div class="action-icon">↓</div>
+    <div class="action-icon">⭐</div>
+    <div class="action-icon">📌</div>
+  </div>
 
-// --- Music Data (Update with your specific MP3 links) ---
-const categoryMusic = {
-  "Nature": ["https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3"],
-  "Cars": ["https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3"],
-  "Superhero": ["https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3"],
-  "Default": [
-    "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-4.mp3",
-    "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-5.mp3",
-    "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-6.mp3",
-  ]
-};
-const audio = document.getElementById("bgMusic");
+  <div class="keyword-title" id="keywordTitle">IMAGIFHUB</div>
 
-// --- Theme Data ---
-const themes = [
-    { name: "Dark", class: "", isPremium: false, color1: '#1a1a1a', color2: '#000' },
-    { name: "White", class: "white-theme", isPremium: false, color1: '#fff', color2: '#f0f0f0' },
-    { name: "Red", class: "red-theme", isPremium: true, color1: '#ff0000', color2: '#300' },
-    { name: "Green", class: "green-theme", isPremium: true, color1: '#00ff00', color2: '#030' },
-    // Add all other premium themes here (colors from your request)
-];
+  <div class="menu-panel" id="menuPanel">
+    <div class="menu-close" onclick="toggleMenu()">✕</div>
+    <div class="menu-item">Check In</div>
+    <div class="menu-item">Channel</div>
+    <div class="menu-item">Share Bot</div>
+    <div class="menu-item">Go Premium</div>
+  </div>
 
-const categories = ["Nature", "Space", "City", "Superhero", "Supervillain", "Robotic", "Anime", "Cars", "Wildlife", "Funny", "Seasonal Greetings", "Dark Aesthetic", "Luxury", "Gaming", "Ancient World"];
-const allCategories = ["All", ...categories]; // 'All' must be the first option
+</div>
 
+<audio id="bgMusic"></audio>
+
+<script>
+/* TELEGRAM INIT */
 Telegram.WebApp.ready();
 Telegram.WebApp.expand();
 
-// --- Initialization and UI Builders ---
+/* DATA */
+const categories = ["All","Nature","Anime","Cars","Gaming","Luxury"];
+const categoryMusic = {
+  Nature:["https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3"],
+  Anime:["https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3"],
+  Cars:["https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3"],
+  Default:["https://www.soundhelix.com/examples/mp3/SoundHelix-Song-4.mp3"]
+};
 
-function buildCategoryBar() {
-  const catBar = document.getElementById("catBar");
-  catBar.innerHTML = '';
-  
-  // Create an array with "All" first, then the selected category, then the rest
-  let sortedCats = [...categories];
-  if (currentCat !== "all") {
-    // Move currentCat to the front for the moving button effect
-    sortedCats = sortedCats.filter(c => c !== currentCat);
-    sortedCats.unshift(currentCat);
-  }
-  sortedCats.unshift("All");
+let currentCat="All";
+let musicPlaying=false;
+const audio=document.getElementById("bgMusic");
 
-  sortedCats.forEach(cat => {
-    const btn = document.createElement("div");
-    btn.className = `cat-btn ${cat.toLowerCase() === currentCat.toLowerCase() ? 'active' : ''}`;
-    btn.textContent = cat;
-    btn.onclick = () => { handleCategoryClick(cat); };
-    catBar.appendChild(btn);
-  });
-  
-  // Scroll to make the active button visible (especially if it moved)
-  const activeBtn = document.querySelector('.cat-btn.active');
-  if (activeBtn) {
-    activeBtn.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'start' });
-  }
-}
-
-function buildWallpaperMenu() {
-  const optionsDiv = document.getElementById("wallpaperOptions");
-  optionsDiv.innerHTML = '';
-  themes.forEach(theme => {
-    const option = document.createElement("div");
-    option.className = `wallpaper-option ${theme.isPremium ? 'locked' : ''}`;
-    option.onclick = theme.isPremium ? goPremium : () => applyTheme(theme.class);
-    
-    // Two-tone color icon based on the sketch
-    const div1 = document.createElement("div");
-    div1.style.backgroundColor = theme.color1;
-    const div2 = document.createElement("div");
-    div2.style.backgroundColor = theme.color2;
-    
-    option.appendChild(div1);
-    option.appendChild(div2);
-    optionsDiv.appendChild(option);
+/* BUILD CATEGORY BAR */
+function buildCategoryBar(){
+  const bar=document.getElementById("catBar");
+  bar.innerHTML="";
+  categories.forEach(c=>{
+    const b=document.createElement("div");
+    b.className="cat-btn"+(c===currentCat?" active":"");
+    b.textContent=c;
+    b.onclick=()=>{currentCat=c;buildCategoryBar();loadFeed();};
+    bar.appendChild(b);
   });
 }
 
-function applyTheme(themeClass) {
-  document.body.className = themeClass;
+/* FEED */
+function loadFeed(){
+  const feed=document.getElementById("feed");
+  feed.innerHTML="";
+  for(let i=0;i<5;i++){
+    const s=document.createElement("div");
+    s.className="swiper-slide";
+    const img=document.createElement("img");
+    img.src="https://picsum.photos/600/900?random="+Math.random();
+    s.appendChild(img);
+    feed.appendChild(s);
+  }
+  if(document.getElementById("swiper").swiper){
+    document.getElementById("swiper").swiper.destroy(true,true);
+  }
+  new Swiper("#swiper",{direction:"vertical",mousewheel:true});
 }
 
-// --- Category Handling ---
-function handleCategoryClick(cat) {
-  const newCat = cat.toLowerCase() === "all" ? "all" : cat;
-  if (newCat !== currentCat) {
-    currentCat = newCat;
-    buildCategoryBar(); // Rebuilds and sorts the bar
-    loadFeed();
-  }
+/* MENU */
+function toggleMenu(){
+  document.getElementById("menuPanel").classList.toggle("open");
 }
 
-// --- Data Loading and Rendering ---
-async function loadFeed() {
-  let url = `${API_BASE}/media?category=${currentCat}`;
-  if (searchTerm) url += `&search=${searchTerm}`;
-
-  try {
-    const res = await fetch(url);
-    const data = await res.json();
-    currentMedia = data.sort(() => 0.5 - Math.random()); // Randomize feed
-    renderFeed();
-  } catch (e) {
-    Telegram.WebApp.showAlert("Failed to load feed. Check API URL.");
-  }
-  
-  // If music is playing, restart it for the new category
-  if (musicPlaying) {
-    audio.pause();
-    playRandomMusic();
-  }
-}
-
-function renderFeed() {
-  const wrapper = document.getElementById("feed");
-  wrapper.innerHTML = "";
-  if (currentMedia.length === 0) {
-    wrapper.innerHTML = '<div class="swiper-slide slide"><h2>No images found.</h2></div>';
-    return;
-  }
-  
-  currentMedia.forEach((m, index) => {
-    const slide = document.createElement("div");
-    slide.className = "swiper-slide slide";
-    slide.dataset.id = m.id;
-    slide.dataset.keywords = m.keywords;
-    const img = document.createElement("img");
-    img.src = m.url;
-    img.loading = "lazy";
-    slide.appendChild(img);
-    wrapper.appendChild(slide);
+/* MUSIC */
+function playMusic(){
+  const key=currentCat in categoryMusic?currentCat:"Default";
+  const list=categoryMusic[key];
+  audio.src=list[Math.floor(Math.random()*list.length)];
+  audio.volume=0.5;
+  audio.play().then(()=>{
+    musicPlaying=true;
+    document.getElementById("musicBtn").textContent="❚❚";
   });
-  
-  // Initialize Swiper (destroy existing one first if necessary)
-  const swiperElement = document.getElementById("swiper").swiper;
-  if (swiperElement) swiperElement.destroy(true, true);
-  
-  new Swiper("#swiper", {
-    direction: "vertical",
-    mousewheel: true,
-    initialSlide: 0,
-    on: { 
-      slideChange: updateUI,
-      // Load more content when reaching the end of the list
-      reachEnd: loadMoreContent 
-    }
-  });
-  updateUI();
+}
+function toggleMusic(){
+  if(musicPlaying){audio.pause();musicPlaying=false;musicBtn.textContent="♪";}
+  else playMusic();
 }
 
-function updateUI() {
-  const active = document.querySelector(".swiper-slide-active");
-  const mediaId = active?.dataset.id;
-  const media = currentMedia.find(x => x.id == mediaId);
-  
-  // 1. Keyword Title
-  document.getElementById("keywordTitle").textContent = active?.dataset.keywords || "IMAGIFHUB";
-  
-  // 2. Like Count (Assume a simplified like status check for now)
-  document.getElementById("likeCount").textContent = formatNumber(media?.likes || 0);
-  document.getElementById("likeBtn").classList.toggle("liked", media?.is_liked_by_me || false);
-  
-  // 3. Download Count (from local variable/storage)
-  document.getElementById("downloadCount").textContent = `(${MAX_FREE_DOWNLOADS - downloadsToday} left)`;
-}
+/* TELEGRAM AUDIO TRIGGER */
+Telegram.WebApp.onEvent("viewportChanged",()=>{
+  if(!musicPlaying) playMusic();
+});
 
-function loadMoreContent() {
-    // In a real app, this would call the API to fetch the next batch of images
-    console.log("Reached end. Loading more content...");
-    // For now, we'll just log
-}
-
-// --- Action Functions ---
-
-async function likeCurrent() {
-  const id = document.querySelector(".swiper-slide-active")?.dataset.id;
-  if (id) {
-    // API call to increment like count and return new status
-    const res = await fetch(`${API_BASE}/like/${id}`, {method: "POST"});
-    const data = await res.json(); 
-    
-    const media = currentMedia.find(x => x.id == id);
-    if (media) {
-      media.likes = data.new_likes;
-      media.is_liked_by_me = data.is_liked_by_me;
-    }
-    updateUI();
-  }
-}
-
-function commentCurrent() {
-  Telegram.WebApp.showAlert("Comment functionality requires a separate pop-up or modal.");
-}
-
-function downloadCurrent() {
-  // Check Premium Status (using a mock function for now)
-  const isPremium = checkPremiumStatus(); 
-  
-  if (!isPremium && downloadsToday >= MAX_FREE_DOWNLOADS) {
-    Telegram.WebApp.showAlert(`You have reached your limit of ${MAX_FREE_DOWNLOADS} downloads today. Go Premium for unlimited downloads!`);
-    return;
-  }
-  
-  const url = document.querySelector(".swiper-slide-active img")?.src;
-  if (url) {
-    Telegram.WebApp.openLink(url); // Opens the image directly, browser handles download
-    if (!isPremium) {
-      downloadsToday++;
-      // Save downloadsToday to local storage for persistence across reloads
-      localStorage.setItem("downloadsToday", downloadsToday); 
-      updateUI();
-    }
-    Telegram.WebApp.showNotification({ text: "Image is downloading!", type: 'success' });
-  }
-}
-
-// --- Menu Functions ---
-
-function toggleMenu() {
-  const panel = document.getElementById("menuPanel");
-  panel.classList.toggle("open");
-  document.getElementById("wallpaperMenu").classList.remove("open"); // Close sub-menu
-}
-
-function openWallpaperMenu() {
-  document.getElementById("wallpaperMenu").classList.add("open");
-}
-
-function closeWallpaperMenu() {
-  document.getElementById("wallpaperMenu").classList.remove("open");
-}
-
-function goPremium() {
-    // This is where you would link to your Telegram Stars/TON payment page
-    Telegram.WebApp.openLink("https://t.me/your_bot_link?start=premium_upgrade"); 
-}
-
-// --- Helper Functions ---
-
-function formatNumber(n) {
-  if (n >= 1000000) return (n/1000000).toFixed(1) + "M";
-  if (n >= 1000) return (n/1000).toFixed(1) + "K";
-  return n;
-}
-
-function checkPremiumStatus() {
-    // This function must talk to your Python backend to check user's payment status
-    // For now, it's a placeholder.
-    // return true; // mock premium
-    return false; // mock ordinary
-}
-
-
-// --- Music Logic (Refined) ---
-
-function getCategoryTrack(category) {
-  const tracks = categoryMusic[category] || categoryMusic["Default"];
-  return tracks[Math.floor(Math.random() * tracks.length)];
-}
-
-function playRandomMusic() {
-  const track = getCategoryTrack(currentCat === "all" ? "Default" : currentCat);
-  audio.src = track;
-  audio.volume = 0.5; // Set volume to 50% so it's pleasant background noise
-  
-  audio.play()
-    .then(() => {
-      musicPlaying = true;
-      document.getElementById("musicBtn").textContent = "❚ ❚";
-    })
-    .catch(error => {
-      // Autoplay blocked by browser. This is common and expected on first load.
-      console.log("Autoplay blocked:", error);
-      musicPlaying = false;
-      document.getElementById("musicBtn").textContent = "♪";
-    });
-  
-  // Auto-play next song 3-4 seconds after current one finishes
-  audio.onended = () => {
-    setTimeout(() => playRandomMusic(), 3500); 
-  };
-}
-
-function toggleMusic() {
-  if (musicPlaying) {
-    audio.pause();
-    musicPlaying = false;
-    document.getElementById("musicBtn").textContent = "♪";
-  } else {
-    // Start playback if it was previously stopped
-    playRandomMusic();
-  }
-}
-
-// Auto-play on first interaction (required by browsers)
-function handleInitialInteraction() {
-  if (!musicPlaying) playRandomMusic();
-  // Remove listeners after first interaction
-  document.body.removeEventListener("touchstart", handleInitialInteraction);
-  document.body.removeEventListener("click", handleInitialInteraction);
-}
-
-document.body.addEventListener("touchstart", handleInitialInteraction, {once: true});
-document.body.addEventListener("click", handleInitialInteraction, {once: true});
-
-
-// --- Initial Setup Calls ---
+/* INIT */
 buildCategoryBar();
-buildWallpaperMenu();
-loadFeed(); // Initial load random images from 'All'
-downloadsToday = parseInt(localStorage.getItem("downloadsToday") || "0");
-    
-  </script>
+loadFeed();
+</script>
 </body>
-      </html>
-      
+</html>
