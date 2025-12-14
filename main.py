@@ -10,7 +10,9 @@ from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.client.default import DefaultBotProperties
-import sqlite3
+
+# NEW IMPORTS FOR SUPABASE
+from supabase import create_client, Client
 from datetime import datetime
 import uvicorn
 
@@ -21,20 +23,29 @@ BOT_TOKEN = os.environ["BOT_TOKEN"]
 ADMIN_ID = int(os.environ["ADMIN_ID"])
 IMGBB_API_KEY = os.environ["IMGBB_API_KEY"]
 
+# === NEW: SUPABASE CONFIG ===
+SUPABASE_URL = os.environ.get("SUPABASE_URL")
+SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
+
+if not SUPABASE_URL or not SUPABASE_KEY:
+    logging.error("SUPABASE_URL or SUPABASE_KEY not set in environment.")
+    # Exit or raise error, depending on deployment strategy
+
+# Initialize Supabase Client
+supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+logging.info("Supabase client initialized.")
+# ===========================
+
 bot = Bot(token=BOT_TOKEN, default=DefaultBotProperties(parse_mode="HTML"))
 storage = MemoryStorage()
 dp = Dispatcher(storage=storage)
 app = FastAPI()
 
-# ==================== DATABASE ====================
-conn = sqlite3.connect("imagifhub.db", check_same_thread=False)
-c = conn.cursor()
-c.execute('''CREATE TABLE IF NOT EXISTS media (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    url TEXT, type TEXT, category TEXT, keywords TEXT,
-    likes INTEGER DEFAULT 0, uploaded_at TEXT
-)''')
-conn.commit()
+# ==================== OLD DATABASE REMOVED ====================
+# Removed: import sqlite3
+# Removed: conn = sqlite3.connect("imagifhub.db", check_same_thread=False)
+# Removed: c = conn.cursor()
+# Removed: c.execute(...)
 
 # ==================== STATES ====================
 class AdminUpload(StatesGroup):
@@ -73,7 +84,7 @@ async def receive_media(message: Message, state: FSMContext, album: list[Message
 
         for msg in messages:
             if not msg.photo:
-                continue  # Skip non-photos
+                continue
             file_id = msg.photo[-1].file_id
             file = await bot.get_file(file_id)
             file_bytes = await bot.download_file(file.file_path)
@@ -114,49 +125,97 @@ async def final_step(message: Message, state: FSMContext):
         data = await state.get_data()
         keywords = message.text.strip()
         urls = data.get("urls", [])
-
+        
+        insert_count = 0
+        
+        # === NEW: INSERT INTO SUPABASE ===
         for url in urls:
-            c.execute("INSERT INTO media (url, type, category, keywords, uploaded_at) VALUES (?, ?, ?, ?, ?)",
-                      (url, "image", data['category'], keywords, datetime.now().isoformat()))
-        conn.commit()
+            supabase_data, count = supabase.table('media_content').insert({
+                "url": url,
+                "category": data['category'],
+                "Keyword": keywords,  # Column name from Supabase table
+                "Likes": 0,           # Column name from Supabase table
+                # 'Uploaded' is set automatically by the 'now()' default
+            }).execute()
+            
+            if count and count > 0:
+                insert_count += 1
+        # =================================
 
-        await message.reply(f"Successfully uploaded {len(urls)} image(s)!\nCategory: {data['category']}\nKeywords: {keywords}")
+        await message.reply(f"Successfully uploaded {insert_count} image(s) to Supabase!\nCategory: {data['category']}\nKeywords: {keywords}")
         await state.clear()
     except Exception as e:
         logging.error(f"Save error: {e}")
-        await message.reply("Save failed — try again.")
+        await message.reply(f"Save failed — try again. Error: {e}")
 
 # ==================== API ENDPOINTS ====================
 @app.get("/media")
 async def get_media(category: str = "all", search: str = "", type: str = "all"):
-    query = "SELECT id, url, type, category, likes FROM media WHERE 1=1"
-    params = []
+    # === NEW: FETCH FROM SUPABASE ===
+    query = supabase.table('media_content').select('id, url, category, "Keyword", "Likes"')
+    
     if category != "all":
-        query += " AND category = ?"; params.append(category)
+        query = query.eq('category', category)
+        
     if search:
-        query += " AND keywords LIKE ?"; params.append(f"%{search}%")
-    if type != "all":
-        query += " AND type = ?"; params.append(type)
-    c.execute(query + " ORDER BY RANDOM() LIMIT 50", params)
-    rows = c.fetchall()
-    return [{"id": r[0], "url": r[1], "type": r[2], "category": r[3], "likes": r[4]} for r in rows]
+        # Supabase uses 'like' for basic pattern matching
+        query = query.like('Keyword', f'%{search}%')
+        
+    # Order by ID descending (most recent first) and limit results
+    try:
+        # The execute() method returns a SupabaseResponse object
+        response = query.order('id', desc=True).limit(50).execute()
+        
+        # Map the results to match the expected JSON structure
+        rows = response.data
+        return [{"id": r['id'], "url": r['url'], "type": "image", "category": r['category'], "keywords": r['Keyword'], "likes": r['Likes']} for r in rows]
+
+    except Exception as e:
+        logging.error(f"Supabase GET /media error: {e}")
+        return {"error": "Could not fetch media content from database."}, 500
+    # =================================
 
 @app.post("/like/{media_id}")
 async def like(media_id: int):
-    c.execute("UPDATE media SET likes = likes + 1 WHERE id = ?", (media_id,))
-    conn.commit()
-    return {"success": True}
+    # === NEW: UPDATE LIKES IN SUPABASE ===
+    try:
+        # Use rpc('increment_likes') for a cleaner update if you had a function,
+        # but the standard update is fine here:
+        
+        # 1. Fetch current likes
+        current_data = supabase.table('media_content').select('Likes').eq('id', media_id).single().execute()
+        current_likes = current_data.data['Likes'] if current_data.data else 0
+        new_likes = current_likes + 1
+        
+        # 2. Update the Likes column
+        data, count = supabase.table('media_content').update({
+            "Likes": new_likes
+        }).eq('id', media_id).execute()
+        
+        if count and count > 0:
+             # Return the new like count for the Mini App to update
+             return {"success": True, "new_likes": new_likes}
+        else:
+             return {"success": False, "message": "Media ID not found or update failed."}, 404
+             
+    except Exception as e:
+        logging.error(f"Supabase POST /like error: {e}")
+        return {"success": False, "message": "Database update failed."}, 500
+    # =======================================
 
 @app.get("/")
 async def health():
-    return {"status": "IMAGIFHUB Live - Images Only"}
+    return {"status": "IMAGIFHUB Live - Images Only (Supabase Connected)"}
 
 # ==================== RUN ====================
 async def run_bot():
+    # Setting skip_updates=False for a production bot might be preferred 
+    # to process updates that occurred while the bot was offline.
     await dp.start_polling(bot, skip_updates=True)
 
 async def run_server():
     port = int(os.environ.get("PORT", 10000))
+    # Note: Using the main application instance for uvicorn config
     config = uvicorn.Config(app, host="0.0.0.0", port=port, log_level="info")
     server = uvicorn.Server(config)
     await server.serve()
@@ -166,3 +225,4 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
+            
