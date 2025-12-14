@@ -31,6 +31,7 @@
     .keyword-title{position:absolute;bottom:20px;left:16px;background:rgba(0,0,0,0.7);padding:8px 16px;border-radius:12px;font-size:14px;max-width:80%;}
     .menu-panel{position:fixed;top:0;left:-100%;width:80%;height:100%;background:var(--bar);z-index:1002;transition:left 0.3s;padding:70px 20px 20px;box-sizing:border-box;overflow-y:auto;}
     .menu-panel.open{left:0;}
+    .menu-close{position:absolute;top:16px;left:16px;font-size:28px;cursor:pointer;z-index:1003;}
     .menu-item{padding:16px 0;border-bottom:1px solid #444;font-size:16px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;}
     .lock{color:#888;font-size:20px;}
   </style>
@@ -39,14 +40,14 @@
   <div id="app">
     <!-- Top Bar -->
     <div class="top-bar">
-      <div class="hamburger" id="hamburger" onclick="toggleMenu()">☰</div>
+      <div class="hamburger" id="hamburgerBtn" onclick="toggleMenu()">☰</div>
       <div class="search-container">
         <input type="text" class="search-input" id="searchInput" placeholder="Search keywords..." oninput="searchTerm=this.value;loadFeed()">
       </div>
-      <div class="music-btn" onclick="toggleMusic()">♪</div>
+      <div class="music-btn" id="musicBtn" onclick="toggleMusic()">♪</div>
     </div>
 
-    <!-- Category Bar (Under Search) -->
+    <!-- Category Bar -->
     <div class="cat-bar" id="catBar"></div>
 
     <!-- Swiper Feed -->
@@ -54,7 +55,7 @@
       <div class="swiper-wrapper" id="feed"></div>
     </div>
 
-    <!-- Right Side Actions (YouTube Style) -->
+    <!-- Right Side Actions -->
     <div class="right-actions">
       <div class="action-icon like-icon" id="likeBtn" onclick="likeCurrent()">
         ❤️
@@ -69,8 +70,9 @@
     <!-- Keyword Title -->
     <div class="keyword-title" id="keywordTitle"></div>
 
-    <!-- Hamburger Menu -->
+    <!-- Hamburger Menu with X Close -->
     <div class="menu-panel" id="menuPanel">
+      <div class="menu-close" onclick="toggleMenu()">✕</div>
       <div class="menu-item" onclick="checkIn()">Check In (7 days = 6h Premium)</div>
       <div class="menu-item" onclick="Telegram.WebApp.openTelegramLink('https://t.me/imagifhub')">Channel</div>
       <div class="menu-item" onclick="shareBot()">Share Bot</div>
@@ -89,16 +91,14 @@
     let isPremium = localStorage.getItem("premium") === "true" || false;
     let savesToday = parseInt(localStorage.getItem("savesToday") || "0");
     let playlist = JSON.parse(localStorage.getItem("playlist") || "[]");
-    let musicPlaying = true;
+    let musicPlaying = false;
     let menuOpen = false;
 
-    // CATEGORY MUSIC — add your royalty-free MP3 links
     const categoryMusic = {
       "all": "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3",
       "Nature": "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3",
       "Cars": "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3",
       "Superhero": "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-4.mp3",
-      // Add more...
     };
     const audio = document.getElementById("bgMusic");
 
@@ -162,7 +162,6 @@
       const id = active?.dataset.id;
       const media = currentMedia.find(x => x.id == id);
       document.getElementById("likeCount").textContent = formatNumber(media?.likes || 0);
-      // Reset like color (real liked state later)
       document.getElementById("likeBtn").classList.remove("liked");
     }
 
@@ -214,30 +213,42 @@
     function toggleMenu() {
       menuOpen = !menuOpen;
       document.getElementById("menuPanel").classList.toggle("open", menuOpen);
-      document.getElementById("hamburger").textContent = menuOpen ? "✕" : "☰";
+      document.getElementById("hamburgerBtn").textContent = menuOpen ? "✕" : "☰";
     }
 
     function toggleMusic() {
       if (musicPlaying) {
         audio.pause();
         musicPlaying = false;
+        document.getElementById("musicBtn").textContent = "♪";
       } else {
         playCategoryMusic(currentCat);
+        document.getElementById("musicBtn").textContent = "❚ ❚";
       }
     }
 
     function playCategoryMusic(cat) {
       const track = categoryMusic[cat] || categoryMusic["all"];
       audio.src = track;
-      audio.play().catch(e => console.log("Play blocked:", e));
+      audio.play().catch(() => {});
       musicPlaying = true;
+      document.getElementById("musicBtn").textContent = "❚ ❚";
       audio.onended = () => setTimeout(() => playCategoryMusic(cat), 3500);
     }
 
-    // Auto-play on first interaction
+    // Auto-start music on first user interaction (Telegram policy)
     document.body.addEventListener("touchstart", () => {
-      if (!musicPlaying) playCategoryMusic("all");
+      if (!musicPlaying) {
+        playCategoryMusic("all");
+      }
     }, {once: true});
+
+    // Also try on load (sometimes works)
+    window.addEventListener("load", () => {
+      if (!musicPlaying) {
+        playCategoryMusic("all");
+      }
+    });
 
     loadFeed();
   </script>
