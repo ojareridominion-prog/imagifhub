@@ -8,6 +8,93 @@
   <script src="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.js"></script>
   <link href="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.css" rel="stylesheet"/>
   <link href="style.css" rel="stylesheet"/> 
+  <style>
+    :root {
+  /* Default Dark Theme for Ordinary Users */
+  --bg: #000;
+  --text: #fff;
+  --accent: #9c4dff; /* Purple for general buttons */
+  --bar: #1a1a1a;
+  --like: #fff;
+  --liked: #ff3040;
+  --cat-bg: #333;
+  --cat-text: #fff;
+  --cat-active-bg: #fff;
+  --cat-active-text: #000;
+}
+
+/* White Theme variables (applied when switching theme) */
+.white-theme {
+  --bg: #fff;
+  --text: #000;
+  --bar: #f0f0f0;
+  --cat-bg: #ddd;
+  --cat-text: #000;
+  --cat-active-bg: #000;
+  --cat-active-text: #fff;
+}
+
+/* Premium Themes (applied based on user choice) */
+.red-theme { --bg: #300; --accent: #ff0000; }
+.green-theme { --bg: #030; --accent: #00ff00; }
+/* ... Add CSS for all other premium colors here (dark blue, sky blue, etc.) */
+
+/* GLOBAL STYLES */
+body,html,#app{height:100%;margin:0;background:var(--bg);color:var(--text);font-family:system-ui;overflow:hidden;position:relative;}
+
+/* TOP BAR */
+.top-bar{position:fixed;top:0;left:0;right:0;height:56px;background:var(--bar);z-index:1000;display:flex;align-items:center;padding:0 16px;box-sizing:border-box;border-bottom:1px solid #333;}
+.hamburger{font-size:28px;cursor:pointer;margin-right:8px;}
+.search-container{flex:1;margin:0 16px;}
+.search-input{background:var(--cat-bg);color:var(--text);border:none;border-radius:20px;padding:10px 16px;width:100%;box-sizing:border-box;}
+.music-btn{background:var(--accent);color:#fff;width:38px;height:38px;border-radius:50%;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;}
+
+/* CATEGORY BAR */
+.cat-bar{position:fixed;top:56px;left:0;right:0;height:48px;background:var(--bar);overflow-x:auto;overflow-y:hidden;display:flex;align-items:center;padding:0 16px;gap:12px;z-index:999;border-bottom:1px solid #333;white-space:nowrap;-webkit-overflow-scrolling:touch;}
+.cat-bar::-webkit-scrollbar {display:none;}
+.cat-btn{padding:8px 16px;background:var(--cat-bg);color:var(--cat-text);border-radius:20px;font-size:14px;cursor:pointer;transition:0.3s;flex-shrink:0;}
+.cat-btn.active{background:var(--cat-active-bg);color:var(--cat-active-text);font-weight:bold;}
+
+/* SWIPER FEED & MEDIA */
+.swiper{width:100%;height:100%;padding-top:104px !important;padding-bottom:20px !important;} /* 56px (Top Bar) + 48px (Cat Bar) */
+.slide{display:flex;align-items:center;justify-content:center;background:var(--bg);}
+img{max-width:100%;max-height:100%;object-fit:contain;}
+
+/* RIGHT ACTIONS */
+.right-actions{position:fixed;right:16px;bottom:100px;z-index:1000;display:flex;flex-direction:column;gap:20px;align-items:center;}
+.action-icon{font-size:28px;cursor:pointer;transition:0.3s;text-align:center;}
+.like-icon{color:var(--like);}
+.liked{color:var(--liked);transform:scale(1.1);}
+.action-count{font-size:11px;margin-top:2px;color:var(--text);}
+
+/* KEYWORD TITLE */
+.keyword-title{position:fixed;bottom:20px;left:16px;background:rgba(0,0,0,0.6);color:#fff;padding:6px 12px;border-radius:12px;font-size:14px;max-width:80%;z-index:1000;}
+
+/* MENU PANEL */
+.menu-panel{position:fixed;top:0;left:-100%;width:80%;height:100%;background:var(--bar);z-index:1002;transition:left 0.3s;padding:56px 0 20px;box-sizing:border-box;overflow-y:auto;border-right:1px solid #333;}
+.menu-panel.open{left:0;}
+.menu-close{position:absolute;top:16px;left:16px;font-size:28px;cursor:pointer;z-index:1003;}
+.menu-panel h2 {padding: 0 20px; margin-top: 0;}
+.menu-item{padding:16px 20px;border-bottom:1px solid #444;font-size:16px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;}
+.lock{color:#888;font-size:20px;}
+
+/* WALLPAPER SUBMENU */
+.wallpaper-options{display:flex;flex-wrap:wrap;gap:16px;padding:20px;}
+.wallpaper-option{width:60px;height:60px;border-radius:12px;position:relative;cursor:pointer;overflow:hidden;box-shadow:0 2px 5px rgba(0,0,0,0.3);}
+.wallpaper-option.locked:after {
+  content: '🔒'; position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center;
+  font-size: 24px; color: #fff;
+}
+/* Style for the two-tone wallpaper icon */
+.wallpaper-option div {
+  width: 50%; height: 100%; float: left;
+}
+.theme-icon-default-1 { background-color: #f0f0f0; }
+.theme-icon-default-2 { background-color: #1a1a1a; }
+/* ... Add specific color styles based on your images/requirements ... */
+    
+  </style>
 </head>
 <body>
   <div id="app">
