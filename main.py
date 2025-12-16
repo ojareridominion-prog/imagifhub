@@ -26,14 +26,23 @@ CATEGORIES = [
 
 @app.get("/media")
 async def get_media(category: str = "all", search: str = ""):
+    # Use 'random()' order if your database supports it, or shuffle in Python
     query = supabase.table('media_content').select('*')
+    
     if category != "all":
         query = query.eq('category', category.capitalize())
     if search:
         query = query.ilike('Keyword', f'%{search}%')
     
-    res = query.order('id', desc=True).limit(50).execute()
-    return res.data
+    response = query.execute()
+    data = response.data
+    
+    # RANDOMIZATION: Shuffle the list before sending to frontend
+    import random
+    random.shuffle(data)
+    
+    return data[:50] # Send top 50 shuffled results
+    
 
 @app.get("/")
 async def health():
