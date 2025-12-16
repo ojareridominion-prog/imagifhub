@@ -65,58 +65,89 @@
 
     <audio id="bgMusic" loop preload="auto"></audio>
 
-    <script>
-        const RENDER_URL = "https://your-app.onrender.com"; // UPDATE THIS
-        
-        // 1. FULL CATEGORY LIST
-        const cats = ["All", "Nature", "Space", "City", "Superhero", "Supervillain", "Robotic", "Anime", "Cars", "Wildlife", "Funny", "Seasonal Greetings", "Dark Aesthetic", "Luxury", "Gaming", "Ancient World"];
 
-        // 2. MUSIC MANAGER
-        const audio = document.getElementById("bgMusic");
-        const tracks = [
-            "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3",
-            "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3"
-        ];
-        
-        function startMusic() {
-            if (audio.paused) {
-                audio.src = tracks[Math.floor(Math.random() * tracks.length)];
-                audio.play().catch(e => console.log("Waiting for user tap..."));
-            }
-        }
+        /* ... Keep existing CSS and top HTML ... */
 
-        // 3. INITIAL LOAD
-        window.onload = () => {
-            renderCategories();
-            loadImages();
-            // Start music on first click anywhere (Browser Requirement)
-            document.body.addEventListener('click', startMusic, { once: true });
-        };
+<script>
+/* TELEGRAM INIT */
+Telegram.WebApp.ready();
+Telegram.WebApp.expand();
 
-        function renderCategories() {
-            const bar = document.getElementById('catBar');
-            bar.innerHTML = cats.map(c => `<div class="cat-btn ${c===currentCategory?'active':''}" onclick="setCategory('${c}')">${c}</div>`).join('');
-        }
+// === UPDATE THIS TO YOUR ACTUAL RENDER URL ===
+const RENDER_URL = "https://your-app-name.onrender.com"; 
 
-        async function loadImages() {
-            const wrapper = document.getElementById('feedWrapper');
-            try {
-                let url = `${RENDER_URL}/media?category=${currentCategory === "All" ? "all" : currentCategory}`;
-                const response = await fetch(url);
-                if (!response.ok) throw new Error("Server down");
-                const data = await response.json();
-                
-                wrapper.innerHTML = data.map(img => `
-                    <div class="swiper-slide">
-                        <img src="${img.url}">
-                        <div class="info-overlay"><b>@IMAGIFHUB</b><br>${img.keywords}</div>
-                    </div>
-                `).join('');
-                new Swiper("#swiper", { direction: "vertical" });
-            } catch (e) {
-                wrapper.innerHTML = `<div class="swiper-slide">Error: Check if Render server is awake!</div>`;
-            }
-        }
-    </script>
+/* DATA */
+const categories = ["All","Nature","Anime","Cars","Gaming","Luxury"];
+let currentCat="All";
+let searchTerm="";
+let musicPlaying=false;
+const audio=document.getElementById("bgMusic");
+
+/* BUILD CATEGORY BAR */
+function buildCategoryBar(){
+  const bar=document.getElementById("catBar");
+  bar.innerHTML="";
+  categories.forEach(c=>{
+    const b=document.createElement("div");
+    b.className="cat-btn"+(c===currentCat?" active":"");
+    b.textContent=c;
+    b.onclick=()=>{
+        currentCat=c;
+        buildCategoryBar();
+        loadFeed();
+    };
+    bar.appendChild(b);
+  });
+}
+
+/* UPDATED FEED: FETCHES FROM BACKEND */
+async function loadFeed(){
+  const feed=document.getElementById("feed");
+  feed.innerHTML = '<div class="swiper-slide">Loading...</div>'; // Show loading state
+  
+  try {
+    const response = await fetch(`${RENDER_URL}/media?category=${currentCat}&search=${searchTerm}`);
+    const data = await response.json();
+    
+    feed.innerHTML = ""; // Clear loader
+    
+    if(!data || data.length === 0) {
+        feed.innerHTML = '<div class="swiper-slide">No media found in this category.</div>';
+        return;
+    }
+
+    data.forEach(item => {
+      const s = document.createElement("div");
+      s.className = "swiper-slide";
+      
+      const img = document.createElement("img");
+      img.src = item.url;
+      
+      // Update metadata on swipe (optional)
+      s.onclick = () => {
+          document.getElementById('keywordTitle').textContent = item.keywords || "IMAGIFHUB";
+          document.getElementById('likeCount').textContent = item.likes || 0;
+      };
+
+      s.appendChild(img);
+      feed.appendChild(s);
+    });
+
+    // Re-init Swiper
+    if(document.getElementById("swiper").swiper) document.getElementById("swiper").swiper.destroy();
+    new Swiper("#swiper", { direction: "vertical", mousewheel: true });
+
+  } catch (error) {
+    console.error("Connection failed:", error);
+    feed.innerHTML = '<div class="swiper-slide">Error connecting to server.</div>';
+  }
+}
+
+/* ... Keep toggleMenu and Music functions ... */
+
+/* INIT */
+buildCategoryBar();
+loadFeed();
+      </script>
   </body>               
 </html>
