@@ -57,66 +57,151 @@
         .action-btn { background:rgba(0,0,0,0.5); border:1px solid #fff; border-radius:50%; width:45px; height:45px; color:#fff; font-size:18px; display:flex; align-items:center; justify-content:center; }
     </style>
 </head>
-     <body>
+<body>
+
+    <div class="top-bar">
+        <button class="btn-icon" onclick="toggleMenu()">☰</button>
+        <h1>IMAGIFHUB</h1>
+        <button class="btn-icon" onclick="triggerSearch()">🔍</button>
+    </div>
+
     <div class="cat-bar" id="catBar"></div>
+
+    <div id="menuPanel" class="menu-panel">
+        <a href="#" class="menu-item" onclick="toggleMenu()">✖ Close</a>
+        <a href="premium.html" class="menu-item" style="color:gold;">⭐ Upgrade to Premium</a>
+        <a href="playlist.html" class="menu-item">My Playlist</a>
+        
+        <div style="padding: 15px 25px 0; font-size: 14px; opacity: 0.7;">SELECT THEME</div>
+        <div class="theme-scroll-container" id="themeBar"></div>
+    </div>
+
     <div id="swiper" class="swiper">
         <div class="swiper-wrapper" id="feedWrapper"></div>
     </div>
 
-    <audio id="bgMusic" loop preload="auto"></audio>
+    <audio id="bgMusic" loop></audio>
 
     <script>
-        const RENDER_URL = "https://imagifhub.onrender.com"; // UPDATE THIS
-        
-        // 1. FULL CATEGORY LIST
-        const cats = ["All", "Nature", "Space", "City", "Superhero", "Supervillain", "Robotic", "Anime", "Cars", "Wildlife", "Funny", "Seasonal Greetings", "Dark Aesthetic", "Luxury", "Gaming", "Ancient World"];
+        // --- CONFIGURATION ---
+        const RENDER_URL = "https://your-render-app-name.onrender.com"; // REPLACE WITH YOUR URL
+        const isPremium = false; // We will change this later with payment logic
 
-        // 2. MUSIC MANAGER
-        const audio = document.getElementById("bgMusic");
-        const tracks = [
-            "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3",
-            "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3"
+        let currentCategory = "All";
+        let searchQuery = "";
+
+        // --- THEME DATA ---
+        const themes = [
+            { id: 'default', name: 'Dark', primary: '#000', secondary: '#fff', premium: false },
+            { id: 'white', name: 'Light', primary: '#fff', secondary: '#000', premium: false },
+            { id: 'blood', name: 'Blood', primary: '#4a0e0e', secondary: '#ff4d4d', premium: true },
+            { id: 'ocean', name: 'Ocean', primary: '#0e1e4a', secondary: '#4d9cff', premium: true },
+            { id: 'forest', name: 'Forest', primary: '#0e4a1e', secondary: '#4dff88', premium: true },
+            { id: 'gold', name: 'Lux', primary: '#2a2405', secondary: '#ffcc00', premium: true }
         ];
-        
-        function startMusic() {
-            if (audio.paused) {
-                audio.src = tracks[Math.floor(Math.random() * tracks.length)];
-                audio.play().catch(e => console.log("Waiting for user tap..."));
+
+        // --- INITIALIZATION ---
+        window.onload = () => {
+            renderCategories();
+            renderThemes();
+            loadImages();
+        };
+
+        function toggleMenu() { document.getElementById('menuPanel').classList.toggle('open'); }
+
+        // --- SEARCH LOGIC ---
+        function triggerSearch() {
+            const term = prompt("Search for images (e.g. Batman, Nature, Neon):");
+            if (term !== null) {
+                searchQuery = term;
+                loadImages();
             }
         }
 
-        // 3. INITIAL LOAD
-        window.onload = () => {
-            renderCategories();
-            loadImages();
-            // Start music on first click anywhere (Browser Requirement)
-            document.body.addEventListener('click', startMusic, { once: true });
-        };
-
+        // --- CATEGORIES ---
+        const cats = ["All", "Superhero", "Nature", "Anime", "Cars", "Gaming", "Luxury", "Space"];
         function renderCategories() {
             const bar = document.getElementById('catBar');
             bar.innerHTML = cats.map(c => `<div class="cat-btn ${c===currentCategory?'active':''}" onclick="setCategory('${c}')">${c}</div>`).join('');
         }
+        function setCategory(c) {
+            currentCategory = c;
+            searchQuery = ""; // Clear search when category changes
+            renderCategories();
+            loadImages();
+        }
 
+        // --- THEME SWITCHER ---
+        function renderThemes() {
+            const bar = document.getElementById('themeBar');
+            bar.innerHTML = themes.map(t => `
+                <div class="theme-card" onclick="applyTheme('${t.id}', ${t.premium})">
+                    <div class="theme-preview">
+                        <div class="preview-primary" style="background:${t.primary}"></div>
+                        <div class="preview-secondary" style="background:${t.secondary}"></div>
+                    </div>
+                    <span style="font-size:10px">${t.name}</span>
+                    ${t.premium && !isPremium ? '<span class="lock-icon">🔒</span>' : ''}
+                </div>
+            `).join('');
+        }
+
+        function applyTheme(id, premium) {
+            if (premium && !isPremium) {
+                Telegram.WebApp.showAlert("⭐ This is a Premium theme! Please upgrade to unlock.");
+                return;
+            }
+            document.body.className = id === 'default' ? '' : 'theme-' + id;
+            toggleMenu();
+        }
+
+        // --- FETCH IMAGES FROM SUPABASE ---
         async function loadImages() {
             const wrapper = document.getElementById('feedWrapper');
+            wrapper.innerHTML = `<div class="swiper-slide">Loading IMAGIFHUB...</div>`;
+
             try {
-                let url = `${RENDER_URL}/media?category=${currentCategory === "All" ? "all" : currentCategory}`;
+                // Build URL with category and search query
+                let url = `${RENDER_URL}/media?category=${currentCategory.toLowerCase()}`;
+                if (searchQuery) url += `&search=${encodeURIComponent(searchQuery)}`;
+
                 const response = await fetch(url);
-                if (!response.ok) throw new Error("Server down");
                 const data = await response.json();
-                
+
+                if (!data || data.length === 0) {
+                    wrapper.innerHTML = `<div class="swiper-slide">No images found for "${searchQuery || currentCategory}"</div>`;
+                    return;
+                }
+
                 wrapper.innerHTML = data.map(img => `
                     <div class="swiper-slide">
-                        <img src="${img.url}">
-                        <div class="info-overlay"><b>@IMAGIFHUB</b><br>${img.keywords}</div>
+                        <img src="${img.url}" loading="lazy">
+                        <div class="info-overlay">
+                            <b style="font-size:18px">@IMAGIFHUB</b><br>
+                            <span>${img.keywords || 'High Quality Content'}</span>
+                        </div>
+                        <div class="side-actions">
+                            <div class="action-btn" onclick="likeImage(${img.id})">❤️<br><small style="font-size:10px">${img.likes}</small></div>
+                            <div class="action-btn" onclick="window.open('${img.url}')">⬇️</div>
+                            <div class="action-btn">💬</div>
+                        </div>
                     </div>
                 `).join('');
-                new Swiper("#swiper", { direction: "vertical" });
+
+                initSwiper();
             } catch (e) {
-                wrapper.innerHTML = `<div class="swiper-slide">Error: Check if Render server is awake!</div>`;
+                wrapper.innerHTML = `<div class="swiper-slide">Error connecting to server.</div>`;
             }
         }
+
+        function initSwiper() {
+            new Swiper("#swiper", { direction: "vertical", mousewheel: true });
+        }
+
+        async function likeImage(id) {
+            await fetch(`${RENDER_URL}/like/${id}`, { method: 'POST' });
+            loadImages(); // Refresh to show new count
+        }
     </script>
-     </body>
+</body>
 </html>
