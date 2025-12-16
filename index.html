@@ -31,79 +31,90 @@
         .swiper-slide img { width:100%; height:100%; object-fit:cover; }
     </style>
 </head>
-<body>
+            <body>
     <div class="top-bar">
-        <button onclick="toggleMenu()" style="background:none; border:none; color:#fff; font-size:24px; padding:15px;">☰</button>
-        <h2 style="flex:1; text-align:center; font-size:18px;">IMAGIFHUB</h2>
-        <button onclick="triggerSearch()" style="background:none; border:none; color:#fff; font-size:20px; padding:15px;">🔍</button>
+        <button onclick="toggleMenu()" class="btn">☰</button>
+        <h1 style="flex:1; text-align:center;">IMAGIFHUB</h1>
+        <button onclick="triggerSearch()" class="btn">🔍</button>
     </div>
 
     <div class="cat-bar" id="catBar"></div>
-
-    <div id="menuPanel" class="menu-panel">
-        <div style="padding:20px;">Themes (Premium ⭐)</div>
-        <div class="theme-container" id="themeBar"></div>
-    </div>
-
     <div id="swiper" class="swiper"><div class="swiper-wrapper" id="feed"></div></div>
-    <audio id="bgMusic" loop></audio>
+    
+    <audio id="bgMusic" loop preload="auto"></audio>
 
     <script>
-        const API_URL = "https://imagifhub.onrender.com"; // <-- PUT YOUR URL HERE
-        let isPremium = false; 
+        const API_URL = "https://imagifhub.onrender.com"; // UPDATE THIS
+        let currentCat = "All";
 
-        const categories = ["All", "Nature", "Space", "City", "Superhero", "Supervillain", "Robotic", "Anime", "Cars", "Wildlife", "Funny", "Seasonal Greetings", "Dark Aesthetic", "Luxury", "Gaming", "Ancient World"];
-        const themes = [
-            {id:'dark', p:'#000', s:'#fff', locked:false},
-            {id:'white', p:'#fff', s:'#000', locked:false},
-            {id:'blood', p:'#4a0e0e', s:'#ff4d4d', locked:true},
-            {id:'ocean', p:'#0e1e4a', s:'#4d9cff', locked:true}
+        // 1. FULL CATEGORY LIST
+        const cats = ["All", "Nature", "Space", "City", "Superhero", "Supervillain", "Robotic", "Anime", "Cars", "Wildlife", "Funny", "Seasonal Greetings", "Dark Aesthetic", "Luxury", "Gaming", "Ancient World"];
+
+        // 2. MUSIC MANAGER (Fixes Autoplay Failure)
+        const musicTracks = [
+            "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3",
+            "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3"
         ];
+        
+        function initMusic() {
+            const audio = document.getElementById('bgMusic');
+            if (audio.paused) {
+                audio.src = musicTracks[Math.floor(Math.random() * musicTracks.length)];
+                audio.play().catch(e => console.log("Tap again to play music"));
+            }
+            // Remove listener so it only triggers once
+            document.removeEventListener('click', initMusic);
+        }
 
+        // 3. LOAD DATA
         window.onload = () => {
             renderCats();
-            renderThemes();
-            loadFeed("All");
-            document.body.addEventListener('click', () => { document.getElementById('bgMusic').play(); }, {once:true});
+            loadImages("All");
+            document.addEventListener('click', initMusic); // Music starts on first tap
         };
 
         function renderCats() {
-            document.getElementById('catBar').innerHTML = categories.map(c => `<div class="cat-btn" onclick="loadFeed('${c}')">${c}</div>`).join('');
+            document.getElementById('catBar').innerHTML = cats.map(c => 
+                `<div class="cat-btn ${c===currentCat?'active':''}" onclick="loadImages('${c}')">${c}</div>`
+            ).join('');
         }
 
-        function renderThemes() {
-            document.getElementById('themeBar').innerHTML = themes.map(t => `
-                <div onclick="applyTheme('${t.id}', ${t.locked})">
-                    <div class="theme-circle">
-                        <div class="half-1" style="background:${t.p}"></div>
-                        <div class="half-2" style="background:${t.s}"></div>
+        async function loadImages(cat, search="") {
+            currentCat = cat;
+            renderCats();
+            const feed = document.getElementById('feed');
+            feed.innerHTML = '<div class="swiper-slide">Connecting to Server...</div>';
+            
+            try {
+                const cleanCat = cat === "All" ? "all" : cat.toLowerCase();
+                const response = await fetch(`${API_URL}/media?category=${cleanCat}&search=${search}`);
+                
+                if (!response.ok) throw new Error();
+                const data = await response.json();
+
+                if (data.length === 0) {
+                    feed.innerHTML = '<div class="swiper-slide">No images found</div>';
+                    return;
+                }
+
+                feed.innerHTML = data.map(img => `
+                    <div class="swiper-slide">
+                        <img src="${img.url}">
+                        <div class="overlay">@IMAGIFHUB<br>${img.keywords || ''}</div>
                     </div>
-                    ${t.locked ? '🔒' : ''}
-                </div>
-            `).join('');
+                `).join('');
+
+                new Swiper('#swiper', { direction: 'vertical' });
+            } catch (err) {
+                feed.innerHTML = '<div class="swiper-slide">Error: Wake up the Render server!</div>';
+            }
         }
 
         function triggerSearch() {
-            let q = prompt("Search keywords:");
-            if(q) loadFeed("All", q);
-        }
-
-        async function loadFeed(cat, search="") {
-            const feed = document.getElementById('feed');
-            feed.innerHTML = '<div class="swiper-slide">Loading...</div>';
-            try {
-                let res = await fetch(`${API_URL}/media?category=${cat.toLowerCase()}&search=${search}`);
-                let data = await res.json();
-                feed.innerHTML = data.map(i => `<div class="swiper-slide"><img src="${i.url}"></div>`).join('');
-                new Swiper('#swiper', { direction: 'vertical' });
-            } catch(e) { feed.innerHTML = '<div class="swiper-slide">Connection Error</div>'; }
-        }
-
-        function toggleMenu() { document.getElementById('menuPanel').classList.toggle('open'); }
-        function applyTheme(id, locked) {
-            if(locked && !isPremium) return alert("Upgrade to Premium for this theme!");
-            document.body.className = id === 'dark' ? '' : 'theme-' + id;
+            const q = prompt("Enter search keyword:");
+            if (q) loadImages("All", q);
         }
     </script>
-</body>
+            </body>
+    
 </html>
