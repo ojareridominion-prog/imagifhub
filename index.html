@@ -1,120 +1,42 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>IMAGIFHUB</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script src="https://unpkg.com/@telegram-apps/sdk@7.2.0/dist/core.min.js"></script>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.css"/>
-    <script src="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.js"></script>
     <style>
-        :root { --bg: #000; --text: #fff; --bar: #1a1a1a; --accent: #9c4dff; }
-        .theme-white { --bg: #fff; --text: #000; --bar: #f0f0f0; }
-        .theme-blood { --bg: #4a0e0e; --text: #ffcfcf; --bar: #2a0505; }
-        .theme-ocean { --bg: #0e1e4a; --text: #cfe3ff; --bar: #050a2a; }
-
-        body { margin:0; background:var(--bg); color:var(--text); font-family:sans-serif; overflow:hidden; transition: 0.3s; }
-        .top-bar { position:fixed; top:0; width:100%; height:56px; background:var(--bar); display:flex; align-items:center; z-index:100; border-bottom:1px solid #333; }
-        .cat-bar { position:fixed; top:56px; width:100%; height:48px; background:var(--bar); overflow-x:auto; display:flex; align-items:center; gap:10px; padding:0 10px; z-index:90; white-space:nowrap; }
-        .cat-btn { padding:6px 15px; border-radius:20px; background:#333; font-size:12px; cursor:pointer; }
-        .cat-btn.active { background:#fff; color:#000; }
-        
-        /* Theme Bar inside Menu */
-        .theme-container { display:flex; overflow-x:auto; padding:15px; gap:15px; border-top:1px solid #333; }
-        .theme-circle { width:40px; height:40px; border-radius:50%; border:2px solid #555; position:relative; overflow:hidden; transform: rotate(-45deg); flex-shrink:0; }
-        .half-1 { width:50%; height:100%; position:absolute; left:0; }
-        .half-2 { width:50%; height:100%; position:absolute; right:0; }
-
-        .menu-panel { position:fixed; left:-100%; width:80%; height:100%; background:var(--bar); z-index:200; transition:0.4s; padding-top:60px; }
-        .menu-panel.open { left:0; }
-        #swiper { position:absolute; top:104px; bottom:0; width:100%; }
-        .swiper-slide img { width:100%; height:100%; object-fit:cover; }
+        body { background: #000; color: #fff; font-family: sans-serif; margin: 0; text-align: center; }
+        #start-screen { position: fixed; inset: 0; background: #000; z-index: 9999; display: flex; align-items: center; justify-content: center; }
+        .btn { padding: 15px 30px; background: #9c4dff; border: none; color: #fff; border-radius: 25px; font-weight: bold; }
     </style>
 </head>
-            <body>
-    <div class="top-bar">
-        <button onclick="toggleMenu()" class="btn">☰</button>
-        <h1 style="flex:1; text-align:center;">IMAGIFHUB</h1>
-        <button onclick="triggerSearch()" class="btn">🔍</button>
+<body>
+    <div id="start-screen">
+        <button class="btn" onclick="startApp()">START IMAGIFHUB</button>
     </div>
 
-    <div class="cat-bar" id="catBar"></div>
-    <div id="swiper" class="swiper"><div class="swiper-wrapper" id="feed"></div></div>
-    
-    <audio id="bgMusic" loop preload="auto"></audio>
+    <audio id="bgMusic" loop src="YOUR_MUSIC_URL_HERE"></audio>
 
     <script>
-        const API_URL = "https://imagifhub.onrender.com"; // UPDATE THIS
-        let currentCat = "All";
+        const RENDER_URL = "https://imagifhub.onrender.com"; 
 
-        // 1. FULL CATEGORY LIST
-        const cats = ["All", "Nature", "Space", "City", "Superhero", "Supervillain", "Robotic", "Anime", "Cars", "Wildlife", "Funny", "Seasonal Greetings", "Dark Aesthetic", "Luxury", "Gaming", "Ancient World"];
-
-        // 2. MUSIC MANAGER (Fixes Autoplay Failure)
-        const musicTracks = [
-            "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3",
-            "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3"
-        ];
-        
-        function initMusic() {
+        function startApp() {
+            document.getElementById('start-screen').style.display = 'none';
             const audio = document.getElementById('bgMusic');
-            if (audio.paused) {
-                audio.src = musicTracks[Math.floor(Math.random() * musicTracks.length)];
-                audio.play().catch(e => console.log("Tap again to play music"));
-            }
-            // Remove listener so it only triggers once
-            document.removeEventListener('click', initMusic);
+            audio.play().catch(e => console.log("Music blocked"));
+            loadFeed("all");
         }
 
-        // 3. LOAD DATA
-        window.onload = () => {
-            renderCats();
-            loadImages("All");
-            document.addEventListener('click', initMusic); // Music starts on first tap
-        };
-
-        function renderCats() {
-            document.getElementById('catBar').innerHTML = cats.map(c => 
-                `<div class="cat-btn ${c===currentCat?'active':''}" onclick="loadImages('${c}')">${c}</div>`
-            ).join('');
-        }
-
-        async function loadImages(cat, search="") {
-            currentCat = cat;
-            renderCats();
-            const feed = document.getElementById('feed');
-            feed.innerHTML = '<div class="swiper-slide">Connecting to Server...</div>';
-            
+        async function loadFeed(cat) {
             try {
-                const cleanCat = cat === "All" ? "all" : cat.toLowerCase();
-                const response = await fetch(`${API_URL}/media?category=${cleanCat}&search=${search}`);
-                
-                if (!response.ok) throw new Error();
-                const data = await response.json();
-
-                if (data.length === 0) {
-                    feed.innerHTML = '<div class="swiper-slide">No images found</div>';
-                    return;
-                }
-
-                feed.innerHTML = data.map(img => `
-                    <div class="swiper-slide">
-                        <img src="${img.url}">
-                        <div class="overlay">@IMAGIFHUB<br>${img.keywords || ''}</div>
-                    </div>
-                `).join('');
-
-                new Swiper('#swiper', { direction: 'vertical' });
-            } catch (err) {
-                feed.innerHTML = '<div class="swiper-slide">Error: Wake up the Render server!</div>';
+                const res = await fetch(`${RENDER_URL}/media?category=${cat}`);
+                const data = await res.json();
+                console.log("Success:", data);
+                // Render your images here
+            } catch (e) {
+                alert("Connection failed. Check Render logs.");
             }
-        }
-
-        function triggerSearch() {
-            const q = prompt("Enter search keyword:");
-            if (q) loadImages("All", q);
         }
     </script>
-            </body>
-    
+</body>
 </html>
