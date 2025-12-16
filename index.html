@@ -4,474 +4,204 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
     <title>IMAGIFHUB</title>
-
     <script src="https://unpkg.com/@telegram-apps/sdk@7.2.0/dist/core.min.js"></script>
-
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.css"/>
     <script src="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.js"></script>
 
     <style>
-        /* CSS variables (Theming) */
         :root {
-            --bg: #000;
-            --text: #fff;
-            --accent: #9c4dff; /* Purple */
-            --bar: #1a1a1a;
-            --like: #fff;
-            --liked: #ff3040;
-            --cat-bg: #333;
-            --cat-text: #fff;
-            --cat-active-bg: #fff;
-            --cat-active-text: #000;
+            --bg: #000; --text: #fff; --bar: #1a1a1a; --accent: #9c4dff;
+            --cat-bg: #333; --cat-text: #fff; --cat-active-bg: #fff; --cat-active-text: #000;
         }
 
-        /* Basic Setup */
-        body, html {
-            margin:0;
-            height:100%;
-            background:var(--bg);
-            color:var(--text);
-            font-family:system-ui;
-            overflow:hidden; /* Crucial for preventing scroll outside of feed */
-        }
-        
-        /* OVERLAY for menu */
-        .content-overlay{
-            position:fixed;
-            top:0;
-            left:0;
-            right:0;
-            bottom:0;
-            background:rgba(0,0,0,0.5);
-            z-index:1001;
-            opacity:0;
-            visibility:hidden;
-            transition:opacity 0.3s, visibility 0.3s;
-        }
-        .menu-panel.open ~ .content-overlay{
-            opacity:1;
-            visibility:visible;
-        }
+        /* Dynamic Theme Classes */
+        .theme-white { --bg: #fff; --text: #000; --bar: #f0f0f0; --cat-bg: #e0e0e0; --cat-text: #000; --cat-active-bg: #000; --cat-active-text: #fff; }
+        .theme-blood { --bg: #4a0e0e; --text: #ffcfcf; --bar: #2a0505; --accent: #ff4d4d; }
+        .theme-ocean { --bg: #0e1e4a; --text: #cfe3ff; --bar: #050a2a; --accent: #4d9cff; }
+        .theme-forest { --bg: #0e4a1e; --text: #cfffdf; --bar: #052a0a; --accent: #4dff88; }
+        .theme-gold { --bg: #2a2405; --text: #ffefcf; --bar: #1a1603; --accent: #ffcc00; }
 
-        /* TOP BAR */
-        .top-bar {
-            position:fixed;
-            top:0;
-            left:0;
-            right:0;
-            height:56px;
-            background:var(--bar);
-            display:flex;
-            align-items:center;
-            padding:0 12px;
-            z-index:3000;
-            border-bottom:1px solid #333;
-        }
-        .top-bar h1{
-            flex-grow:1;
-            font-size:18px;
-            font-weight:600;
-            text-align:center;
-            margin:0;
-        }
-        .top-bar button{
-            background:none;
-            border:none;
-            color:var(--text);
-            font-size:24px;
-            line-height:1;
-            cursor:pointer;
-        }
+        body, html { margin:0; height:100%; background:var(--bg); color:var(--text); font-family:system-ui; overflow:hidden; transition: background 0.3s; }
 
-        /* MENU PANEL FIX */
-        .menu-panel{
-            position:fixed;
-            top:0;
-            /* FIX: Hide 80% of its own width */
-            left:-80%;
-            width:80%;
-            height:100%;
-            background:var(--bar);
-            z-index:1002;
-            transition:left 0.3s;
-            padding:56px 0 20px;
-            box-sizing:border-box;
-            overflow-y:auto;
-            border-right:1px solid #333;
-        }
-        .menu-panel.open{
-            left:0;
-        }
-        .menu-link{
-            display:block;
-            padding:12px 20px;
-            text-decoration:none;
-            color:var(--text);
-            font-size:16px;
-            border-bottom:1px solid #333;
-        }
-
-        /* CATEGORY BAR FIX */
-        .cat-bar{
-            position:fixed;
-            top:56px; /* Sits right under the 56px top bar */
-            left:0;
-            right:0;
-            height:48px;
-            background:var(--bar);
-            overflow-x:auto; /* FIX: Essential for horizontal scrolling */
-            overflow-y:hidden;
-            display:flex;
-            align-items:center;
-            padding:0 16px;
-            gap:12px;
-            z-index:999;
-            border-bottom:1px solid #333;
-            white-space:nowrap;
-            -webkit-overflow-scrolling:touch;
-        }
-        .cat-bar::-webkit-scrollbar {display:none;}
-
-        .cat-btn{
-            background:var(--cat-bg);
-            color:var(--cat-text);
-            padding:6px 14px;
-            border-radius:18px;
-            font-size:14px;
-            flex-shrink:0;
-            transition:background 0.2s, color 0.2s;
-            cursor:pointer;
-        }
-        .cat-btn.active{
-            background:var(--cat-active-bg);
-            color:var(--cat-active-text);
-            font-weight:600;
-        }
-
-        /* SWIPER FEED SETUP */
-        #swiper{
-            position:absolute;
-            top:104px; /* 56px top-bar + 48px cat-bar */
-            left:0;
-            right:0;
-            bottom:0;
-        }
-
-        .swiper-slide{
-            width:100%;
-            height:100%;
-            overflow:hidden;
-            display:flex;
-            justify-content:center;
-            align-items:center;
-            background:var(--bg);
-        }
-        .swiper-slide img{
-            width:100%;
-            height:100%;
-            object-fit:cover;
-            position:absolute;
-            z-index:1;
-        }
-
-        /* MEDIA CONTROLS */
-        .media-controls{
-            position:absolute;
-            bottom:20px;
-            left:0;
-            right:0;
-            z-index:2;
-            padding:0 20px;
-            display:flex;
-            align-items:flex-end;
-        }
-        .media-info{
-            flex-grow:1;
-            color:#fff;
-            text-shadow:0 0 4px rgba(0,0,0,0.6);
-        }
-        .media-actions{
-            display:flex;
-            flex-direction:column;
-            gap:16px;
-        }
-        .media-actions button{
-            width:48px;
-            height:48px;
-            background:rgba(0,0,0,0.3);
-            border:1px solid #fff;
-            border-radius:50%;
-            color:var(--like);
-            font-size:24px;
-            line-height:1;
-            cursor:pointer;
-            box-shadow:0 2px 4px rgba(0,0,0,0.5);
-            transition:color 0.1s;
-        }
-        .media-actions button.liked{
-            color:var(--liked);
-        }
-    </style>
-</head>
-
-<body>
-    <div id="menuPanel" class="menu-panel">
-        <a href="javascript:void(0)" class="menu-link" onclick="toggleMenu()">☰ Close Menu</a>
-        <a href="playlist.html" class="menu-link">Playlist</a>
-        <a href="premium.html" class="menu-link">Premium Subscription</a>
-        <a href="javascript:void(0)" class="menu-link" onclick="toggleTheme()">Change Theme</a>
-        <a href="javascript:void(0)" class="menu-link" onclick="toggleMenu(); toggleMusic()">🎵 Toggle Music (<span id="musicBtn">♪</span>)</a>
-    </div>
-    <div class="content-overlay" onclick="toggleMenu()"></div>
-
-    <div class="top-bar">
-        <button id="hamburgerBtn" onclick="toggleMenu()">☰</button>
-        <h1>IMAGIFHUB</h1>
-        <button onclick="searchCurrent()">🔍</button>
-    </div>
-
-    <div id="catBar" class="cat-bar">
-        </div>
-
-    <div id="swiper" class="swiper">
-        <div id="feed" class="swiper-wrapper">
-            </div>
-    </div>
-
-    <audio id="bgMusic" preload="auto" loop></audio>
-
-    <script>
-        // === Configuration and State ===
-        // IMPORTANT: Replace this with your actual Render API URL
-        const API_BASE_URL = "https://imagifhub.onrender.com"; 
-        
-        const audio = document.getElementById("bgMusic");
-        let musicPlaying = false;
-        let currentCat = "All";
-        let downloadsToday = 0;
-        let feedData = []; // Store fetched data
-        
-        // Music Lists (Dummy URLs - Replace with your own!)
-        const categoryMusic = {
-            "All": ["https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3", "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3"],
-            "Space": ["https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3"],
-            "Default": ["https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3"] 
-        };
-
-        const CATEGORIES = [
-            "All", "Nature", "Space", "City", "Superhero", "Supervillain", 
-            "Robotic", "Anime", "Cars", "Wildlife", "Funny", 
-            "Seasonal Greetings", "Dark Aesthetic", "Luxury", "Gaming", "Ancient World"
-        ];
-        
-        // --- Core Functions ---
-
-        /* MENU */
-        function toggleMenu() {
-            const panel = document.getElementById("menuPanel");
-            panel.classList.toggle("open");
-            
-            // FIX: Update hamburger icon text 
-            const is_open = panel.classList.contains('open');
-            document.getElementById("hamburgerBtn").textContent = is_open ? "✕" : "☰";
-        }
+        /* TOP BAR & SEARCH */
+        .top-bar { position:fixed; top:0; left:0; right:0; height:56px; background:var(--bar); display:flex; align-items:center; padding:0 12px; z-index:3000; border-bottom:1px solid rgba(255,255,255,0.1); }
+        .top-bar h1 { flex-grow:1; font-size:18px; text-align:center; margin:0; letter-spacing: 1px; }
+        .btn-icon { background:none; border:none; color:var(--text); font-size:22px; cursor:pointer; padding:10px; }
 
         /* CATEGORY BAR */
-        function buildCategoryBar() {
-            const bar = document.getElementById("catBar");
-            bar.innerHTML = "";
-            CATEGORIES.forEach(c => {
-                const b = document.createElement("div");
-                b.className = "cat-btn" + (c === currentCat ? " active" : "");
-                b.textContent = c;
-                b.onclick = () => {
-                    currentCat = c;
-                    buildCategoryBar();
-                    loadFeed(); // Reload feed for the new category
-                };
-                bar.appendChild(b);
-            });
-        }
+        .cat-bar { position:fixed; top:56px; left:0; right:0; height:48px; background:var(--bar); overflow-x:auto; display:flex; align-items:center; padding:0 12px; gap:8px; z-index:2000; border-bottom:1px solid rgba(255,255,255,0.05); }
+        .cat-bar::-webkit-scrollbar { display:none; }
+        .cat-btn { background:var(--cat-bg); color:var(--cat-text); padding:6px 15px; border-radius:20px; font-size:13px; white-space:nowrap; cursor:pointer; flex-shrink:0; }
+        .cat-btn.active { background:var(--cat-active-bg); color:var(--cat-active-text); font-weight:bold; }
 
-        /* FEED: Fetch Data from Python Backend */
-        async function loadFeed() {
-            const feedContainer = document.getElementById("feed");
-            feedContainer.innerHTML = "";
-            
-            // Show a temporary loading message/spinner
-            feedContainer.innerHTML = `<div class="swiper-slide" style="color:white; font-size: 20px;">Loading ${currentCat} images...</div>`;
-            
-            try {
-                // Call your Render API endpoint
-                const response = await fetch(`${API_BASE_URL}/media?category=${currentCat}`);
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-                feedData = await response.json();
-                
-                if (feedData.length === 0) {
-                    feedContainer.innerHTML = `<div class="swiper-slide" style="color:white; font-size: 20px;">No content found in this category.</div>`;
-                } else {
-                    renderFeed(feedData);
-                }
-            } catch (error) {
-                console.error("Error loading feed:", error);
-                Telegram.WebApp.showAlert("Failed to load content. Check API URL and server status.");
-                feedContainer.innerHTML = `<div class="swiper-slide" style="color:red; font-size: 20px;">Error loading content.</div>`;
+        /* THEME SELECTOR IN MENU */
+        .theme-scroll-container { display: flex; overflow-x: auto; gap: 15px; padding: 15px; margin-top: 10px; border-top: 1px solid #333; }
+        .theme-scroll-container::-webkit-scrollbar { display: none; }
+        .theme-card { display: flex; flex-direction: column; align-items: center; gap: 5px; min-width: 60px; cursor: pointer; position: relative; }
+        .theme-preview { width: 40px; height: 40px; border-radius: 50%; border: 2px solid #555; display: flex; overflow: hidden; transform: rotate(-45deg); }
+        .preview-primary { width: 50%; height: 100%; }
+        .preview-secondary { width: 50%; height: 100%; }
+        .lock-icon { position: absolute; top: -5px; right: 5px; font-size: 12px; background: #000; border-radius: 50%; padding: 2px; }
+
+        /* MENU PANEL */
+        .menu-panel { position:fixed; top:0; left:-100%; width:85%; height:100%; background:var(--bar); z-index:4000; transition:0.3s; padding-top:60px; box-sizing:border-box; }
+        .menu-panel.open { left:0; box-shadow: 5px 0 15px rgba(0,0,0,0.5); }
+        .menu-item { padding: 15px 25px; border-bottom: 1px solid #333; color: var(--text); text-decoration: none; display: block; font-size: 16px; }
+
+        /* SWIPER FEED */
+        #swiper { position:absolute; top:104px; left:0; right:0; bottom:0; }
+        .swiper-slide { position:relative; display:flex; justify-content:center; align-items:center; background:#111; }
+        .swiper-slide img { width:100%; height:100%; object-fit:cover; }
+        .info-overlay { position:absolute; bottom:40px; left:15px; right:70px; z-index:10; text-shadow: 1px 1px 5px #000; }
+        .side-actions { position:absolute; bottom:40px; right:15px; display:flex; flex-direction:column; gap:20px; z-index:10; }
+        .action-btn { background:rgba(0,0,0,0.5); border:1px solid #fff; border-radius:50%; width:45px; height:45px; color:#fff; font-size:18px; display:flex; align-items:center; justify-content:center; }
+    </style>
+</head>
+<body>
+
+    <div class="top-bar">
+        <button class="btn-icon" onclick="toggleMenu()">☰</button>
+        <h1>IMAGIFHUB</h1>
+        <button class="btn-icon" onclick="triggerSearch()">🔍</button>
+    </div>
+
+    <div class="cat-bar" id="catBar"></div>
+
+    <div id="menuPanel" class="menu-panel">
+        <a href="#" class="menu-item" onclick="toggleMenu()">✖ Close</a>
+        <a href="premium.html" class="menu-item" style="color:gold;">⭐ Upgrade to Premium</a>
+        <a href="playlist.html" class="menu-item">My Playlist</a>
+        
+        <div style="padding: 15px 25px 0; font-size: 14px; opacity: 0.7;">SELECT THEME</div>
+        <div class="theme-scroll-container" id="themeBar"></div>
+    </div>
+
+    <div id="swiper" class="swiper">
+        <div class="swiper-wrapper" id="feedWrapper"></div>
+    </div>
+
+    <audio id="bgMusic" loop></audio>
+
+    <script>
+        // --- CONFIGURATION ---
+        const RENDER_URL = "https://your-render-app-name.onrender.com"; // REPLACE WITH YOUR URL
+        const isPremium = false; // We will change this later with payment logic
+
+        let currentCategory = "All";
+        let searchQuery = "";
+
+        // --- THEME DATA ---
+        const themes = [
+            { id: 'default', name: 'Dark', primary: '#000', secondary: '#fff', premium: false },
+            { id: 'white', name: 'Light', primary: '#fff', secondary: '#000', premium: false },
+            { id: 'blood', name: 'Blood', primary: '#4a0e0e', secondary: '#ff4d4d', premium: true },
+            { id: 'ocean', name: 'Ocean', primary: '#0e1e4a', secondary: '#4d9cff', premium: true },
+            { id: 'forest', name: 'Forest', primary: '#0e4a1e', secondary: '#4dff88', premium: true },
+            { id: 'gold', name: 'Lux', primary: '#2a2405', secondary: '#ffcc00', premium: true }
+        ];
+
+        // --- INITIALIZATION ---
+        window.onload = () => {
+            renderCategories();
+            renderThemes();
+            loadImages();
+        };
+
+        function toggleMenu() { document.getElementById('menuPanel').classList.toggle('open'); }
+
+        // --- SEARCH LOGIC ---
+        function triggerSearch() {
+            const term = prompt("Search for images (e.g. Batman, Nature, Neon):");
+            if (term !== null) {
+                searchQuery = term;
+                loadImages();
             }
         }
-        
-        /* FEED: Render the Data */
-        function renderFeed(data) {
-            const feedContainer = document.getElementById("feed");
-            feedContainer.innerHTML = ""; // Clear loading message
-            
-            data.forEach((media) => {
-                const s = document.createElement("div");
-                s.className = "swiper-slide";
-                s.id = `media-${media.id}`; // Add ID for easy lookup
-                
-                const img = document.createElement("img");
-                img.src = media.url; // Use the image URL from Supabase
-                s.appendChild(img);
 
-                // Add controls and info overlay
-                s.innerHTML += `
-                    <div class="media-controls">
-                        <div class="media-info">
-                            <p style="font-size:16px; margin:0 0 4px 0;">${media.keywords}</p>
-                            <p style="font-size:12px; margin:0;">Category: ${media.category}</p>
+        // --- CATEGORIES ---
+        const cats = ["All", "Superhero", "Nature", "Anime", "Cars", "Gaming", "Luxury", "Space"];
+        function renderCategories() {
+            const bar = document.getElementById('catBar');
+            bar.innerHTML = cats.map(c => `<div class="cat-btn ${c===currentCategory?'active':''}" onclick="setCategory('${c}')">${c}</div>`).join('');
+        }
+        function setCategory(c) {
+            currentCategory = c;
+            searchQuery = ""; // Clear search when category changes
+            renderCategories();
+            loadImages();
+        }
+
+        // --- THEME SWITCHER ---
+        function renderThemes() {
+            const bar = document.getElementById('themeBar');
+            bar.innerHTML = themes.map(t => `
+                <div class="theme-card" onclick="applyTheme('${t.id}', ${t.premium})">
+                    <div class="theme-preview">
+                        <div class="preview-primary" style="background:${t.primary}"></div>
+                        <div class="preview-secondary" style="background:${t.secondary}"></div>
+                    </div>
+                    <span style="font-size:10px">${t.name}</span>
+                    ${t.premium && !isPremium ? '<span class="lock-icon">🔒</span>' : ''}
+                </div>
+            `).join('');
+        }
+
+        function applyTheme(id, premium) {
+            if (premium && !isPremium) {
+                Telegram.WebApp.showAlert("⭐ This is a Premium theme! Please upgrade to unlock.");
+                return;
+            }
+            document.body.className = id === 'default' ? '' : 'theme-' + id;
+            toggleMenu();
+        }
+
+        // --- FETCH IMAGES FROM SUPABASE ---
+        async function loadImages() {
+            const wrapper = document.getElementById('feedWrapper');
+            wrapper.innerHTML = `<div class="swiper-slide">Loading IMAGIFHUB...</div>`;
+
+            try {
+                // Build URL with category and search query
+                let url = `${RENDER_URL}/media?category=${currentCategory.toLowerCase()}`;
+                if (searchQuery) url += `&search=${encodeURIComponent(searchQuery)}`;
+
+                const response = await fetch(url);
+                const data = await response.json();
+
+                if (!data || data.length === 0) {
+                    wrapper.innerHTML = `<div class="swiper-slide">No images found for "${searchQuery || currentCategory}"</div>`;
+                    return;
+                }
+
+                wrapper.innerHTML = data.map(img => `
+                    <div class="swiper-slide">
+                        <img src="${img.url}" loading="lazy">
+                        <div class="info-overlay">
+                            <b style="font-size:18px">@IMAGIFHUB</b><br>
+                            <span>${img.keywords || 'High Quality Content'}</span>
                         </div>
-                        <div class="media-actions">
-                            <button onclick="handleLike('${media.id}')" data-likes="${media.likes}" id="likeBtn-${media.id}">
-                                <span id="likeCount-${media.id}">❤ ${media.likes}</span>
-                            </button>
-                            <button onclick="downloadCurrent()">⬇️</button>
-                            <button onclick="commentCurrent()">💬</button>
+                        <div class="side-actions">
+                            <div class="action-btn" onclick="likeImage(${img.id})">❤️<br><small style="font-size:10px">${img.likes}</small></div>
+                            <div class="action-btn" onclick="window.open('${img.url}')">⬇️</div>
+                            <div class="action-btn">💬</div>
                         </div>
                     </div>
-                `;
-                feedContainer.appendChild(s);
-            });
-            
-            // Initialize Swiper after content is loaded
-            if (document.getElementById("swiper").swiper) {
-                document.getElementById("swiper").swiper.destroy(true, true);
-            }
-            new Swiper("#swiper", {
-                direction: "vertical",
-                mousewheel: true,
-                speed: 400
-            });
-        }
-        
-        /* MEDIA ACTIONS */
-        async function handleLike(mediaId) {
-            const button = document.getElementById(`likeBtn-${mediaId}`);
-            const countSpan = document.getElementById(`likeCount-${mediaId}`);
-            
-            if (button.classList.contains('liked')) {
-                 Telegram.WebApp.showAlert("You can only like an image once!");
-                 return;
-            }
+                `).join('');
 
-            try {
-                const response = await fetch(`${API_BASE_URL}/like/${mediaId}`, {method: 'POST'});
-                const data = await response.json();
-                
-                if (data.success) {
-                    button.classList.add('liked');
-                    countSpan.textContent = `❤ ${data.new_likes}`;
-                } else {
-                    Telegram.WebApp.showAlert("Failed to record like: " + data.message);
-                }
-            } catch (error) {
-                console.error("Like error:", error);
-                Telegram.WebApp.showAlert("Could not connect to server to record like.");
+                initSwiper();
+            } catch (e) {
+                wrapper.innerHTML = `<div class="swiper-slide">Error connecting to server.</div>`;
             }
         }
-        
-        function downloadCurrent() {
-             Telegram.WebApp.showAlert("Download function is not fully implemented yet.");
-        }
-        
-        function commentCurrent() {
-             Telegram.WebApp.showAlert("Comment functionality will be implemented in the next steps!");
-        }
-        
-        function searchCurrent() {
-             Telegram.WebApp.showAlert("Search functionality will be implemented in the next steps!");
+
+        function initSwiper() {
+            new Swiper("#swiper", { direction: "vertical", mousewheel: true });
         }
 
-
-        /* MUSIC (FIXED LOGIC) */
-        function playRandomMusic() {
-            const key = currentCat in categoryMusic ? currentCat : "Default";
-            const list = categoryMusic[key];
-            
-            // Check if audio element exists and is ready
-            if (!audio || !list || list.length === 0) {
-                 console.warn("Audio element or music list not found.");
-                 return;
-            }
-            
-            // Select a random track
-            audio.src = list[Math.floor(Math.random() * list.length)];
-            audio.volume = 0.5;
-            
-            // Attempt to play, handling the browser's autoplay block
-            audio.play()
-                .then(() => {
-                    musicPlaying = true;
-                    document.getElementById("musicBtn").textContent = "❚ ❚";
-                })
-                .catch(error => {
-                    // Autoplay blocked by browser. This is common and expected.
-                    console.log("Autoplay blocked:", error);
-                    musicPlaying = false;
-                    document.getElementById("musicBtn").textContent = "♪";
-                });
-            
-            // Auto-play next song 3-4 seconds after current one finishes
-            audio.onended = () => {
-                setTimeout(() => playRandomMusic(), 3500); 
-            };
+        async function likeImage(id) {
+            await fetch(`${RENDER_URL}/like/${id}`, { method: 'POST' });
+            loadImages(); // Refresh to show new count
         }
-
-        function toggleMusic() {
-            if (musicPlaying) {
-                audio.pause();
-                musicPlaying = false;
-                document.getElementById("musicBtn").textContent = "♪";
-            } else {
-                // Start playback if it was previously stopped (requires user interaction)
-                playRandomMusic();
-            }
-        }
-        
-        // --- Initial Interaction Handling (Required for Music) ---
-        function handleInitialInteraction() {
-            if (!musicPlaying) playRandomMusic();
-            // Remove listeners after first interaction
-            document.body.removeEventListener("touchstart", handleInitialInteraction);
-            document.body.removeEventListener("click", handleInitialInteraction);
-        }
-
-        document.body.addEventListener("touchstart", handleInitialInteraction, {once: true});
-        document.body.addEventListener("click", handleInitialInteraction, {once: true});
-
-
-        // --- Theme Toggling (Simplified) ---
-        function toggleTheme() {
-            document.body.classList.toggle('white-theme');
-            Telegram.WebApp.showAlert(document.body.classList.contains('white-theme') ? "Switched to White Theme" : "Switched to Dark Theme");
-        }
-
-
-        // --- Initial Setup Calls ---\n
-        buildCategoryBar();
-        loadFeed(); // Initial load random images from 'All'
-        downloadsToday = parseInt(localStorage.getItem("downloadsToday") || "0");
     </script>
 </body>
 </html>
