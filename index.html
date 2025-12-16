@@ -1,40 +1,214 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
     <title>IMAGIFHUB</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
     <script src="https://unpkg.com/@telegram-apps/sdk@7.2.0/dist/core.min.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.css"/>
+    <script src="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.js"></script>
+
     <style>
-        body { background: #000; color: #fff; font-family: sans-serif; margin: 0; text-align: center; }
-        #start-screen { position: fixed; inset: 0; background: #000; z-index: 9999; display: flex; align-items: center; justify-content: center; }
-        .btn { padding: 15px 30px; background: #9c4dff; border: none; color: #fff; border-radius: 25px; font-weight: bold; }
+        :root {
+            --bg: #000; --text: #fff; --bar: #1a1a1a; --accent: #9c4dff;
+            --cat-bg: #333; --cat-text: #fff; --cat-active-bg: #fff; --cat-active-text: #000;
+        }
+
+        /* Premium Theme Definitions */
+        .theme-white { --bg: #fff; --text: #000; --bar: #f0f0f0; --cat-bg: #e0e0e0; --cat-text: #000; --cat-active-bg: #000; --cat-active-text: #fff; }
+        .theme-blood { --bg: #4a0e0e; --text: #ffcfcf; --bar: #2a0505; --accent: #ff4d4d; }
+        .theme-ocean { --bg: #0e1e4a; --text: #cfe3ff; --bar: #050a2a; --accent: #4d9cff; }
+        .theme-forest { --bg: #0e4a1e; --text: #cfffdf; --bar: #052a0a; --accent: #4dff88; }
+        .theme-gold { --bg: #2a2405; --text: #ffefcf; --bar: #1a1603; --accent: #ffcc00; }
+        .theme-midnight { --bg: #05051a; --text: #cfcfff; --bar: #02020a; --accent: #704dff; }
+
+        body, html { margin:0; height:100%; background:var(--bg); color:var(--text); font-family:system-ui; overflow:hidden; transition: 0.3s; }
+
+        /* TOP BAR */
+        .top-bar { position:fixed; top:0; left:0; right:0; height:56px; background:var(--bar); display:flex; align-items:center; padding:0 12px; z-index:3000; border-bottom:1px solid rgba(255,255,255,0.1); }
+        .hamburger { font-size:24px; cursor:pointer; padding:10px; }
+        .search-container { flex:1; margin:0 10px; }
+        .search-input { width:100%; padding:8px 15px; border:none; border-radius:20px; background:var(--cat-bg); color:var(--text); outline:none; }
+
+        /* CATEGORY BAR */
+        .cat-bar { position:fixed; top:56px; left:0; right:0; height:48px; background:var(--bar); display:flex; align-items:center; padding:0 12px; gap:8px; overflow-x:auto; z-index:2500; }
+        .cat-bar::-webkit-scrollbar { display:none; }
+        .cat-btn { background:var(--cat-bg); color:var(--cat-text); padding:6px 15px; border-radius:20px; font-size:13px; white-space:nowrap; cursor:pointer; }
+        .cat-btn.active { background:var(--cat-active-bg); color:var(--cat-active-text); font-weight:bold; }
+
+        /* SWIPER FEED */
+        #swiper { position:absolute; top:104px; left:0; right:0; bottom:0; }
+        .swiper-slide { position:relative; background:#111; display:flex; justify-content:center; align-items:center; }
+        .swiper-slide img { width:100%; height:100%; object-fit:cover; }
+
+        /* MENU & THEME SELECTOR */
+        .menu-panel { position:fixed; top:0; left:-100%; width:85%; height:100%; background:var(--bar); z-index:5000; transition:0.3s; padding-top:60px; box-sizing:border-box; }
+        .menu-panel.open { left:0; box-shadow: 10px 0 20px rgba(0,0,0,0.5); }
+        .menu-item { padding: 15px 25px; border-bottom: 1px solid rgba(255,255,255,0.05); color: var(--text); cursor:pointer; }
+        
+        .theme-scroll { display: flex; overflow-x: auto; gap: 15px; padding: 20px; }
+        .theme-scroll::-webkit-scrollbar { display:none; }
+        .theme-card { display: flex; flex-direction: column; align-items: center; gap: 6px; min-width: 65px; position: relative; }
+        .theme-preview { width: 45px; height: 45px; border-radius: 50%; border: 2px solid #555; display: flex; overflow: hidden; transform: rotate(-45deg); cursor: pointer; }
+        .preview-left { width: 50%; height: 100%; }
+        .preview-right { width: 50%; height: 100%; }
+        .lock-icon { position: absolute; top: -5px; right: 10px; font-size: 14px; }
+
+        /* OVERLAYS */
+        .info-box { position:absolute; bottom:30px; left:15px; right:80px; z-index:10; text-shadow: 2px 2px 4px #000; }
+        .side-bar { position:absolute; bottom:30px; right:15px; display:flex; flex-direction:column; gap:20px; z-index:10; }
+        .action-btn { background:rgba(0,0,0,0.4); border:1px solid rgba(255,255,255,0.3); border-radius:50%; width:48px; height:48px; display:flex; flex-direction:column; align-items:center; justify-content:center; font-size:18px; }
     </style>
 </head>
 <body>
-    <div id="start-screen">
-        <button class="btn" onclick="startApp()">START IMAGIFHUB</button>
+
+    <div class="top-bar">
+        <div class="hamburger" onclick="toggleMenu()">☰</div>
+        <div class="search-container">
+            <input type="text" class="search-input" placeholder="Search keywords..." onchange="handleSearch(this.value)">
+        </div>
+        <div id="musicBtn" style="cursor:pointer;" onclick="toggleMusic()">♪</div>
     </div>
 
-    <audio id="bgMusic" loop src="YOUR_MUSIC_URL_HERE"></audio>
+    <div class="cat-bar" id="catBar"></div>
+
+    <div id="menuPanel" class="menu-panel">
+        <div class="menu-item" onclick="toggleMenu()" style="font-weight:bold; color:var(--accent);">✕ CLOSE MENU</div>
+        <div class="menu-item">⭐ GO PREMIUM</div>
+        
+        <div style="padding: 20px 25px 0; font-size: 12px; opacity: 0.6; letter-spacing: 1px;">SWITCH THEME</div>
+        <div class="theme-scroll" id="themeBar"></div>
+    </div>
+
+    <div id="swiper" class="swiper">
+        <div class="swiper-wrapper" id="feedWrapper"></div>
+    </div>
+
+    <audio id="bgMusic" loop></audio>
 
     <script>
-        const RENDER_URL = "https://imagifhub.onrender.com"; 
+        // CONFIG - REPLACE WITH YOUR RENDER URL
+        const RENDER_URL = "https://your-render-app-name.onrender.com"; 
+        const isPremium = false; // logic to be added later
 
-        function startApp() {
-            document.getElementById('start-screen').style.display = 'none';
-            const audio = document.getElementById('bgMusic');
-            audio.play().catch(e => console.log("Music blocked"));
-            loadFeed("all");
+        let currentCat = "All";
+        let searchTerm = "";
+
+        // CATEGORIES FROM YOUR PYTHON CODE
+        const cats = ["All", "Nature", "Space", "City", "Superhero", "Supervillain", "Robotic", "Anime", "Cars", "Wildlife", "Funny", "Seasonal Greetings", "Dark Aesthetic", "Luxury", "Gaming", "Ancient World"];
+
+        // THEME DATA
+        const themes = [
+            { id: 'default', name: 'Dark', c1: '#000', c2: '#fff', premium: false },
+            { id: 'white', name: 'Light', c1: '#fff', c2: '#000', premium: false },
+            { id: 'blood', name: 'Blood', c1: '#4a0e0e', c2: '#ff4d4d', premium: true },
+            { id: 'ocean', name: 'Ocean', c1: '#0e1e4a', c2: '#4d9cff', premium: true },
+            { id: 'forest', name: 'Green', c1: '#0e4a1e', c2: '#4dff88', premium: true },
+            { id: 'gold', name: 'Gold', c1: '#2a2405', c2: '#ffcc00', premium: true },
+            { id: 'midnight', name: 'Night', c1: '#05051a', c2: '#704dff', premium: true }
+        ];
+
+        window.onload = () => {
+            renderCategories();
+            renderThemes();
+            loadFeed();
+            // Start music on first tap
+            document.body.addEventListener('click', () => {
+                const audio = document.getElementById('bgMusic');
+                if(audio.paused) audio.play().catch(e => {});
+            }, { once: true });
+        };
+
+        function toggleMenu() { document.getElementById('menuPanel').classList.toggle('open'); }
+
+        function renderCategories() {
+            const bar = document.getElementById('catBar');
+            bar.innerHTML = cats.map(c => `<div class="cat-btn ${c===currentCat?'active':''}" onclick="setCategory('${c}')">${c}</div>`).join('');
         }
 
-        async function loadFeed(cat) {
+        function setCategory(c) {
+            currentCat = c;
+            searchTerm = ""; 
+            renderCategories();
+            loadFeed();
+        }
+
+        function handleSearch(val) {
+            searchTerm = val;
+            loadFeed();
+        }
+
+        function renderThemes() {
+            const bar = document.getElementById('themeBar');
+            bar.innerHTML = themes.map(t => `
+                <div class="theme-card" onclick="applyTheme('${t.id}', ${t.premium})">
+                    <div class="theme-preview">
+                        <div class="preview-left" style="background:${t.c1}"></div>
+                        <div class="preview-right" style="background:${t.c2}"></div>
+                    </div>
+                    <span style="font-size:10px">${t.name}</span>
+                    ${t.premium && !isPremium ? '<span class="lock-icon">🔒</span>' : ''}
+                </div>
+            `).join('');
+        }
+
+        function applyTheme(id, premium) {
+            if (premium && !isPremium) {
+                alert("⭐ Premium Theme! Please upgrade to unlock.");
+                return;
+            }
+            document.body.className = id === 'default' ? '' : 'theme-' + id;
+            toggleMenu();
+        }
+
+        async function loadFeed() {
+            const wrapper = document.getElementById('feedWrapper');
+            wrapper.innerHTML = '<div class="swiper-slide">Loading IMAGIFHUB...</div>';
+
             try {
-                const res = await fetch(`${RENDER_URL}/media?category=${cat}`);
+                const catParam = currentCat === "All" ? "all" : currentCat;
+                const url = `${RENDER_URL}/media?category=${catParam}&search=${searchTerm}`;
+                const res = await fetch(url);
                 const data = await res.json();
-                console.log("Success:", data);
-                // Render your images here
+
+                if (!data || data.length === 0) {
+                    wrapper.innerHTML = '<div class="swiper-slide">No images found.</div>';
+                    return;
+                }
+
+                wrapper.innerHTML = data.map(img => `
+                    <div class="swiper-slide">
+                        <img src="${img.url}">
+                        <div class="info-box">
+                            <b style="font-size:18px">@IMAGIFHUB</b><br>
+                            <span style="font-size:14px; opacity:0.9;">${img.keywords || 'High Quality Content'}</span>
+                        </div>
+                        <div class="side-bar">
+                            <div class="action-btn">❤️<small style="font-size:10px">${img.likes || 0}</small></div>
+                            <div class="action-btn" onclick="window.open('${img.url}')">⬇️</div>
+                            <div class="action-btn">💬</div>
+                            <div class="action-btn">📌</div>
+                        </div>
+                    </div>
+                `).join('');
+
+                if(document.getElementById("swiper").swiper) document.getElementById("swiper").swiper.destroy();
+                new Swiper("#swiper", { direction: "vertical", mousewheel: true });
             } catch (e) {
-                alert("Connection failed. Check Render logs.");
+                wrapper.innerHTML = '<div class="swiper-slide">Connection Failed. Check Render server.</div>';
+            }
+        }
+
+        function toggleMusic() {
+            const audio = document.getElementById('bgMusic');
+            const btn = document.getElementById('musicBtn');
+            if (audio.paused) {
+                audio.play();
+                btn.textContent = "⏸";
+            } else {
+                audio.pause();
+                btn.textContent = "♪";
             }
         }
     </script>
