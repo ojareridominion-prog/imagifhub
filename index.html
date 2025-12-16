@@ -1,216 +1,162 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>IMAGIFHUB</title>
-
     <script src="https://unpkg.com/@telegram-apps/sdk@7.2.0/dist/core.min.js"></script>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.css"/>
     <script src="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.js"></script>
-
     <style>
-        :root {
-            --bg: #000; --text: #fff; --bar: #1a1a1a; --accent: #9c4dff;
-            --cat-bg: #333; --cat-text: #fff; --cat-active-bg: #fff; --cat-active-text: #000;
-        }
-
-        /* Premium Theme Definitions */
-        .theme-white { --bg: #fff; --text: #000; --bar: #f0f0f0; --cat-bg: #e0e0e0; --cat-text: #000; --cat-active-bg: #000; --cat-active-text: #fff; }
+        :root { --bg: #000; --text: #fff; --bar: #1a1a1a; --accent: #9c4dff; }
+        /* Premium Themes */
+        .theme-white { --bg: #fff; --text: #000; --bar: #f0f0f0; }
         .theme-blood { --bg: #4a0e0e; --text: #ffcfcf; --bar: #2a0505; --accent: #ff4d4d; }
-        .theme-ocean { --bg: #0e1e4a; --text: #cfe3ff; --bar: #050a2a; --accent: #4d9cff; }
-        .theme-forest { --bg: #0e4a1e; --text: #cfffdf; --bar: #052a0a; --accent: #4dff88; }
-        .theme-gold { --bg: #2a2405; --text: #ffefcf; --bar: #1a1603; --accent: #ffcc00; }
-        .theme-midnight { --bg: #05051a; --text: #cfcfff; --bar: #02020a; --accent: #704dff; }
+        .theme-neon { --bg: #000; --text: #0ff; --bar: #001a1a; --accent: #0ff; }
+        .theme-sunset { --bg: #2d142c; --text: #feb47b; --bar: #1a0a19; --accent: #ff7e5f; }
+        .theme-forest { --bg: #0b1a10; --text: #d4f1d5; --bar: #050d08; --accent: #4caf50; }
+        .theme-amethyst { --bg: #1a0b2e; --text: #e0d4f1; --bar: #0d051a; --accent: #9c4dff; }
 
-        body, html { margin:0; height:100%; background:var(--bg); color:var(--text); font-family:system-ui; overflow:hidden; transition: 0.3s; }
-
-        /* TOP BAR */
-        .top-bar { position:fixed; top:0; left:0; right:0; height:56px; background:var(--bar); display:flex; align-items:center; padding:0 12px; z-index:3000; border-bottom:1px solid rgba(255,255,255,0.1); }
-        .hamburger { font-size:24px; cursor:pointer; padding:10px; }
-        .search-container { flex:1; margin:0 10px; }
-        .search-input { width:100%; padding:8px 15px; border:none; border-radius:20px; background:var(--cat-bg); color:var(--text); outline:none; }
-
-        /* CATEGORY BAR */
-        .cat-bar { position:fixed; top:56px; left:0; right:0; height:48px; background:var(--bar); display:flex; align-items:center; padding:0 12px; gap:8px; overflow-x:auto; z-index:2500; }
-        .cat-bar::-webkit-scrollbar { display:none; }
-        .cat-btn { background:var(--cat-bg); color:var(--cat-text); padding:6px 15px; border-radius:20px; font-size:13px; white-space:nowrap; cursor:pointer; }
-        .cat-btn.active { background:var(--cat-active-bg); color:var(--cat-active-text); font-weight:bold; }
-
-        /* SWIPER FEED */
-        #swiper { position:absolute; top:104px; left:0; right:0; bottom:0; }
-        .swiper-slide { position:relative; background:#111; display:flex; justify-content:center; align-items:center; }
-        .swiper-slide img { width:100%; height:100%; object-fit:cover; }
-
-        /* MENU & THEME SELECTOR */
-        .menu-panel { position:fixed; top:0; left:-100%; width:85%; height:100%; background:var(--bar); z-index:5000; transition:0.3s; padding-top:60px; box-sizing:border-box; }
-        .menu-panel.open { left:0; box-shadow: 10px 0 20px rgba(0,0,0,0.5); }
-        .menu-item { padding: 15px 25px; border-bottom: 1px solid rgba(255,255,255,0.05); color: var(--text); cursor:pointer; }
+        body { margin:0; background:var(--bg); color:var(--text); font-family:system-ui; overflow:hidden; transition: 0.3s; }
+        .top-bar { position:fixed; top:0; width:100%; height:56px; background:var(--bar); display:flex; align-items:center; z-index:100; border-bottom:1px solid rgba(255,255,255,0.1); }
+        .cat-bar { position:fixed; top:56px; width:100%; height:48px; background:var(--bar); overflow-x:auto; display:flex; align-items:center; gap:10px; padding:0 12px; z-index:90; }
+        .cat-btn { padding:6px 15px; border-radius:20px; background:#333; font-size:12px; white-space:nowrap; cursor:pointer; }
+        .cat-btn.active { background:var(--accent); color:#fff; }
         
-        .theme-scroll { display: flex; overflow-x: auto; gap: 15px; padding: 20px; }
-        .theme-scroll::-webkit-scrollbar { display:none; }
-        .theme-card { display: flex; flex-direction: column; align-items: center; gap: 6px; min-width: 65px; position: relative; }
-        .theme-preview { width: 45px; height: 45px; border-radius: 50%; border: 2px solid #555; display: flex; overflow: hidden; transform: rotate(-45deg); cursor: pointer; }
-        .preview-left { width: 50%; height: 100%; }
-        .preview-right { width: 50%; height: 100%; }
-        .lock-icon { position: absolute; top: -5px; right: 10px; font-size: 14px; }
+        /* Menu Styling */
+        .menu-panel { position:fixed; left:-100%; width:85%; height:100%; background:var(--bar); z-index:200; transition:0.4s; padding-top:60px; box-shadow: 5px 0 15px rgba(0,0,0,0.5); }
+        .menu-panel.open { left:0; }
+        .menu-link { padding:15px 25px; border-bottom:1px solid rgba(255,255,255,0.05); display:block; text-decoration:none; color:var(--text); font-weight:500; }
+        
+        /* Theme Row */
+        .theme-row { display:flex; overflow-x:auto; padding:15px; gap:15px; }
+        .theme-circle { width:45px; height:45px; border-radius:50%; border:2px solid #444; position:relative; overflow:hidden; transform:rotate(-45deg); flex-shrink:0; }
+        .half-p { width:50%; height:100%; position:absolute; left:0; }
+        .half-s { width:50%; height:100%; position:absolute; right:0; }
 
-        /* OVERLAYS */
-        .info-box { position:absolute; bottom:30px; left:15px; right:80px; z-index:10; text-shadow: 2px 2px 4px #000; }
-        .side-bar { position:absolute; bottom:30px; right:15px; display:flex; flex-direction:column; gap:20px; z-index:10; }
-        .action-btn { background:rgba(0,0,0,0.4); border:1px solid rgba(255,255,255,0.3); border-radius:50%; width:48px; height:48px; display:flex; flex-direction:column; align-items:center; justify-content:center; font-size:18px; }
+        #swiper { position:absolute; top:104px; bottom:0; width:100%; }
+        .swiper-slide img { width:100%; height:100%; object-fit:cover; }
+        .meta-overlay { position:absolute; bottom:40px; left:15px; text-shadow: 2px 2px 5px #000; }
     </style>
 </head>
 <body>
-
     <div class="top-bar">
-        <div class="hamburger" onclick="toggleMenu()">☰</div>
-        <div class="search-container">
-            <input type="text" class="search-input" placeholder="Search keywords..." onchange="handleSearch(this.value)">
-        </div>
-        <div id="musicBtn" style="cursor:pointer;" onclick="toggleMusic()">♪</div>
+        <button onclick="toggleMenu()" style="background:none; border:none; color:#fff; font-size:24px; padding:15px;">☰</button>
+        <h2 style="flex:1; text-align:center; font-size:16px; letter-spacing:1px;">IMAGIFHUB</h2>
+        <button onclick="triggerSearch()" style="background:none; border:none; color:#fff; font-size:20px; padding:15px;">🔍</button>
     </div>
 
     <div class="cat-bar" id="catBar"></div>
 
     <div id="menuPanel" class="menu-panel">
-        <div class="menu-item" onclick="toggleMenu()" style="font-weight:bold; color:var(--accent);">✕ CLOSE MENU</div>
-        <div class="menu-item">⭐ GO PREMIUM</div>
+        <a href="#" class="menu-link" onclick="toggleMenu()" style="color:var(--accent)">✕ Close Menu</a>
+        <a href="playlist.html" class="menu-link">📂 My Playlist</a>
+        <a href="https://t.me/your_channel_link" class="menu-link">📢 Official Channel</a> <a href="premium.html" class="menu-link" style="color:gold;">⭐ Premium Subscription</a>
         
-        <div style="padding: 20px 25px 0; font-size: 12px; opacity: 0.6; letter-spacing: 1px;">SWITCH THEME</div>
-        <div class="theme-scroll" id="themeBar"></div>
+        <div style="padding:15px 25px 0; font-size:12px; opacity:0.6;">SELECT THEME</div>
+        <div class="theme-row" id="themeBar"></div>
     </div>
 
-    <div id="swiper" class="swiper">
-        <div class="swiper-wrapper" id="feedWrapper"></div>
-    </div>
-
+    <div id="swiper" class="swiper"><div class="swiper-wrapper" id="feed"></div></div>
     <audio id="bgMusic" loop></audio>
 
     <script>
-        // CONFIG - REPLACE WITH YOUR RENDER URL
-        const RENDER_URL = "https://imagifhub.onrender.com"; 
-        const isPremium = false; // logic to be added later
+        const API_URL = "https://your-render-link.onrender.com"; // UPDATE THIS
+        let isPremium = false;
 
-        let currentCat = "All";
-        let searchTerm = "";
+        const categories = ["All", "Nature", "Space", "City", "Superhero", "Supervillain", "Robotic", "Anime", "Cars", "Wildlife", "Funny", "Seasonal Greetings", "Dark Aesthetic", "Luxury", "Gaming", "Ancient World"];
+        
+        // Category Music Mapping
+        const musicMap = {
+            "All": "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3",
+            "Nature": "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3",
+            "Cars": "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3",
+            "Anime": "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-4.mp3",
+            "Default": "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-8.mp3"
+        };
 
-        // CATEGORIES FROM YOUR PYTHON CODE
-        const cats = ["All", "Nature", "Space", "City", "Superhero", "Supervillain", "Robotic", "Anime", "Cars", "Wildlife", "Funny", "Seasonal Greetings", "Dark Aesthetic", "Luxury", "Gaming", "Ancient World"];
-
-        // THEME DATA
         const themes = [
-            { id: 'default', name: 'Dark', c1: '#000', c2: '#fff', premium: false },
-            { id: 'white', name: 'Light', c1: '#fff', c2: '#000', premium: false },
-            { id: 'blood', name: 'Blood', c1: '#4a0e0e', c2: '#ff4d4d', premium: true },
-            { id: 'ocean', name: 'Ocean', c1: '#0e1e4a', c2: '#4d9cff', premium: true },
-            { id: 'forest', name: 'Green', c1: '#0e4a1e', c2: '#4dff88', premium: true },
-            { id: 'gold', name: 'Gold', c1: '#2a2405', c2: '#ffcc00', premium: true },
-            { id: 'midnight', name: 'Night', c1: '#05051a', c2: '#704dff', premium: true }
+            {id:'dark', p:'#000', s:'#fff', lock:false},
+            {id:'white', p:'#fff', s:'#000', lock:false},
+            {id:'blood', p:'#4a0e0e', s:'#f00', lock:true},
+            {id:'neon', p:'#000', s:'#0ff', lock:true},
+            {id:'sunset', p:'#2d142c', s:'#ff7e5f', lock:true},
+            {id:'forest', p:'#0b1a10', s:'#4caf50', lock:true},
+            {id:'amethyst', p:'#1a0b2e', s:'#9c4dff', lock:true}
         ];
 
         window.onload = () => {
-            renderCategories();
+            renderCats();
             renderThemes();
-            loadFeed();
-            // Start music on first tap
-            document.body.addEventListener('click', () => {
-                const audio = document.getElementById('bgMusic');
-                if(audio.paused) audio.play().catch(e => {});
-            }, { once: true });
+            loadFeed("All");
+            // Music delay logic
+            document.body.addEventListener('click', () => { 
+                setTimeout(() => { document.getElementById('bgMusic').play(); }, 3000); 
+            }, {once:true});
         };
 
-        function toggleMenu() { document.getElementById('menuPanel').classList.toggle('open'); }
-
-        function renderCategories() {
-            const bar = document.getElementById('catBar');
-            bar.innerHTML = cats.map(c => `<div class="cat-btn ${c===currentCat?'active':''}" onclick="setCategory('${c}')">${c}</div>`).join('');
-        }
-
-        function setCategory(c) {
-            currentCat = c;
-            searchTerm = ""; 
-            renderCategories();
-            loadFeed();
-        }
-
-        function handleSearch(val) {
-            searchTerm = val;
-            loadFeed();
+        function renderCats() {
+            document.getElementById('catBar').innerHTML = categories.map(c => `<div class="cat-btn" onclick="loadFeed('${c}')">${c}</div>`).join('');
         }
 
         function renderThemes() {
-            const bar = document.getElementById('themeBar');
-            bar.innerHTML = themes.map(t => `
-                <div class="theme-card" onclick="applyTheme('${t.id}', ${t.premium})">
-                    <div class="theme-preview">
-                        <div class="preview-left" style="background:${t.c1}"></div>
-                        <div class="preview-right" style="background:${t.c2}"></div>
+            document.getElementById('themeBar').innerHTML = themes.map(t => `
+                <div onclick="applyTheme('${t.id}', ${t.lock})" style="text-align:center;">
+                    <div class="theme-circle">
+                        <div class="half-p" style="background:${t.p}"></div>
+                        <div class="half-s" style="background:${t.s}"></div>
                     </div>
-                    <span style="font-size:10px">${t.name}</span>
-                    ${t.premium && !isPremium ? '<span class="lock-icon">🔒</span>' : ''}
+                    ${t.lock ? '<small>🔒</small>' : ''}
                 </div>
             `).join('');
         }
 
-        function applyTheme(id, premium) {
-            if (premium && !isPremium) {
-                alert("⭐ Premium Theme! Please upgrade to unlock.");
-                return;
-            }
-            document.body.className = id === 'default' ? '' : 'theme-' + id;
-            toggleMenu();
-        }
-
-        async function loadFeed() {
-            const wrapper = document.getElementById('feedWrapper');
-            wrapper.innerHTML = '<div class="swiper-slide">Loading IMAGIFHUB...</div>';
+        async function loadFeed(cat, search="") {
+            const feed = document.getElementById('feed');
+            feed.innerHTML = '<div class="swiper-slide">Randomizing Feed...</div>';
+            
+            // Switch Music based on Category
+            const audio = document.getElementById('bgMusic');
+            audio.src = musicMap[cat] || musicMap["Default"];
+            audio.play();
 
             try {
-                const catParam = currentCat === "All" ? "all" : currentCat;
-                const url = `${RENDER_URL}/media?category=${catParam}&search=${searchTerm}`;
-                const res = await fetch(url);
-                const data = await res.json();
-
-                if (!data || data.length === 0) {
-                    wrapper.innerHTML = '<div class="swiper-slide">No images found.</div>';
-                    return;
-                }
-
-                wrapper.innerHTML = data.map(img => `
+                let res = await fetch(`${API_URL}/media?category=${cat.toLowerCase()}&search=${search}`);
+                let data = await res.json();
+                
+                feed.innerHTML = data.map(img => `
                     <div class="swiper-slide">
                         <img src="${img.url}">
-                        <div class="info-box">
+                        <div class="meta-overlay">
                             <b style="font-size:18px">@IMAGIFHUB</b><br>
-                            <span style="font-size:14px; opacity:0.9;">${img.keywords || 'High Quality Content'}</span>
+                            <span style="opacity:0.8;">#${img.Keyword || 'Wallpaper'}</span>
                         </div>
-                        <div class="side-bar">
-                            <div class="action-btn">❤️<small style="font-size:10px">${img.likes || 0}</small></div>
-                            <div class="action-btn" onclick="window.open('${img.url}')">⬇️</div>
-                            <div class="action-btn">💬</div>
-                            <div class="action-btn">📌</div>
+                        <div style="position:absolute; right:15px; bottom:40px; display:flex; flex-direction:column; gap:20px;">
+                            <button onclick="like(${img.id})" style="background:none; border:none; color:#fff; font-size:24px;">❤️</button>
+                            <button onclick="save(${img.id})" style="background:none; border:none; color:#fff; font-size:24px;">📂</button>
                         </div>
                     </div>
                 `).join('');
-
-                if(document.getElementById("swiper").swiper) document.getElementById("swiper").swiper.destroy();
-                new Swiper("#swiper", { direction: "vertical", mousewheel: true });
-            } catch (e) {
-                wrapper.innerHTML = '<div class="swiper-slide">Connection Failed. Check Render server.</div>';
-            }
+                
+                new Swiper('#swiper', { direction: 'vertical' });
+            } catch(e) { feed.innerHTML = '<div class="swiper-slide">Check Server Connection</div>'; }
         }
 
-        function toggleMusic() {
-            const audio = document.getElementById('bgMusic');
-            const btn = document.getElementById('musicBtn');
-            if (audio.paused) {
-                audio.play();
-                btn.textContent = "⏸";
-            } else {
-                audio.pause();
-                btn.textContent = "♪";
-            }
+        function triggerSearch() {
+            let q = prompt("Search wallpapers:");
+            if(q) loadFeed("All", q);
         }
+
+        function toggleMenu() { document.getElementById('menuPanel').classList.toggle('open'); }
+        
+        function applyTheme(id, lock) {
+            if(lock && !isPremium) return alert("Upgrade to Premium to unlock this style! ⭐");
+            document.body.className = id === 'dark' ? '' : 'theme-' + id;
+        }
+
+        // Placeholders for next step
+        function like(id) { alert("Liked image " + id); }
+        function save(id) { alert("Saved to Playlist!"); }
     </script>
 </body>
 </html>
