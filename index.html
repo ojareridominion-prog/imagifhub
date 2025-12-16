@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+    <title>IMAGIFHUB</title>
+    <script src="https://unpkg.com/@telegram-apps/sdk@7.2.0/dist/core.min.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.css"/>
+    <script src="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.js"></script>
+
+    <style>
+        :root {
+            --bg: #000; --text: #fff; --bar: #1a1a1a; --accent: #9c4dff;
+            --cat-bg: #333; --cat-text: #fff; --cat-active-bg: #fff; --cat-active-text: #000;
+        }
+
+        /* Dynamic Theme Classes */
+        .theme-white { --bg: #fff; --text: #000; --bar: #f0f0f0; --cat-bg: #e0e0e0; --cat-text: #000; --cat-active-bg: #000; --cat-active-text: #fff; }
+        .theme-blood { --bg: #4a0e0e; --text: #ffcfcf; --bar: #2a0505; --accent: #ff4d4d; }
+        .theme-ocean { --bg: #0e1e4a; --text: #cfe3ff; --bar: #050a2a; --accent: #4d9cff; }
+        .theme-forest { --bg: #0e4a1e; --text: #cfffdf; --bar: #052a0a; --accent: #4dff88; }
+        .theme-gold { --bg: #2a2405; --text: #ffefcf; --bar: #1a1603; --accent: #ffcc00; }
+
+        body, html { margin:0; height:100%; background:var(--bg); color:var(--text); font-family:system-ui; overflow:hidden; transition: background 0.3s; }
+
+        /* TOP BAR & SEARCH */
+        .top-bar { position:fixed; top:0; left:0; right:0; height:56px; background:var(--bar); display:flex; align-items:center; padding:0 12px; z-index:3000; border-bottom:1px solid rgba(255,255,255,0.1); }
+        .top-bar h1 { flex-grow:1; font-size:18px; text-align:center; margin:0; letter-spacing: 1px; }
+        .btn-icon { background:none; border:none; color:var(--text); font-size:22px; cursor:pointer; padding:10px; }
+
+        /* CATEGORY BAR */
+        .cat-bar { position:fixed; top:56px; left:0; right:0; height:48px; background:var(--bar); overflow-x:auto; display:flex; align-items:center; padding:0 12px; gap:8px; z-index:2000; border-bottom:1px solid rgba(255,255,255,0.05); }
+        .cat-bar::-webkit-scrollbar { display:none; }
+        .cat-btn { background:var(--cat-bg); color:var(--cat-text); padding:6px 15px; border-radius:20px; font-size:13px; white-space:nowrap; cursor:pointer; flex-shrink:0; }
+        .cat-btn.active { background:var(--cat-active-bg); color:var(--cat-active-text); font-weight:bold; }
+
+        /* THEME SELECTOR IN MENU */
+        .theme-scroll-container { display: flex; overflow-x: auto; gap: 15px; padding: 15px; margin-top: 10px; border-top: 1px solid #333; }
+        .theme-scroll-container::-webkit-scrollbar { display: none; }
+        .theme-card { display: flex; flex-direction: column; align-items: center; gap: 5px; min-width: 60px; cursor: pointer; position: relative; }
+        .theme-preview { width: 40px; height: 40px; border-radius: 50%; border: 2px solid #555; display: flex; overflow: hidden; transform: rotate(-45deg); }
+        .preview-primary { width: 50%; height: 100%; }
+        .preview-secondary { width: 50%; height: 100%; }
+        .lock-icon { position: absolute; top: -5px; right: 5px; font-size: 12px; background: #000; border-radius: 50%; padding: 2px; }
+
+        /* MENU PANEL */
+        .menu-panel { position:fixed; top:0; left:-100%; width:85%; height:100%; background:var(--bar); z-index:4000; transition:0.3s; padding-top:60px; box-sizing:border-box; }
+        .menu-panel.open { left:0; box-shadow: 5px 0 15px rgba(0,0,0,0.5); }
+        .menu-item { padding: 15px 25px; border-bottom: 1px solid #333; color: var(--text); text-decoration: none; display: block; font-size: 16px; }
+
+        /* SWIPER FEED */
+        #swiper { position:absolute; top:104px; left:0; right:0; bottom:0; }
+        .swiper-slide { position:relative; display:flex; justify-content:center; align-items:center; background:#111; }
+        .swiper-slide img { width:100%; height:100%; object-fit:cover; }
+        .info-overlay { position:absolute; bottom:40px; left:15px; right:70px; z-index:10; text-shadow: 1px 1px 5px #000; }
+        .side-actions { position:absolute; bottom:40px; right:15px; display:flex; flex-direction:column; gap:20px; z-index:10; }
+        .action-btn { background:rgba(0,0,0,0.5); border:1px solid #fff; border-radius:50%; width:45px; height:45px; color:#fff; font-size:18px; display:flex; align-items:center; justify-content:center; }
+    </style>
+</head>
+<body>
+
+    <div class="top-bar">
+        <button class="btn-icon" onclick="toggleMenu()">☰</button>
+        <h1>IMAGIFHUB</h1>
+        <button class="btn-icon" onclick="triggerSearch()">🔍</button>
+    </div>
+
+    <div class="cat-bar" id="catBar"></div>
+
+    <div id="menuPanel" class="menu-panel">
+        <a href="#" class="menu-item" onclick="toggleMenu()">✖ Close</a>
+        <a href="premium.html" class="menu-item" style="color:gold;">⭐ Upgrade to Premium</a>
+        <a href="playlist.html" class="menu-item">My Playlist</a>
+        
+        <div style="padding: 15px 25px 0; font-size: 14px; opacity: 0.7;">SELECT THEME</div>
+        <div class="theme-scroll-container" id="themeBar"></div>
+    </div>
+
+    <div id="swiper" class="swiper">
+        <div class="swiper-wrapper" id="feedWrapper"></div>
+    </div>
+
+    <audio id="bgMusic" loop></audio>
+
+    <script>
+        // --- CONFIGURATION ---
+        const RENDER_URL = "https://your-render-app-name.onrender.com"; // REPLACE WITH YOUR URL
+        const isPremium = false; // We will change this later with payment logic
+
+        let currentCategory = "All";
+        let searchQuery = "";
+
+        // --- THEME DATA ---
+        const themes = [
+            { id: 'default', name: 'Dark', primary: '#000', secondary: '#fff', premium: false },
+            { id: 'white', name: 'Light', primary: '#fff', secondary: '#000', premium: false },
+            { id: 'blood', name: 'Blood', primary: '#4a0e0e', secondary: '#ff4d4d', premium: true },
+            { id: 'ocean', name: 'Ocean', primary: '#0e1e4a', secondary: '#4d9cff', premium: true },
+            { id: 'forest', name: 'Forest', primary: '#0e4a1e', secondary: '#4dff88', premium: true },
+            { id: 'gold', name: 'Lux', primary: '#2a2405', secondary: '#ffcc00', premium: true }
+        ];
+
+        // --- INITIALIZATION ---
+        window.onload = () => {
+            renderCategories();
+            renderThemes();
+            loadImages();
+        };
+
+        function toggleMenu() { document.getElementById('menuPanel').classList.toggle('open'); }
+
+        // --- SEARCH LOGIC ---
+        function triggerSearch() {
+            const term = prompt("Search for images (e.g. Batman, Nature, Neon):");
+            if (term !== null) {
+                searchQuery = term;
+                loadImages();
+            }
+        }
+
+        // --- CATEGORIES ---
+        const cats = ["All", "Superhero", "Nature", "Anime", "Cars", "Gaming", "Luxury", "Space"];
+        function renderCategories() {
+            const bar = document.getElementById('catBar');
+            bar.innerHTML = cats.map(c => `<div class="cat-btn ${c===currentCategory?'active':''}" onclick="setCategory('${c}')">${c}</div>`).join('');
+        }
+        function setCategory(c) {
+            currentCategory = c;
+            searchQuery = ""; // Clear search when category changes
+            renderCategories();
+            loadImages();
+        }
+
+        // --- THEME SWITCHER ---
+        function renderThemes() {
+            const bar = document.getElementById('themeBar');
+            bar.innerHTML = themes.map(t => `
+                <div class="theme-card" onclick="applyTheme('${t.id}', ${t.premium})">
+                    <div class="theme-preview">
+                        <div class="preview-primary" style="background:${t.primary}"></div>
+                        <div class="preview-secondary" style="background:${t.secondary}"></div>
+                    </div>
+                    <span style="font-size:10px">${t.name}</span>
+                    ${t.premium && !isPremium ? '<span class="lock-icon">🔒</span>' : ''}
+                </div>
+            `).join('');
+        }
+
+        function applyTheme(id, premium) {
+            if (premium && !isPremium) {
+                Telegram.WebApp.showAlert("⭐ This is a Premium theme! Please upgrade to unlock.");
+                return;
+            }
+            document.body.className = id === 'default' ? '' : 'theme-' + id;
+            toggleMenu();
+        }
+
+        // --- FETCH IMAGES FROM SUPABASE ---
+        async function loadImages() {
+            const wrapper = document.getElementById('feedWrapper');
+            wrapper.innerHTML = `<div class="swiper-slide">Loading IMAGIFHUB...</div>`;
+
+            try {
+                // Build URL with category and search query
+                let url = `${RENDER_URL}/media?category=${currentCategory.toLowerCase()}`;
+                if (searchQuery) url += `&search=${encodeURIComponent(searchQuery)}`;
+
+                const response = await fetch(url);
+                const data = await response.json();
+
+                if (!data || data.length === 0) {
+                    wrapper.innerHTML = `<div class="swiper-slide">No images found for "${searchQuery || currentCategory}"</div>`;
+                    return;
+                }
+
+                wrapper.innerHTML = data.map(img => `
+                    <div class="swiper-slide">
+                        <img src="${img.url}" loading="lazy">
+                        <div class="info-overlay">
+                            <b style="font-size:18px">@IMAGIFHUB</b><br>
+                            <span>${img.keywords || 'High Quality Content'}</span>
+                        </div>
+                        <div class="side-actions">
+                            <div class="action-btn" onclick="likeImage(${img.id})">❤️<br><small style="font-size:10px">${img.likes}</small></div>
+                            <div class="action-btn" onclick="window.open('${img.url}')">⬇️</div>
+                            <div class="action-btn">💬</div>
+                        </div>
+                    </div>
+                `).join('');
+
+                initSwiper();
+            } catch (e) {
+                wrapper.innerHTML = `<div class="swiper-slide">Error connecting to server.</div>`;
+            }
+        }
+
+        function initSwiper() {
+            new Swiper("#swiper", { direction: "vertical", mousewheel: true });
+        }
+
+        async function likeImage(id) {
+            await fetch(`${RENDER_URL}/like/${id}`, { method: 'POST' });
+            loadImages(); // Refresh to show new count
+        }
+    </script>
+</body>
+</html>
