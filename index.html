@@ -58,93 +58,150 @@
     </style>
 </head>
 <body>
+
+    <div class="top-bar">
+        <button class="btn-icon" onclick="toggleMenu()">☰</button>
+        <h1>IMAGIFHUB</h1>
+        <button class="btn-icon" onclick="triggerSearch()">🔍</button>
+    </div>
+
     <div class="cat-bar" id="catBar"></div>
+
+    <div id="menuPanel" class="menu-panel">
+        <a href="#" class="menu-item" onclick="toggleMenu()">✖ Close</a>
+        <a href="premium.html" class="menu-item" style="color:gold;">⭐ Upgrade to Premium</a>
+        <a href="playlist.html" class="menu-item">My Playlist</a>
+        
+        <div style="padding: 15px 25px 0; font-size: 14px; opacity: 0.7;">SELECT THEME</div>
+        <div class="theme-scroll-container" id="themeBar"></div>
+    </div>
+
     <div id="swiper" class="swiper">
         <div class="swiper-wrapper" id="feedWrapper"></div>
     </div>
 
-    <audio id="bgMusic" loop preload="auto"></audio>
+    <audio id="bgMusic" loop></audio>
 
-<script>
-/* TELEGRAM INIT */
-Telegram.WebApp.ready();
-Telegram.WebApp.expand();
+    <script>
+        // --- CONFIGURATION ---
+        const RENDER_URL = "https://your-render-app-name.onrender.com"; // REPLACE WITH YOUR URL
+        const isPremium = false; // We will change this later with payment logic
 
-// === UPDATE THIS TO YOUR ACTUAL RENDER URL ===
-const RENDER_URL = "https://imagifhub.onrender.com"; 
+        let currentCategory = "All";
+        let searchQuery = "";
 
-/* DATA */
-const categories = ["All","Nature","Anime","Cars","Gaming","Luxury"];
-let currentCat="All";
-let searchTerm="";
-let musicPlaying=false;
-const audio=document.getElementById("bgMusic");
+        // --- THEME DATA ---
+        const themes = [
+            { id: 'default', name: 'Dark', primary: '#000', secondary: '#fff', premium: false },
+            { id: 'white', name: 'Light', primary: '#fff', secondary: '#000', premium: false },
+            { id: 'blood', name: 'Blood', primary: '#4a0e0e', secondary: '#ff4d4d', premium: true },
+            { id: 'ocean', name: 'Ocean', primary: '#0e1e4a', secondary: '#4d9cff', premium: true },
+            { id: 'forest', name: 'Forest', primary: '#0e4a1e', secondary: '#4dff88', premium: true },
+            { id: 'gold', name: 'Lux', primary: '#2a2405', secondary: '#ffcc00', premium: true }
+        ];
 
-/* BUILD CATEGORY BAR */
-function buildCategoryBar(){
-  const bar=document.getElementById("catBar");
-  bar.innerHTML="";
-  categories.forEach(c=>{
-    const b=document.createElement("div");
-    b.className="cat-btn"+(c===currentCat?" active":"");
-    b.textContent=c;
-    b.onclick=()=>{
-        currentCat=c;
-        buildCategoryBar();
-        loadFeed();
-    };
-    bar.appendChild(b);
-  });
-}
+        // --- INITIALIZATION ---
+        window.onload = () => {
+            renderCategories();
+            renderThemes();
+            loadImages();
+        };
 
-/* UPDATED FEED: FETCHES FROM BACKEND */
-async function loadFeed(){
-  const feed=document.getElementById("feed");
-  feed.innerHTML = '<div class="swiper-slide">Loading...</div>'; // Show loading state
-  
-  try {
-    const response = await fetch(`${RENDER_URL}/media?category=${currentCat}&search=${searchTerm}`);
-    const data = await response.json();
-    
-    feed.innerHTML = ""; // Clear loader
-    
-    if(!data || data.length === 0) {
-        feed.innerHTML = '<div class="swiper-slide">No media found in this category.</div>';
-        return;
-    }
+        function toggleMenu() { document.getElementById('menuPanel').classList.toggle('open'); }
 
-    data.forEach(item => {
-      const s = document.createElement("div");
-      s.className = "swiper-slide";
-      
-      const img = document.createElement("img");
-      img.src = item.url;
-      
-      // Update metadata on swipe (optional)
-      s.onclick = () => {
-          document.getElementById('keywordTitle').textContent = item.keywords || "IMAGIFHUB";
-          document.getElementById('likeCount').textContent = item.likes || 0;
-      };
+        // --- SEARCH LOGIC ---
+        function triggerSearch() {
+            const term = prompt("Search for images (e.g. Batman, Nature, Neon):");
+            if (term !== null) {
+                searchQuery = term;
+                loadImages();
+            }
+        }
 
-      s.appendChild(img);
-      feed.appendChild(s);
-    });
+        // --- CATEGORIES ---
+        const cats = ["All", "Superhero", "Nature", "Anime", "Cars", "Gaming", "Luxury", "Space"];
+        function renderCategories() {
+            const bar = document.getElementById('catBar');
+            bar.innerHTML = cats.map(c => `<div class="cat-btn ${c===currentCategory?'active':''}" onclick="setCategory('${c}')">${c}</div>`).join('');
+        }
+        function setCategory(c) {
+            currentCategory = c;
+            searchQuery = ""; // Clear search when category changes
+            renderCategories();
+            loadImages();
+        }
 
-    // Re-init Swiper
-    if(document.getElementById("swiper").swiper) document.getElementById("swiper").swiper.destroy();
-    new Swiper("#swiper", { direction: "vertical", mousewheel: true });
+        // --- THEME SWITCHER ---
+        function renderThemes() {
+            const bar = document.getElementById('themeBar');
+            bar.innerHTML = themes.map(t => `
+                <div class="theme-card" onclick="applyTheme('${t.id}', ${t.premium})">
+                    <div class="theme-preview">
+                        <div class="preview-primary" style="background:${t.primary}"></div>
+                        <div class="preview-secondary" style="background:${t.secondary}"></div>
+                    </div>
+                    <span style="font-size:10px">${t.name}</span>
+                    ${t.premium && !isPremium ? '<span class="lock-icon">🔒</span>' : ''}
+                </div>
+            `).join('');
+        }
 
-  } catch (error) {
-    console.error("Connection failed:", error);
-    feed.innerHTML = '<div class="swiper-slide">Error connecting to server.</div>';
-  }
-}
+        function applyTheme(id, premium) {
+            if (premium && !isPremium) {
+                Telegram.WebApp.showAlert("⭐ This is a Premium theme! Please upgrade to unlock.");
+                return;
+            }
+            document.body.className = id === 'default' ? '' : 'theme-' + id;
+            toggleMenu();
+        }
 
-/* ... Keep toggleMenu and Music functions ... */
+        // --- FETCH IMAGES FROM SUPABASE ---
+        async function loadImages() {
+            const wrapper = document.getElementById('feedWrapper');
+            wrapper.innerHTML = `<div class="swiper-slide">Loading IMAGIFHUB...</div>`;
 
-/* INIT */
-buildCategoryBar();
-loadFeed();
-      </script>
-  </body>               
+            try {
+                // Build URL with category and search query
+                let url = `${RENDER_URL}/media?category=${currentCategory.toLowerCase()}`;
+                if (searchQuery) url += `&search=${encodeURIComponent(searchQuery)}`;
+
+                const response = await fetch(url);
+                const data = await response.json();
+
+                if (!data || data.length === 0) {
+                    wrapper.innerHTML = `<div class="swiper-slide">No images found for "${searchQuery || currentCategory}"</div>`;
+                    return;
+                }
+
+                wrapper.innerHTML = data.map(img => `
+                    <div class="swiper-slide">
+                        <img src="${img.url}" loading="lazy">
+                        <div class="info-overlay">
+                            <b style="font-size:18px">@IMAGIFHUB</b><br>
+                            <span>${img.keywords || 'High Quality Content'}</span>
+                        </div>
+                        <div class="side-actions">
+                            <div class="action-btn" onclick="likeImage(${img.id})">❤️<br><small style="font-size:10px">${img.likes}</small></div>
+                            <div class="action-btn" onclick="window.open('${img.url}')">⬇️</div>
+                            <div class="action-btn">💬</div>
+                        </div>
+                    </div>
+                `).join('');
+
+                initSwiper();
+            } catch (e) {
+                wrapper.innerHTML = `<div class="swiper-slide">Error connecting to server.</div>`;
+            }
+        }
+
+        function initSwiper() {
+            new Swiper("#swiper", { direction: "vertical", mousewheel: true });
+        }
+
+        async function likeImage(id) {
+            await fetch(`${RENDER_URL}/like/${id}`, { method: 'POST' });
+            loadImages(); // Refresh to show new count
+        }
+    </script>
+</body>
 </html>
