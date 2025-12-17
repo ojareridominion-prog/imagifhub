@@ -1,8 +1,9 @@
 import os
 import asyncio
 import logging
+import random
 import requests
-from fastapi import FastAPI
+from fastapi import FastAPI, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from aiogram import Bot, Dispatcher, F
 from aiogram.filters import Command
@@ -15,20 +16,19 @@ import uvicorn
 
 logging.basicConfig(level=logging.INFO)
 
-# --- CONFIG ---
+# ==================== CONFIG ====================
 BOT_TOKEN = os.environ["BOT_TOKEN"]
 ADMIN_ID = int(os.environ["ADMIN_ID"])
 IMGBB_API_KEY = os.environ["IMGBB_API_KEY"]
-SUPABASE_URL = os.environ["SUPABASE_URL"]
-SUPABASE_KEY = os.environ["SUPABASE_KEY"]
+SUPABASE_URL = os.environ.get("SUPABASE_URL")
+SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
 
-# Initialize Clients
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher(storage=MemoryStorage())
 app = FastAPI()
 
-# Enable CORS for the frontend
+# Enable CORS for the Mini App
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -36,94 +36,109 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-class AdminStates(StatesGroup):
-    waiting_photo = State()
+class AdminUpload(StatesGroup):
+    waiting_media = State()
+    waiting_category = State()
+    waiting_keywords = State()
 
-# --- ADMIN PANEL ---
-@dp.message(Command("admin"))
-async def admin_start(message: Message):
-    if message.from_user.id != ADMIN_ID:
-        return
-    
-    kb = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="📤 Upload Image", callback_data="do_up")],
-        [InlineKeyboardButton(text="🧹 Cleanup Database", callback_data="do_clean")]
-    ])
-    await message.reply("<b>ADMIN PANEL ACTIVE</b>", reply_markup=kb, parse_mode="HTML")
+CATEGORIES = ["Nature", "Space", "City", "Superhero", "Supervillain", "Robotic", "Anime", "Cars", "Wildlife", "Funny", "Seasonal Greetings", "Dark Aesthetic", "Luxury", "Gaming", "Ancient World"]
 
-# --- CLEANUP LOGIC ---
-@dp.callback_query(F.data == "do_clean")
-async def cleanup_process(call: CallbackQuery):
-    await call.answer("Scanning database...")
+# ==================== HELPER: AUTO-CLEANUP ====================
+async def check_and_cleanup_links():
     try:
-        res = supabase.table('media_content').select('id, url').execute()
-        deleted = 0
-        for item in res.data:
+        response = supabase.table('media_content').select('id, url').execute()
+        for item in response.data:
             try:
-                # Check if image actually exists on ImgBB
-                check = requests.head(item['url'], timeout=5)
-                if check.status_code == 404:
+                res = requests.head(item['url'], timeout=5)
+                if res.status_code == 404:
                     supabase.table('media_content').delete().eq('id', item['id']).execute()
-                    deleted += 1
             except: continue
-        await call.message.answer(f"✅ Cleanup complete. Removed {deleted} broken links.")
     except Exception as e:
-        await call.message.answer(f"❌ Database error: {str(e)}")
+        logging.error(f"Cleanup error: {e}")
 
-# --- UPLOAD LOGIC ---
-@dp.callback_query(F.data == "do_up")
-async def ask_photo(call: CallbackQuery, state: FSMContext):
-    await call.message.edit_text("Send the image you want to upload.")
-    await state.set_state(AdminStates.waiting_photo)
+# ==================== BOT ADMIN LOGIC ====================
+@dp.message(Command("admin"))
+async def admin_panel(message: Message):
+    if message.from_user.id != ADMIN_ID: return
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="📤 Upload", callback_data="up")],
+        [InlineKeyboardButton(text="🧹 Cleanup", callback_data="clean")]
+    ])
+    await message.reply("<b>ADMIN PANEL</b>", reply_markup=keyboard, parse_mode="HTML")
 
-@dp.message(AdminStates.waiting_photo, F.photo)
-async def handle_upload(message: Message, state: FSMContext):
-    msg = await message.reply("⏳ Processing...")
-    try:
-        # 1. Download from Telegram
-        file = await bot.get_file(message.photo[-1].file_id)
-        content = await bot.download_file(file.file_path)
-        
-        # 2. Upload to ImgBB
-        up_res = requests.post(
-            "https://api.imgbb.com/1/upload",
-            params={'key': IMGBB_API_KEY},
-            files={'image': content.read()}
-        )
-        url = up_res.json()['data']['url']
-        
-        # 3. Save to Supabase (Simple Insert)
-        payload = {
-            "url": url,
-            "category": "All",
-            "Keyword": "New Post",
-            "Likes": 0
-        }
-        db_res = supabase.table('media_content').insert(payload).execute()
-        
-        if db_res.data:
-            await msg.edit_text(f"✅ Uploaded Successfully!\nURL: {url}")
-        else:
-            await msg.edit_text("❌ Database rejected upload. Check Supabase RLS.")
-            
-    except Exception as e:
-        await msg.edit_text(f"❌ Critical Error: {str(e)}")
+@dp.callback_query(F.data == "clean")
+async def run_cleanup(call: CallbackQuery):
+    await call.answer("Cleanup started...")
+    asyncio.create_task(check_and_cleanup_links())
+
+@dp.callback_query(F.data == "up")
+async def start_upload(call: CallbackQuery, state: FSMContext):
+    await call.message.edit_text("Send the image(s) now!")
+    await state.set_state(AdminUpload.waiting_media)
+
+@dp.message(AdminUpload.waiting_media, F.photo)
+async def handle_media(message: Message, state: FSMContext):
+    file = await bot.get_file(message.photo[-1].file_id)
+    file_bytes = await bot.download_file(file.file_path)
     
+    resp = requests.post("https://api.imgbb.com/1/upload", params={'key': IMGBB_API_KEY}, files={'image': file_bytes.read()})
+    url = resp.json()['data']['url']
+    
+    data = await state.get_data()
+    urls = data.get("urls", [])
+    urls.append(url)
+    await state.update_data(urls=urls)
+
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text=cat, callback_data=f"cat_{cat}") for cat in CATEGORIES[i:i+3]]
+        for i in range(0, len(CATEGORIES), 3)
+    ])
+    await message.reply(f"Received! ({len(urls)} total). Pick a category:", reply_markup=keyboard)
+    await state.set_state(AdminUpload.waiting_category)
+
+@dp.callback_query(F.data.startswith("cat_"))
+async def set_category(call: CallbackQuery, state: FSMContext):
+    await state.update_data(category=call.data[4:])
+    await call.message.edit_text("Enter Keywords (comma separated):")
+    await state.set_state(AdminUpload.waiting_keywords)
+
+@dp.message(AdminUpload.waiting_keywords)
+async def save_to_supabase(message: Message, state: FSMContext):
+    user_data = await state.get_data()
+    for url in user_data['urls']:
+        supabase.table('media_content').insert({
+            "url": url, "category": user_data['category'], 
+            "Keyword": message.text, "Likes": 0
+        }).execute()
+    await message.reply("✅ Saved successfully!")
     await state.clear()
 
-# --- API ---
+# ==================== API ENDPOINTS ====================
 @app.get("/media")
-async def get_media():
-    res = supabase.table('media_content').select('*').execute()
-    return res.data
+async def get_media(category: str = "all"):
+    query = supabase.table('media_content').select('*')
+    if category.lower() != "all":
+        query = query.eq('category', category.capitalize())
+    
+    response = query.execute()
+    data = response.data
+    random.shuffle(data) # RANDOMIZATION
+    return data[:50]
 
-# --- RUNNER ---
-async def start():
-    # Start bot and server
+@app.get("/")
+async def health(): return {"status": "Live"}
+
+# ==================== RUN ====================
+async def main():
+    # Start bot polling in the background
     asyncio.create_task(dp.start_polling(bot))
-    config = uvicorn.Config(app, host="0.0.0.0", port=int(os.environ.get("PORT", 10000)))
+    
+    # Run server
+    port = int(os.environ.get("PORT", 10000))
+    config = uvicorn.Config(app, host="0.0.0.0", port=port)
     server = uvicorn.Server(config)
     await server.serve()
 
 if __name__ == "__main__":
-    asyncio.run(start())
+    asyncio.run(main())
+                    
