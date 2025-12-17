@@ -2,167 +2,128 @@ import os
 import asyncio
 import logging
 import requests
-from fastapi import FastAPI, Request
-from aiogram import Bot, Dispatcher, types, F
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from aiogram import Bot, Dispatcher, F
 from aiogram.filters import Command
 from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.fsm.storage.memory import MemoryStorage
-from aiogram.client.default import DefaultBotProperties
-import sqlite3
-from datetime import datetime
+from supabase import create_client, Client
 import uvicorn
 
 logging.basicConfig(level=logging.INFO)
 
-# ==================== CONFIG ====================
+# --- CONFIG ---
 BOT_TOKEN = os.environ["BOT_TOKEN"]
 ADMIN_ID = int(os.environ["ADMIN_ID"])
 IMGBB_API_KEY = os.environ["IMGBB_API_KEY"]
+SUPABASE_URL = os.environ["SUPABASE_URL"]
+SUPABASE_KEY = os.environ["SUPABASE_KEY"]
 
-bot = Bot(token=BOT_TOKEN, default=DefaultBotProperties(parse_mode="HTML"))
-storage = MemoryStorage()
-dp = Dispatcher(storage=storage)
+# Initialize Clients
+supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+bot = Bot(token=BOT_TOKEN)
+dp = Dispatcher(storage=MemoryStorage())
 app = FastAPI()
 
-# ==================== DATABASE ====================
-conn = sqlite3.connect("imagifhub.db", check_same_thread=False)
-c = conn.cursor()
-c.execute('''CREATE TABLE IF NOT EXISTS media (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    url TEXT, type TEXT, category TEXT, keywords TEXT,
-    likes INTEGER DEFAULT 0, uploaded_at TEXT
-)''')
-conn.commit()
+# Enable CORS for the frontend
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
-# ==================== STATES ====================
-class AdminUpload(StatesGroup):
-    waiting_media = State()
-    waiting_category = State()
-    waiting_keywords = State()
+class AdminStates(StatesGroup):
+    waiting_photo = State()
 
-CATEGORIES = [
-    "Nature", "Space", "City", "Superhero", "Supervillain", "Robotic",
-    "Anime", "Cars", "Wildlife", "Funny", "Seasonal Greetings",
-    "Dark Aesthetic", "Luxury", "Gaming", "Ancient World"
-]
-
-# ==================== ADMIN PANEL (Images Only) ====================
+# --- ADMIN PANEL ---
 @dp.message(Command("admin"))
-async def admin_panel(message: Message):
+async def admin_start(message: Message):
     if message.from_user.id != ADMIN_ID:
-        return await message.reply("Access denied.")
-    keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="Upload Image", callback_data="upload_image")]
-        # Removed GIF button
+        return
+    
+    kb = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="📤 Upload Image", callback_data="do_up")],
+        [InlineKeyboardButton(text="🧹 Cleanup Database", callback_data="do_clean")]
     ])
-    await message.reply("Welcome Admin! Upload images (up to 10 at once)", reply_markup=keyboard)
+    await message.reply("<b>ADMIN PANEL ACTIVE</b>", reply_markup=kb, parse_mode="HTML")
 
-@dp.callback_query(F.data == "upload_image")
-async def choose_type(call: CallbackQuery, state: FSMContext):
-    await call.message.edit_text("Send me the image(s) now (up to 10 at once!)")
-    await state.set_state(AdminUpload.waiting_media)
-
-# ==================== UPLOAD (Photos Only — Single or Album) ====================
-@dp.message(AdminUpload.waiting_media, F.photo | F.media_group_id)
-async def receive_media(message: Message, state: FSMContext, album: list[Message] | None = None):
+# --- CLEANUP LOGIC ---
+@dp.callback_query(F.data == "do_clean")
+async def cleanup_process(call: CallbackQuery):
+    await call.answer("Scanning database...")
     try:
-        messages = album or [message]
-        uploaded_urls = []
-
-        for msg in messages:
-            if not msg.photo:
-                continue  # Skip non-photos
-            file_id = msg.photo[-1].file_id
-            file = await bot.get_file(file_id)
-            file_bytes = await bot.download_file(file.file_path)
-
-            file_bytes.seek(0)
-            files = {'image': file_bytes.read()}
-            params = {'key': IMGBB_API_KEY}
-            resp = requests.post("https://api.imgbb.com/1/upload", params=params, files=files, timeout=60)
-            resp.raise_for_status()
-            url = resp.json()['data']['url']
-            uploaded_urls.append(url)
-
-        if not uploaded_urls:
-            return await message.reply("No valid images found — try again.")
-
-        await state.update_data(urls=uploaded_urls)
-
-        keyboard = InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text=cat, callback_data=f"cat_{cat}") for cat in CATEGORIES[i:i+3]]
-            for i in range(0, len(CATEGORIES), 3)
-        ])
-        await message.reply(f"Received {len(uploaded_urls)} image(s)! Choose category:", reply_markup=keyboard)
-        await state.set_state(AdminUpload.waiting_category)
+        res = supabase.table('media_content').select('id, url').execute()
+        deleted = 0
+        for item in res.data:
+            try:
+                # Check if image actually exists on ImgBB
+                check = requests.head(item['url'], timeout=5)
+                if check.status_code == 404:
+                    supabase.table('media_content').delete().eq('id', item['id']).execute()
+                    deleted += 1
+            except: continue
+        await call.message.answer(f"✅ Cleanup complete. Removed {deleted} broken links.")
     except Exception as e:
-        logging.error(f"Upload error: {e}")
-        await message.reply("Upload failed — try again.")
+        await call.message.answer(f"❌ Database error: {str(e)}")
 
-@dp.callback_query(F.data.startswith("cat_"))
-async def choose_category(call: CallbackQuery, state: FSMContext):
-    category = call.data[4:]
-    await state.update_data(category=category)
-    await call.message.edit_text(f"Category: {category}\nNow type keywords (comma separated):")
-    await state.set_state(AdminUpload.waiting_keywords)
+# --- UPLOAD LOGIC ---
+@dp.callback_query(F.data == "do_up")
+async def ask_photo(call: CallbackQuery, state: FSMContext):
+    await call.message.edit_text("Send the image you want to upload.")
+    await state.set_state(AdminStates.waiting_photo)
 
-@dp.message(AdminUpload.waiting_keywords)
-async def final_step(message: Message, state: FSMContext):
+@dp.message(AdminStates.waiting_photo, F.photo)
+async def handle_upload(message: Message, state: FSMContext):
+    msg = await message.reply("⏳ Processing...")
     try:
-        data = await state.get_data()
-        keywords = message.text.strip()
-        urls = data.get("urls", [])
-
-        for url in urls:
-            c.execute("INSERT INTO media (url, type, category, keywords, uploaded_at) VALUES (?, ?, ?, ?, ?)",
-                      (url, "image", data['category'], keywords, datetime.now().isoformat()))
-        conn.commit()
-
-        await message.reply(f"Successfully uploaded {len(urls)} image(s)!\nCategory: {data['category']}\nKeywords: {keywords}")
-        await state.clear()
+        # 1. Download from Telegram
+        file = await bot.get_file(message.photo[-1].file_id)
+        content = await bot.download_file(file.file_path)
+        
+        # 2. Upload to ImgBB
+        up_res = requests.post(
+            "https://api.imgbb.com/1/upload",
+            params={'key': IMGBB_API_KEY},
+            files={'image': content.read()}
+        )
+        url = up_res.json()['data']['url']
+        
+        # 3. Save to Supabase (Simple Insert)
+        payload = {
+            "url": url,
+            "category": "All",
+            "Keyword": "New Post",
+            "Likes": 0
+        }
+        db_res = supabase.table('media_content').insert(payload).execute()
+        
+        if db_res.data:
+            await msg.edit_text(f"✅ Uploaded Successfully!\nURL: {url}")
+        else:
+            await msg.edit_text("❌ Database rejected upload. Check Supabase RLS.")
+            
     except Exception as e:
-        logging.error(f"Save error: {e}")
-        await message.reply("Save failed — try again.")
+        await msg.edit_text(f"❌ Critical Error: {str(e)}")
+    
+    await state.clear()
 
-# ==================== API ENDPOINTS ====================
+# --- API ---
 @app.get("/media")
-async def get_media(category: str = "all", search: str = "", type: str = "all"):
-    query = "SELECT id, url, type, category, likes FROM media WHERE 1=1"
-    params = []
-    if category != "all":
-        query += " AND category = ?"; params.append(category)
-    if search:
-        query += " AND keywords LIKE ?"; params.append(f"%{search}%")
-    if type != "all":
-        query += " AND type = ?"; params.append(type)
-    c.execute(query + " ORDER BY RANDOM() LIMIT 50", params)
-    rows = c.fetchall()
-    return [{"id": r[0], "url": r[1], "type": r[2], "category": r[3], "likes": r[4]} for r in rows]
+async def get_media():
+    res = supabase.table('media_content').select('*').execute()
+    return res.data
 
-@app.post("/like/{media_id}")
-async def like(media_id: int):
-    c.execute("UPDATE media SET likes = likes + 1 WHERE id = ?", (media_id,))
-    conn.commit()
-    return {"success": True}
-
-@app.get("/")
-async def health():
-    return {"status": "IMAGIFHUB Live - Images Only"}
-
-# ==================== RUN ====================
-async def run_bot():
-    await dp.start_polling(bot, skip_updates=True)
-
-async def run_server():
-    port = int(os.environ.get("PORT", 10000))
-    config = uvicorn.Config(app, host="0.0.0.0", port=port, log_level="info")
+# --- RUNNER ---
+async def start():
+    # Start bot and server
+    asyncio.create_task(dp.start_polling(bot))
+    config = uvicorn.Config(app, host="0.0.0.0", port=int(os.environ.get("PORT", 10000)))
     server = uvicorn.Server(config)
     await server.serve()
 
-async def main():
-    await asyncio.gather(run_bot(), run_server())
-
 if __name__ == "__main__":
-    asyncio.run(main())
+    asyncio.run(start())
