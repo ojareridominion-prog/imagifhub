@@ -1,123 +1,94 @@
-import os, asyncio, logging, random, requests
-from fastapi import FastAPI, BackgroundTasks
-from fastapi.middleware.cors import CORSMiddleware
+import os
+import requests
+import logging
 from aiogram import Bot, Dispatcher, F
 from aiogram.filters import Command
 from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
-from aiogram.fsm.storage.memory import MemoryStorage
-from aiogram.client.default import DefaultBotProperties
 from supabase import create_client, Client
-import uvicorn
 
-logging.basicConfig(level=logging.INFO)
-
-# --- CONFIG ---
+# --- SETUP ---
 BOT_TOKEN = os.environ["BOT_TOKEN"]
 ADMIN_ID = int(os.environ["ADMIN_ID"])
 IMGBB_API_KEY = os.environ["IMGBB_API_KEY"]
-SUPABASE_URL = os.environ.get("SUPABASE_URL")
-SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
+SUPABASE_URL = os.environ["SUPABASE_URL"]
+SUPABASE_KEY = os.environ["SUPABASE_KEY"] # Use Service Role Key if possible
 
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
-bot = Bot(token=BOT_TOKEN, default=DefaultBotProperties(parse_mode="HTML"))
-dp = Dispatcher(storage=MemoryStorage())
-app = FastAPI()
+dp = Dispatcher()
 
-# --- CORS FIX (CRITICAL FOR LOADING IMAGES) ---
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+class AdminStates(StatesGroup):
+    waiting_photo = State()
+    waiting_details = State()
 
-class AdminUpload(StatesGroup):
-    waiting_media = State()
-    waiting_category = State()
-    waiting_keywords = State()
+CATEGORIES = ["Nature", "Anime", "Cars", "Luxury"] # Simplified for testing
 
-CATEGORIES = ["Nature", "Space", "City", "Superhero", "Supervillain", "Robotic", "Anime", "Cars", "Wildlife", "Funny", "Seasonal Greetings", "Dark Aesthetic", "Luxury", "Gaming", "Ancient World"]
-
-# --- AUTO-DELETE LOGIC ---
-async def cleanup_links():
-    """Removes broken ImgBB links from Supabase automatically."""
-    try:
-        res = supabase.table('media_content').select('id, url').execute()
-        for item in res.data:
-            try:
-                if requests.head(item['url'], timeout=5).status_code == 404:
-                    supabase.table('media_content').delete().eq('id', item['id']).execute()
-            except: continue
-    except Exception as e: logging.error(f"Cleanup Error: {e}")
-
-# --- ADMIN PANEL ---
+# --- 1. THE ADMIN PANEL INTERFACE ---
 @dp.message(Command("admin"))
-async def admin_main(message: Message):
+async def admin_panel(message: Message):
     if message.from_user.id != ADMIN_ID: return
-    kb = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="📤 Upload", callback_data="upload")],
-        [InlineKeyboardButton(text="🧹 Cleanup Database", callback_data="cleanup")]
-    ])
-    await message.reply("<b>Admin Panel</b>", reply_markup=kb)
-
-@dp.callback_query(F.data == "upload")
-async def start_up(call: CallbackQuery, state: FSMContext):
-    await call.message.edit_text("Send me the image(s) now!")
-    await state.set_state(AdminUpload.waiting_media)
-
-@dp.message(AdminUpload.waiting_media, F.photo)
-async def handle_photo(message: Message, state: FSMContext):
-    file = await bot.get_file(message.photo[-1].file_id)
-    b = await bot.download_file(file.file_path)
-    r = requests.post("https://api.imgbb.com/1/upload", params={'key': IMGBB_API_KEY}, files={'image': b.read()})
-    url = r.json()['data']['url']
     
-    data = await state.get_data()
-    urls = data.get("urls", [])
-    urls.append(url)
-    await state.update_data(urls=urls)
+    kb = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="📤 Upload New", callback_data="admin_up")],
+        [InlineKeyboardButton(text="🧹 Clean Broken Links", callback_data="admin_clean")]
+    ])
+    await message.reply("<b>Admin Controls Only</b>", reply_markup=kb)
 
-    kb = InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text=c, callback_data=f"cat_{c}") for c in CATEGORIES[i:i+3]] for i in range(0, len(CATEGORIES), 3)])
-    await message.reply(f"Received! Total: {len(urls)}. Choose Category:", reply_markup=kb)
-    await state.set_state(AdminUpload.waiting_category)
+# --- 2. UPLOAD LOGIC ---
+@dp.callback_query(F.data == "admin_up")
+async def start_up(call: CallbackQuery, state: FSMContext):
+    await call.message.edit_text("Send the image now.")
+    await state.set_state(AdminStates.waiting_photo)
 
-@dp.callback_query(F.data.startswith("cat_"))
-async def set_cat(call: CallbackQuery, state: FSMContext):
-    await state.update_data(category=call.data[4:])
-    await call.message.edit_text("Type keywords (comma separated):")
-    await state.set_state(AdminUpload.waiting_keywords)
-
-@dp.message(AdminUpload.waiting_keywords)
-async def save_all(message: Message, state: FSMContext):
-    d = await state.get_data()
-    for u in d['urls']:
-        supabase.table('media_content').insert({"url": u, "category": d['category'], "Keyword": message.text, "Likes": 0}).execute()
-    await message.reply("✅ Saved!")
+@dp.message(AdminStates.waiting_photo, F.photo)
+async def process_photo(message: Message, state: FSMContext):
+    # Get file from Telegram
+    file = await message.bot.get_file(message.photo[-1].file_id)
+    file_content = await message.bot.download_file(file.file_path)
+    
+    # Upload to ImgBB
+    res = requests.post(
+        "https://api.imgbb.com/1/upload", 
+        params={'key': IMGBB_API_KEY}, 
+        files={'image': file_content.read()}
+    )
+    img_url = res.json()['data']['url']
+    
+    # Save to Supabase immediately
+    # We use a default category 'General' and 'Wallpaper' keyword for testing
+    payload = {
+        "url": img_url,
+        "category": "General",
+        "Keyword": "New Upload",
+        "Likes": 0
+    }
+    
+    db_res = supabase.table('media_content').insert(payload).execute()
+    
+    if db_res.data:
+        await message.reply(f"✅ Success!\nURL: {img_url}")
+    else:
+        await message.reply("❌ Supabase Rejected the Data. Check RLS settings.")
     await state.clear()
 
-# --- API ENDPOINTS ---
-@app.get("/media")
-async def get_media(category: str = "all", background_tasks: BackgroundTasks = None):
-    if random.random() < 0.2 and background_tasks: background_tasks.add_task(cleanup_links)
+# --- 3. CLEANUP LOGIC ---
+@dp.callback_query(F.data == "admin_clean")
+async def run_cleanup(call: CallbackQuery):
+    await call.answer("Cleaning...")
     
-    query = supabase.table('media_content').select('*')
-    if category.lower() != "all": query = query.eq('category', category.capitalize())
+    # Fetch all records
+    records = supabase.table('media_content').select('id, url').execute().data
+    deleted = 0
     
-    res = query.execute().data
-    random.shuffle(res) # RANDOMIZATION
-    return res[:50]
-
-@app.get("/")
-async def h(): return {"status": "Live"}
-
-async def main():
-    loop = asyncio.get_event_loop()
-    loop.create_task(dp.start_polling(bot))
-    uvicorn.run(app, host="0.0.0.0", port=int(os.environ.get("PORT", 10000)))
-
-if __name__ == "__main__":
-    asyncio.run(main())
+    for item in records:
+        try:
+            # Check if ImgBB link is dead
+            check = requests.head(item['url'], timeout=5)
+            if check.status_code == 404:
+                supabase.table('media_content').delete().eq('id', item['id']).execute()
+                deleted += 1
+        except: continue
+        
+    await call.message.answer(f"🧹 Cleanup Finished. Removed {deleted} broken links.")
     
