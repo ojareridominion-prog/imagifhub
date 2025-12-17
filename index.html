@@ -61,102 +61,124 @@
     <audio id="bgMusic" loop></audio>
 
     <script>
-        const API_URL = "https://imagifhub.onrender.com"; // UPDATE THIS
-        let isPremium = false;
+             /* TELEGRAM INIT */
+Telegram.WebApp.ready();
+Telegram.WebApp.expand();
 
-        const categories = ["All", "Nature", "Space", "City", "Superhero", "Supervillain", "Robotic", "Anime", "Cars", "Wildlife", "Funny", "Seasonal Greetings", "Dark Aesthetic", "Luxury", "Gaming", "Ancient World"];
-        
-        // Category Music Mapping
-        const musicMap = {
-            "All": "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3",
-            "Nature": "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3",
-            "Cars": "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3",
-            "Anime": "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-4.mp3",
-            "Default": "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-8.mp3"
-        };
+/* CONFIG - CHANGE THIS TO YOUR RENDER URL */
+const API_URL = "https://your-app-name.onrender.com"; 
 
-        const themes = [
-            {id:'dark', p:'#000', s:'#fff', lock:false},
-            {id:'white', p:'#fff', s:'#000', lock:false},
-            {id:'blood', p:'#4a0e0e', s:'#f00', lock:true},
-            {id:'neon', p:'#000', s:'#0ff', lock:true},
-            {id:'sunset', p:'#2d142c', s:'#ff7e5f', lock:true},
-            {id:'forest', p:'#0b1a10', s:'#4caf50', lock:true},
-            {id:'amethyst', p:'#1a0b2e', s:'#9c4dff', lock:true}
-        ];
+/* DATA & STATE */
+const categories = ["All", "Nature", "Space", "City", "Superhero", "Anime", "Cars", "Luxury", "Gaming"];
+const categoryMusic = {
+  Nature: ["https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3"],
+  Anime: ["https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3"],
+  Cars: ["https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3"],
+  Default: ["https://www.soundhelix.com/examples/mp3/SoundHelix-Song-4.mp3"]
+};
 
-        window.onload = () => {
-            renderCats();
-            renderThemes();
-            loadFeed("All");
-            // Music delay logic
-            document.body.addEventListener('click', () => { 
-                setTimeout(() => { document.getElementById('bgMusic').play(); }, 3000); 
-            }, {once:true});
-        };
+let currentCat = "All";
+let musicPlaying = false;
+const audio = document.getElementById("bgMusic");
 
-        function renderCats() {
-            document.getElementById('catBar').innerHTML = categories.map(c => `<div class="cat-btn" onclick="loadFeed('${c}')">${c}</div>`).join('');
-        }
+/* 1. BUILD CATEGORY BAR */
+function buildCategoryBar() {
+  const bar = document.getElementById("catBar");
+  bar.innerHTML = "";
+  categories.forEach(c => {
+    const b = document.createElement("div");
+    b.className = "cat-btn" + (c === currentCat ? " active" : "");
+    b.textContent = c;
+    b.onclick = () => { 
+      currentCat = c; 
+      buildCategoryBar(); 
+      loadFeed(c); 
+    };
+    bar.appendChild(b);
+  });
+}
 
-        function renderThemes() {
-            document.getElementById('themeBar').innerHTML = themes.map(t => `
-                <div onclick="applyTheme('${t.id}', ${t.lock})" style="text-align:center;">
-                    <div class="theme-circle">
-                        <div class="half-p" style="background:${t.p}"></div>
-                        <div class="half-s" style="background:${t.s}"></div>
-                    </div>
-                    ${t.lock ? '<small>🔒</small>' : ''}
-                </div>
-            `).join('');
-        }
+/* 2. DYNAMIC FEED LOADER (SUPABASE) */
+async function loadFeed(cat) {
+  const feed = document.getElementById("feed");
+  
+  // Show Loading State
+  feed.innerHTML = '<div class="swiper-slide"><h3>Randomizing Feed...</h3></div>';
 
-        async function loadFeed(cat, search="") {
-            const feed = document.getElementById('feed');
-            feed.innerHTML = '<div class="swiper-slide">Randomizing Feed...</div>';
-            
-            // Switch Music based on Category
-            const audio = document.getElementById('bgMusic');
-            audio.src = musicMap[cat] || musicMap["Default"];
-            audio.play();
+  try {
+    // Fetch real data from your FastAPI/Supabase backend
+    const response = await fetch(`${API_URL}/media?category=${cat.toLowerCase()}`);
+    const data = await response.json();
 
-            try {
-                let res = await fetch(`${API_URL}/media?category=${cat.toLowerCase()}&search=${search}`);
-                let data = await res.json();
-                
-                feed.innerHTML = data.map(img => `
-                    <div class="swiper-slide">
-                        <img src="${img.url}">
-                        <div class="meta-overlay">
-                            <b style="font-size:18px">@IMAGIFHUB</b><br>
-                            <span style="opacity:0.8;">#${img.Keyword || 'Wallpaper'}</span>
-                        </div>
-                        <div style="position:absolute; right:15px; bottom:40px; display:flex; flex-direction:column; gap:20px;">
-                            <button onclick="like(${img.id})" style="background:none; border:none; color:#fff; font-size:24px;">❤️</button>
-                            <button onclick="save(${img.id})" style="background:none; border:none; color:#fff; font-size:24px;">📂</button>
-                        </div>
-                    </div>
-                `).join('');
-                
-                new Swiper('#swiper', { direction: 'vertical' });
-            } catch(e) { feed.innerHTML = '<div class="swiper-slide">Check Server Connection</div>'; }
-        }
+    if (!data || data.length === 0) {
+      feed.innerHTML = '<div class="swiper-slide"><h3>No images found in this category.</h3></div>';
+      return;
+    }
 
-        function triggerSearch() {
-            let q = prompt("Search wallpapers:");
-            if(q) loadFeed("All", q);
-        }
+    // Map Supabase data to Swiper slides
+    feed.innerHTML = data.map(item => `
+      <div class="swiper-slide">
+        <img src="${item.url}" alt="Wallpaper">
+        <div class="keyword-title">#${item.Keyword || item.category}</div>
+      </div>
+    `).join('');
 
-        function toggleMenu() { document.getElementById('menuPanel').classList.toggle('open'); }
-        
-        function applyTheme(id, lock) {
-            if(lock && !isPremium) return alert("Upgrade to Premium to unlock this style! ⭐");
-            document.body.className = id === 'dark' ? '' : 'theme-' + id;
-        }
+    // Re-initialize Swiper for vertical scrolling
+    if (document.getElementById("swiper").swiper) {
+      document.getElementById("swiper").swiper.destroy(true, true);
+    }
+    new Swiper("#swiper", { 
+      direction: "vertical", 
+      mousewheel: true 
+    });
 
-        // Placeholders for next step
-        function like(id) { alert("Liked image " + id); }
-        function save(id) { alert("Saved to Playlist!"); }
+    // Update Music for Category
+    playMusic();
+
+  } catch (error) {
+    console.error("Fetch error:", error);
+    feed.innerHTML = '<div class="swiper-slide"><h3>Backend Connection Error</h3></div>';
+  }
+}
+
+/* 3. MENU CONTROLS */
+function toggleMenu() {
+  document.getElementById("menuPanel").classList.toggle("open");
+}
+
+/* 4. MUSIC LOGIC */
+function playMusic() {
+  const key = currentCat in categoryMusic ? currentCat : "Default";
+  const list = categoryMusic[key];
+  audio.src = list[Math.floor(Math.random() * list.length)];
+  audio.volume = 0.5;
+  audio.play().then(() => {
+    musicPlaying = true;
+    document.getElementById("musicBtn").textContent = "❚❚";
+  }).catch(() => {
+    console.log("Music blocked by browser; waiting for user click.");
+  });
+}
+
+function toggleMusic() {
+  if (musicPlaying) {
+    audio.pause();
+    musicPlaying = false;
+    document.getElementById("musicBtn").textContent = "♪";
+  } else {
+    playMusic();
+  }
+}
+
+/* 5. TELEGRAM TRIGGERS */
+Telegram.WebApp.onEvent("viewportChanged", () => {
+  if (!musicPlaying) playMusic();
+});
+
+/* INITIALIZE APP */
+buildCategoryBar();
+loadFeed("All");
+    
     </script>
 </body>
 </html>
