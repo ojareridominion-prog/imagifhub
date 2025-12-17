@@ -61,102 +61,158 @@
     <audio id="bgMusic" loop></audio>
 
     <script>
-        const API_URL = "https://imagifhub.onrender.com"; // UPDATE THIS
-        let isPremium = false;
 
-        const categories = ["All", "Nature", "Space", "City", "Superhero", "Supervillain", "Robotic", "Anime", "Cars", "Wildlife", "Funny", "Seasonal Greetings", "Dark Aesthetic", "Luxury", "Gaming", "Ancient World"];
+        /* TELEGRAM INITIALIZATION */
+const webApp = window.Telegram.WebApp;
+webApp.ready();
+webApp.expand();
+
+/* CONFIGURATION */
+const API_URL = "https://imagifhub.onrender.com"; // Ensure this matches your Render URL
+let isPremium = false;
+let swiperInstance = null;
+
+const categories = ["All", "Nature", "Space", "City", "Superhero", "Supervillain", "Robotic", "Anime", "Cars", "Wildlife", "Funny", "Seasonal Greetings", "Dark Aesthetic", "Luxury", "Gaming", "Ancient World"];
+
+const musicMap = {
+    "All": "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3",
+    "Nature": "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3",
+    "Cars": "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3",
+    "Anime": "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-4.mp3",
+    "Default": "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-8.mp3"
+};
+
+const themes = [
+    {id:'dark', p:'#000', s:'#fff', lock:false},
+    {id:'white', p:'#fff', s:'#000', lock:false},
+    {id:'blood', p:'#4a0e0e', s:'#f00', lock:true},
+    {id:'neon', p:'#000', s:'#0ff', lock:true},
+    {id:'sunset', p:'#2d142c', s:'#ff7e5f', lock:true},
+    {id:'forest', p:'#0b1a10', s:'#4caf50', lock:true},
+    {id:'amethyst', p:'#1a0b2e', s:'#9c4dff', lock:true}
+];
+
+/* APP INITIALIZATION */
+window.onload = () => {
+    renderCats();
+    renderThemes();
+    loadFeed("All");
+    
+    // Music activation on first interaction
+    document.body.addEventListener('click', () => { 
+        const audio = document.getElementById('bgMusic');
+        if (audio.paused) {
+            setTimeout(() => { audio.play().catch(e => console.log("Music blocked")); }, 1000); 
+        }
+    }, {once:true});
+};
+
+/* UI RENDERING */
+function renderCats() {
+    document.getElementById('catBar').innerHTML = categories.map(c => 
+        `<div class="cat-btn" onclick="loadFeed('${c}')">${c}</div>`
+    ).join('');
+}
+
+function renderThemes() {
+    document.getElementById('themeBar').innerHTML = themes.map(t => `
+        <div onclick="applyTheme('${t.id}', ${t.lock})" style="text-align:center;">
+            <div class="theme-circle">
+                <div class="half-p" style="background:${t.p}"></div>
+                <div class="half-s" style="background:${t.s}"></div>
+            </div>
+            ${t.lock ? '<small>🔒</small>' : ''}
+        </div>
+    `).join('');
+}
+
+/* DYNAMIC FEED FETCHER */
+async function loadFeed(cat, search="") {
+    const feed = document.getElementById('feed');
+    feed.innerHTML = '<div class="swiper-slide" style="display:flex; align-items:center; justify-content:center;"><h3>Randomizing Feed...</h3></div>';
+    
+    // Update Category Selection UI
+    document.querySelectorAll('.cat-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.innerText === cat);
+    });
+
+    // Handle Music Transition
+    const audio = document.getElementById('bgMusic');
+    const newSrc = musicMap[cat] || musicMap["Default"];
+    if (audio.src !== newSrc) {
+        audio.src = newSrc;
+        audio.play().catch(() => {});
+    }
+
+    try {
+        // Fetch from Supabase via FastAPI
+        const response = await fetch(`${API_URL}/media?category=${cat.toLowerCase()}&search=${search}`);
+        const data = await response.json();
         
-        // Category Music Mapping
-        const musicMap = {
-            "All": "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3",
-            "Nature": "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3",
-            "Cars": "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3",
-            "Anime": "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-4.mp3",
-            "Default": "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-8.mp3"
-        };
-
-        const themes = [
-            {id:'dark', p:'#000', s:'#fff', lock:false},
-            {id:'white', p:'#fff', s:'#000', lock:false},
-            {id:'blood', p:'#4a0e0e', s:'#f00', lock:true},
-            {id:'neon', p:'#000', s:'#0ff', lock:true},
-            {id:'sunset', p:'#2d142c', s:'#ff7e5f', lock:true},
-            {id:'forest', p:'#0b1a10', s:'#4caf50', lock:true},
-            {id:'amethyst', p:'#1a0b2e', s:'#9c4dff', lock:true}
-        ];
-
-        window.onload = () => {
-            renderCats();
-            renderThemes();
-            loadFeed("All");
-            // Music delay logic
-            document.body.addEventListener('click', () => { 
-                setTimeout(() => { document.getElementById('bgMusic').play(); }, 3000); 
-            }, {once:true});
-        };
-
-        function renderCats() {
-            document.getElementById('catBar').innerHTML = categories.map(c => `<div class="cat-btn" onclick="loadFeed('${c}')">${c}</div>`).join('');
+        if (data.length === 0) {
+            feed.innerHTML = '<div class="swiper-slide" style="display:flex; align-items:center; justify-content:center;"><h3>No Wallpapers Found</h3></div>';
+            return;
         }
 
-        function renderThemes() {
-            document.getElementById('themeBar').innerHTML = themes.map(t => `
-                <div onclick="applyTheme('${t.id}', ${t.lock})" style="text-align:center;">
-                    <div class="theme-circle">
-                        <div class="half-p" style="background:${t.p}"></div>
-                        <div class="half-s" style="background:${t.s}"></div>
-                    </div>
-                    ${t.lock ? '<small>🔒</small>' : ''}
+        // Map data to Swiper slides while keeping your design
+        feed.innerHTML = data.map(img => `
+            <div class="swiper-slide">
+                <img src="${img.url}" loading="lazy">
+                <div class="meta-overlay">
+                    <b style="font-size:18px">@IMAGIFHUB</b><br>
+                    <span style="opacity:0.8;">#${img.Keyword || img.category}</span>
                 </div>
-            `).join('');
-        }
-
-        async function loadFeed(cat, search="") {
-            const feed = document.getElementById('feed');
-            feed.innerHTML = '<div class="swiper-slide">Randomizing Feed...</div>';
-            
-            // Switch Music based on Category
-            const audio = document.getElementById('bgMusic');
-            audio.src = musicMap[cat] || musicMap["Default"];
-            audio.play();
-
-            try {
-                let res = await fetch(`${API_URL}/media?category=${cat.toLowerCase()}&search=${search}`);
-                let data = await res.json();
-                
-                feed.innerHTML = data.map(img => `
-                    <div class="swiper-slide">
-                        <img src="${img.url}">
-                        <div class="meta-overlay">
-                            <b style="font-size:18px">@IMAGIFHUB</b><br>
-                            <span style="opacity:0.8;">#${img.Keyword || 'Wallpaper'}</span>
-                        </div>
-                        <div style="position:absolute; right:15px; bottom:40px; display:flex; flex-direction:column; gap:20px;">
-                            <button onclick="like(${img.id})" style="background:none; border:none; color:#fff; font-size:24px;">❤️</button>
-                            <button onclick="save(${img.id})" style="background:none; border:none; color:#fff; font-size:24px;">📂</button>
-                        </div>
-                    </div>
-                `).join('');
-                
-                new Swiper('#swiper', { direction: 'vertical' });
-            } catch(e) { feed.innerHTML = '<div class="swiper-slide">Check Server Connection</div>'; }
-        }
-
-        function triggerSearch() {
-            let q = prompt("Search wallpapers:");
-            if(q) loadFeed("All", q);
-        }
-
-        function toggleMenu() { document.getElementById('menuPanel').classList.toggle('open'); }
+                <div style="position:absolute; right:15px; bottom:40px; display:flex; flex-direction:column; gap:20px; z-index:10;">
+                    <button onclick="like(${img.id}, this)" style="background:none; border:none; color:#fff; font-size:24px;">❤️</button>
+                    <button onclick="save(${img.id})" style="background:none; border:none; color:#fff; font-size:24px;">📂</button>
+                </div>
+            </div>
+        `).join('');
         
-        function applyTheme(id, lock) {
-            if(lock && !isPremium) return alert("Upgrade to Premium to unlock this style! ⭐");
-            document.body.className = id === 'dark' ? '' : 'theme-' + id;
-        }
+        // Re-initialize Swiper correctly
+        if (swiperInstance) swiperInstance.destroy(true, true);
+        swiperInstance = new Swiper('#swiper', { 
+            direction: 'vertical',
+            mousewheel: true,
+            resistanceRatio: 0,
+            threshold: 5
+        });
 
-        // Placeholders for next step
-        function like(id) { alert("Liked image " + id); }
-        function save(id) { alert("Saved to Playlist!"); }
+    } catch(e) { 
+        console.error("Feed Load Error:", e);
+        feed.innerHTML = '<div class="swiper-slide"><h3>Connection Error</h3><p>Check if the backend is live.</p></div>'; 
+    }
+}
+
+/* SEARCH & MENU LOGIC */
+function triggerSearch() {
+    let q = prompt("Search wallpapers:");
+    if(q) loadFeed("All", q);
+}
+
+function toggleMenu() { 
+    document.getElementById('menuPanel').classList.toggle('open'); 
+}
+
+function applyTheme(id, lock) {
+    if(lock && !isPremium) return alert("Upgrade to Premium to unlock this style! ⭐");
+    document.body.className = id === 'dark' ? '' : 'theme-' + id;
+    toggleMenu(); // Close menu after selection
+}
+
+/* INTERACTION PLACEHOLDERS */
+async function like(id, btn) {
+    btn.style.transform = "scale(1.3)";
+    setTimeout(() => btn.style.transform = "scale(1)", 200);
+    // Future: Call API_URL/like endpoint
+    console.log("Liked image ID:", id);
+}
+
+function save(id) {
+    webApp.HapticFeedback.notificationOccurred('success');
+    alert("Saved to your local Playlist! 📂");
+                        }
+                
     </script>
 </body>
 </html>
