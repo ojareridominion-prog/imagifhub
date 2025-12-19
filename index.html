@@ -43,17 +43,6 @@
         /* Heart Animation */
         .heart-pop { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) scale(0); font-size: 100px; color: #ff4d4d; pointer-events: none; z-index: 30; animation: pop 0.6s ease-out; }
         @keyframes pop { 0% { transform: scale(0); opacity: 0; } 50% { transform: scale(1.2); opacity: 1; } 100% { transform: scale(1); opacity: 0; } }
-        .themex {
-  display: flex;
-  gap: 10px;
-  overflow-x: auto;
-  white-space: nowrap;
-  padding: 10px;
-}
-
-.menu::-webkit-scrollbar {
-  display: none; /* optional: hide scrollbar */
-}
     </style>
 </head>
 <body>
@@ -71,16 +60,9 @@
         <a href="#" class="menu-link">📂 My Playlist</a>
         <a href="https://t.me/imagifhub" class="menu-link">📢 Join Channel</a> 
         <div style="padding:15px 25px 0; font-size:12px; opacity:0.6;">SWITCH THEME</div>
-        <div class="themex" style="padding: 15px; display: flex; gap: 10px; >
-            
-            <button onclick="applyTheme('dark')" style="background:#000; border:1px solid #fff; color:#fff; padding:10px;">
+        <div style="padding: 15px; display: flex; gap: 10px;">
             <button onclick="applyTheme('dark')" style="background:#000; border:1px solid #fff; color:#fff; padding:10px;">Dark</button>
-            <button onclick="applyTheme('white')" style="background:#fff; border:1px solid #000; color:#fff; padding:10px;">Light</button>
-            <button onclick="applyTheme('darkblue')" style="background:#0A1A3F; border:1px solid #fff; color:#fff; padding:10px;">Dark Blue</button>
-            <button onclick="applyTheme('bloodorange')" style="background:#8B0000; border:1px solid #fff; color:#fff; padding:10px;">Blood Orange</button>
-            <button onclick="applyTheme('skyblue')" style="background:#87CEEB; border:1px solid #000; color:#000; padding:10px;">Sky Blue</button>
-            <button onclick="applyTheme('violet')" style="background:#6A0DAD; border:1px solid #fff; color:#fff; padding:10px;">Violet</button>
-            
+            <button onclick="applyTheme('white')" style="background:#fff; border:1px solid #000; color:#000; padding:10px;">Light</button>
         </div>
     </div>
 
