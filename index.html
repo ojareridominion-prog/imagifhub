@@ -17,55 +17,53 @@
 
         body { margin:0; background:var(--bg); color:var(--text); font-family:system-ui; overflow:hidden; transition: 0.3s; }
         
-        /* Layout Components */
-        .top-bar { position:fixed; top:0; width:100%; height:56px; background:var(--bar); display:flex; align-items:center; z-index:100; border-bottom:1px solid rgba(255,255,255,0.1); }
-        .cat-bar { position:fixed; top:56px; width:100%; height:48px; background:var(--bar); overflow-x:auto; display:flex; align-items:center; gap:10px; padding:0 12px; z-index:90; scrollbar-width: none; }
-        .cat-bar::-webkit-scrollbar { display: none; }
+        /* Fixed Header and Z-Indices */
+        .top-bar { position:fixed; top:0; width:100%; height:56px; background:var(--bar); display:flex; align-items:center; z-index:1000; border-bottom:1px solid rgba(255,255,255,0.1); }
+        .cat-bar { position:fixed; top:56px; width:100%; height:48px; background:var(--bar); overflow-x:auto; display:flex; align-items:center; gap:10px; padding:0 12px; z-index:900; scrollbar-width: none; }
         
         .cat-btn { padding:6px 15px; border-radius:20px; background:#333; font-size:12px; white-space:nowrap; border:none; color:#fff; cursor:pointer; }
         .cat-btn.active { background:var(--accent); font-weight: bold; }
 
-        /* Menu Panel Fix */
-        .menu-panel { position:fixed; left:-100%; width:85%; height:100%; background:var(--bar); z-index:200; transition:0.4s; padding-top:60px; box-shadow: 5px 0 15px rgba(0,0,0,0.5); }
+        /* Sidebar Menu Panel */
+        .menu-panel { position:fixed; left:-100%; width:85%; height:100%; background:var(--bar); z-index:2000; transition:0.4s; padding-top:60px; box-shadow: 5px 0 15px rgba(0,0,0,0.5); }
         .menu-panel.open { left:0; }
         .menu-link { padding:15px 25px; border-bottom:1px solid rgba(255,255,255,0.05); display:block; text-decoration:none; color:var(--text); font-weight:500; }
         
-        .theme-row { display:flex; overflow-x:auto; padding:15px; gap:15px; scrollbar-width: none; }
-        .theme-circle { width:45px; height:45px; border-radius:50%; border:2px solid #444; position:relative; overflow:hidden; transform:rotate(-45deg); flex-shrink:0; cursor:pointer; }
-        .half-p { width:50%; height:100%; position:absolute; left:0; }
-        .half-s { width:50%; height:100%; position:absolute; right:0; }
-
-        /* Swiper & Buttons */
-        #swiper { position:absolute; top:104px; bottom:0; width:100%; }
+        /* Swiper Setup */
+        #swiper { position:absolute; top:104px; bottom:0; width:100%; z-index:10; }
         .swiper-slide { position: relative; width: 100%; height: 100%; }
         .swiper-slide img { width:100%; height:100%; object-fit:cover; }
         
-        /* Buttons moved higher */
-        .action-btns { position:absolute; right:15px; bottom:180px; display:flex; flex-direction:column; gap:25px; z-index:10; }
-        .action-btns button { background:none; border:none; color:#fff; font-size:30px; filter: drop-shadow(0 0 5px #000); cursor:pointer; }
+        /* Action Buttons - Moved Upward */
+        .action-btns { position:absolute; right:15px; bottom:220px; display:flex; flex-direction:column; gap:25px; z-index:20; }
+        .action-btns button { background:none; border:none; color:#fff; font-size:32px; filter: drop-shadow(0 0 5px #000); cursor:pointer; pointer-events: auto; }
         
-        .meta-overlay { position:absolute; bottom:50px; left:15px; text-shadow: 2px 2px 5px #000; pointer-events: none; z-index: 5; }
+        .meta-overlay { position:absolute; bottom:50px; left:15px; text-shadow: 2px 2px 5px #000; pointer-events: none; z-index: 15; }
 
-        .heart-pop { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) scale(0); font-size: 100px; color: #ff4d4d; pointer-events: none; z-index: 20; animation: pop 0.6s ease-out; }
-        @keyframes pop { 0% { transform: translate(-50%, -50%) scale(0); opacity: 0; } 50% { transform: translate(-50%, -50%) scale(1.2); opacity: 1; } 100% { transform: translate(-50%, -50%) scale(1); opacity: 0; } }
+        /* Heart Animation */
+        .heart-pop { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) scale(0); font-size: 100px; color: #ff4d4d; pointer-events: none; z-index: 30; animation: pop 0.6s ease-out; }
+        @keyframes pop { 0% { transform: scale(0); opacity: 0; } 50% { transform: scale(1.2); opacity: 1; } 100% { transform: scale(1); opacity: 0; } }
     </style>
 </head>
 <body>
 
     <div class="top-bar">
-        <button onclick="toggleMenu()" style="background:none; border:none; color:#fff; font-size:24px; padding:15px; cursor:pointer;">☰</button>
+        <button onclick="toggleMenu()" style="background:none; border:none; color:#fff; font-size:24px; padding:15px; cursor:pointer; pointer-events: auto;">☰</button>
         <h2 style="flex:1; text-align:center; font-size:16px; margin:0;">IMAGIFHUB</h2>
-        <button onclick="triggerSearch()" style="background:none; border:none; color:#fff; font-size:22px; padding:15px; cursor:pointer;">🔍</button>
+        <button onclick="triggerSearch()" style="background:none; border:none; color:#fff; font-size:22px; padding:15px; cursor:pointer; pointer-events: auto;">🔍</button>
     </div>
 
     <div class="cat-bar" id="catBar"></div>
 
     <div id="menuPanel" class="menu-panel">
         <a href="#" class="menu-link" onclick="toggleMenu()" style="color:var(--accent)">✕ Close Menu</a>
-        <a href="playlist.html" class="menu-link">📂 My Playlist</a>
-        <a href="https://t.me/imagifhub" class="menu-link">📢 Official Channel</a> 
-        <div style="padding:15px 25px 0; font-size:12px; opacity:0.6;">THEMES</div>
-        <div class="theme-row" id="themeBar"></div>
+        <a href="#" class="menu-link">📂 My Playlist</a>
+        <a href="https://t.me/imagifhub" class="menu-link">📢 Join Channel</a> 
+        <div style="padding:15px 25px 0; font-size:12px; opacity:0.6;">SWITCH THEME</div>
+        <div style="padding: 15px; display: flex; gap: 10px;">
+            <button onclick="applyTheme('dark')" style="background:#000; border:1px solid #fff; color:#fff; padding:10px;">Dark</button>
+            <button onclick="applyTheme('white')" style="background:#fff; border:1px solid #000; color:#000; padding:10px;">Light</button>
+        </div>
     </div>
 
     <div id="swiper" class="swiper"><div class="swiper-wrapper" id="feed"></div></div>
@@ -83,10 +81,6 @@
         };
 
         const categories = ["All", "Nature", "Space", "City", "Superhero", "Supervillain", "Robotic", "Anime", "Cars", "Wildlife", "Funny", "Seasonal Greetings", "Dark Aesthetic", "Luxury", "Gaming", "Ancient World"];
-        const themes = [
-            {id:'dark', p:'#000', s:'#fff'}, {id:'white', p:'#fff', s:'#000'},
-            {id:'blood', p:'#4a0e0e', s:'#f00'}, {id:'neon', p:'#000', s:'#0ff'}
-        ];
 
         function playRandomMusic(cat) {
             const songs = musicLibrary[cat] || musicLibrary["Default"];
@@ -104,7 +98,6 @@
             playRandomMusic(cat);
 
             try {
-                // Sent exactly as seen in button text for backend .title() to catch
                 const res = await fetch(`${API_URL}/media?category=${encodeURIComponent(cat)}&search=${search}`);
                 const data = await res.json();
                 
@@ -124,24 +117,30 @@
                 if (activeSwiper) activeSwiper.destroy(true, true);
                 activeSwiper = new Swiper('#swiper', { 
                     direction: 'vertical', 
-                    loop: true, 
-                    threshold: 3
+                    loop: true, // Infinite Scrolling enabled
+                    threshold: 5 
                 });
             } catch(e) { feed.innerHTML = '<h3>Connection Error</h3>'; }
         }
 
-        function toggleMenu() { document.getElementById('menuPanel').classList.toggle('open'); }
+        // Hamburger Toggle
+        function toggleMenu() { 
+            const panel = document.getElementById('menuPanel');
+            panel.classList.toggle('open'); 
+        }
         
         function applyTheme(id) {
             document.body.className = id === 'dark' ? '' : 'theme-' + id;
             toggleMenu();
         }
 
+        // Search Trigger
         function triggerSearch() {
-            let q = prompt("Search wallpapers (e.g., 'vintage', 'batman'):");
+            let q = prompt("Search wallpapers (e.g., 'vintage', 'dark'):");
             if(q) loadFeed("All", q);
         }
 
+        // Double Tap Logic
         function handleDoubleTap(e, id) {
             const now = Date.now();
             if (now - lastTap < 300) {
@@ -162,14 +161,6 @@
             document.getElementById('catBar').innerHTML = categories.map(c => 
                 `<button class="cat-btn" onclick="loadFeed('${c}')">${c}</button>`
             ).join('');
-            
-            document.getElementById('themeBar').innerHTML = themes.map(t => `
-                <div class="theme-circle" onclick="applyTheme('${t.id}')">
-                    <div class="half-p" style="background:${t.p}"></div>
-                    <div class="half-s" style="background:${t.s}"></div>
-                </div>
-            `).join('');
-
             loadFeed("All");
         };
     </script>
