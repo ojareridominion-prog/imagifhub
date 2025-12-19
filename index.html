@@ -198,12 +198,34 @@
         function like(id) { console.log("Liked:", id); }
         function save(id) { alert("Saved to Playlist!"); }
 
-        window.onload = () => {
-            document.getElementById('catBar').innerHTML = categories.map(c => 
-                `<button class="cat-btn" onclick="loadFeed('${c}')">${c}</button>`
-            ).join('');
-            loadFeed("All");
-        };
+        const themes = [
+    {id:'dark', p:'#000', s:'#fff'}, 
+    {id:'white', p:'#fff', s:'#000'},
+    {id:'blood', p:'#4a0e0e', s:'#f00'}, 
+    {id:'neon', p:'#000', s:'#0ff'},
+    {id:'midnight', p:'#020617', s:'#38bdf8'},
+    {id:'sunset', p:'#2d142c', s:'#ff7e5f'},
+    {id:'forest', p:'#052e16', s:'#4ade80'},
+    {id:'cyberpunk', p:'#000', s:'#f0f'}
+];
+
+window.onload = () => {
+    // Generate Category Buttons
+    document.getElementById('catBar').innerHTML = categories.map(c => 
+        `<button class="cat-btn" onclick="loadFeed('${c}')">${c}</button>`
+    ).join('');
+    
+    // Generate Theme Circles
+    document.getElementById('themeBar').innerHTML = themes.map(t => `
+        <div class="theme-circle" onclick="applyTheme('${t.id}')">
+            <div class="half-p" style="background:${t.p}"></div>
+            <div class="half-s" style="background:${t.s}"></div>
+        </div>
+    `).join('');
+
+    loadFeed("All");
+};
+        
     </script>
 </body>
 </html>
