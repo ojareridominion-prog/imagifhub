@@ -115,15 +115,22 @@ async def save_to_supabase(message: Message, state: FSMContext):
 
 # ==================== API ENDPOINTS ====================
 @app.get("/media")
-async def get_media(category: str = "all"):
+async def get_media(category: str = "all", search: str = ""):
     query = supabase.table('media_content').select('*')
+    
     if category.lower() != "all":
-        query = query.eq('category', category.capitalize())
+        # .title() ensures "dark aesthetic" becomes "Dark Aesthetic"
+        formatted_cat = category.replace("-", " ").title()
+        query = query.eq('category', formatted_cat)
+    
+    if search:
+        query = query.ilike('Keyword', f'%{search}%')
     
     response = query.execute()
     data = response.data
-    random.shuffle(data) # RANDOMIZATION
+    random.shuffle(data) 
     return data[:50]
+    
 
 @app.get("/")
 async def health(): return {"status": "Live"}
