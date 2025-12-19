@@ -87,15 +87,25 @@
     <div class="cat-bar" id="catBar"></div>
 
     <div id="menuPanel" class="menu-panel">
-        <a href="#" class="menu-link" onclick="toggleMenu()" style="color:var(--accent)">✕ Close Menu</a>
-        <a href="#" class="menu-link">📂 My Playlist</a>
-        <a href="https://t.me/imagifhub" class="menu-link">📢 Join Channel</a> 
-        <div style="padding:15px 25px 0; font-size:12px; opacity:0.6;">SWITCH THEME</div>
-        <div style="padding: 15px; display: flex; gap: 10px;">
-            <button onclick="applyTheme('dark')" style="background:#000; border:1px solid #fff; color:#fff; padding:10px;">Dark</button>
-            <button onclick="applyTheme('white')" style="background:#fff; border:1px solid #000; color:#000; padding:10px;">Light</button>
-        </div>
+    <a href="#" class="menu-link" onclick="toggleMenu()" style="color:var(--accent)">✕ Close Menu</a>
+    
+    <div class="premium-box">
+        <div style="font-weight: bold; font-size: 18px;">IMAGIF PREMIUM ⭐</div>
+        <div style="font-size: 11px; opacity: 0.9; margin-top: 5px;">Unlock 4K Downloads & Exclusive AI Themes</div>
+        <button class="premium-btn" onclick="alert('Payment Gateway Integration Coming Soon!')">UPGRADE NOW</button>
     </div>
+
+    <a href="#" class="menu-link">📂 My Playlist</a>
+    <a href="https://t.me/imagifhub" class="menu-link">📢 Join Official Channel</a> 
+    
+    <div style="padding:15px 25px 0; font-size:12px; opacity:0.6; letter-spacing: 1px;">THEMES</div>
+    <div class="theme-row" id="themeBar"></div>
+    
+    <div style="padding: 20px; font-size: 10px; opacity: 0.4; text-align: center;">
+        IMAGIFHUB v2.1.0<br>Made for Telegram
+    </div>
+    </div>
+    
 
     <div id="swiper" class="swiper"><div class="swiper-wrapper" id="feed"></div></div>
     <audio id="bgMusic" loop></audio>
