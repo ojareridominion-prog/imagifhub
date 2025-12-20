@@ -22,6 +22,29 @@
 ‎.theme-violet  {--bg:#1a0026; --text:#f0b3ff; --bar:#100018;}
         
         body { margin:0; background:var(--bg); color:var(--text); font-family:sans-serif; overflow:hidden; transition: 0.3s; }
+
+        ‎/* THEME CIRCLES */
+‎#themeBar{
+‎    display:grid;
+‎    grid-template-columns:repeat(4,1fr);
+‎    gap:14px;
+‎    padding:16px;
+‎}
+‎
+‎.theme-circle{
+‎    width:46px;
+‎    height:46px;
+‎    border-radius:50%;
+‎    overflow:hidden;
+‎    display:flex;
+‎    flex-direction:column;
+‎    border:2px solid rgba(255,255,255,.15);
+‎    cursor:pointer;
+‎}
+‎
+‎.theme-circle div{
+‎    height:50%;
+‎}
         
         /* Fixed Header and Z-Indices */
         .top-bar { position:fixed; top:0; width:100%; height:56px; background:var(--bar); display:flex; align-items:center; z-index:1000; border-bottom:1px solid rgba(255,255,255,0.1); }
