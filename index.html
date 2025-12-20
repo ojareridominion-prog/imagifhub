@@ -73,6 +73,38 @@
     margin-top: 10px;
     cursor: pointer;
         }
+
+   /* === THEME CIRCLES === */
+.theme-grid{
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  gap:14px;
+}
+
+.theme-circle{
+  width:48px;
+  height:48px;
+  border-radius:50%;
+  overflow:hidden;
+  border:2px solid rgba(255,255,255,.15);
+  cursor:pointer;
+  display:flex;
+  flex-direction:column;
+}
+
+.theme-circle div{
+  height:50%;
+}
+
+/* === THEMES === */
+.theme-black{ --bg:#000; --panel:#0d0d0d; --text:#fff; }
+.theme-white{ --bg:#fff; --panel:#eee; --text:#000; }
+.theme-blood{ --bg:#1b0000; --panel:#290000; --text:#ffd6d6; }
+.theme-cyan{ --bg:#001616; --panel:#002222; --text:#00ffff; }
+.theme-sky{ --bg:#071824; --panel:#0c2233; --text:#7fd6ff; }
+.theme-orange{ --bg:#2a1400; --panel:#3a1d00; --text:#ffb36b; }
+.theme-green{ --bg:#051f13; --panel:#08301e; --text:#66ffb2; }
+.theme-violet{ --bg:#16001f; --panel:#220033; --text:#f0b3ff; }
         
     </style>
 </head>
