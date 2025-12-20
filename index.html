@@ -253,13 +253,16 @@ window.onload = () => {
     ).join('');
     
     // Generate Theme Circles
-    document.getElementById('themeBar').innerHTML = themes.map(t => `
-        <div class="theme-circle" onclick="applyTheme('${t.id}')">
-            <div class="half-p" style="background:${t.p}"></div>
-            <div class="half-s" style="background:${t.s}"></div>
-        </div>
-    `).join('');
-
+    document.getElementById("themeBar").innerHTML =
+‎themes.map(t=>`
+‎<div class="theme-circle" onclick="applyTheme('${t.id}')">
+‎ <div style="background:${t.p}"></div>
+‎ <div style="background:${t.s}"></div>
+‎</div>
+‎`).join("");
+‎
+‎applyTheme(localStorage.getItem("theme") || "theme-black");
+    
     loadFeed("All");
 };
         
