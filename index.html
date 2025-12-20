@@ -261,5 +261,41 @@ window.onload = () => {
 };
         
     </script>
+    <script>
+        const themes = [
+ {id:"theme-white",  top:"#fff", bottom:"#000"},
+ {id:"theme-black",  top:"#000", bottom:"#000"},
+ {id:"theme-blood",  top:"#5a0000", bottom:"#ff4d4d"},
+ {id:"theme-cyan",   top:"#000", bottom:"#00ffff"},
+ {id:"theme-sky",    top:"#0c2233", bottom:"#7fd6ff"},
+ {id:"theme-orange", top:"#3a1d00", bottom:"#ff9a3d"},
+ {id:"theme-green",  top:"#08301e", bottom:"#66ffb2"},
+ {id:"theme-violet", top:"#220033", bottom:"#ff4dff"}
+];
+
+function applyTheme(theme){
+  themes.forEach(t => document.body.classList.remove(t.id));
+  document.body.classList.add(theme);
+  localStorage.setItem("imagifhub-theme", theme);
+}
+
+const grid = document.getElementById("themeGrid");
+
+if(grid){
+  themes.forEach(t=>{
+    const c = document.createElement("div");
+    c.className = "theme-circle";
+    c.onclick = () => applyTheme(t.id);
+
+    c.innerHTML = `
+      <div style="background:${t.top}"></div>
+      <div style="background:${t.bottom}"></div>
+    `;
+    grid.appendChild(c);
+  });
+
+  applyTheme(localStorage.getItem("imagifhub-theme") || "theme-black");
+}
+    </script>
 </body>
 </html>
