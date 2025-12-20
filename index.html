@@ -11,40 +11,11 @@
     
     <style>
         :root { --bg: #000; --text: #fff; --bar: #1a1a1a; --accent: #9c4dff; }
-        ‎/* THEMES */
-‎.theme-white   {--bg:#fff; --text:#000; --bar:#eee;}
-‎.theme-black   {--bg:#000; --text:#fff; --bar:#111;}
-‎.theme-blood   {--bg:#2b0000; --text:#ffb3b3; --bar:#150000; --accent:#ff4d4d;}
-‎.theme-cyan    {--bg:#001f1f; --text:#00ffff; --bar:#001010;}
-‎.theme-sky     {--bg:#0a1a26; --text:#6fd3ff; --bar:#06111a;}
-‎.theme-orange  {--bg:#2a1400; --text:#ffb266; --bar:#1a0c00;}
-‎.theme-green   {--bg:#062013; --text:#5cff9d; --bar:#03140c;}
-‎.theme-violet  {--bg:#1a0026; --text:#f0b3ff; --bar:#100018;}
-        
-        body { margin:0; background:var(--bg); color:var(--text); font-family:sans-serif; overflow:hidden; transition: 0.3s; }
+        .theme-white { --bg: #fff; --text: #000; --bar: #f0f0f0; }
+        .theme-blood { --bg: #4a0e0e; --text: #ffcfcf; --bar: #2a0505; --accent: #ff4d4d; }
+        .theme-neon { --bg: #000; --text: #0ff; --bar: #001a1a; --accent: #0ff; }
 
-        ‎/* THEME CIRCLES */
-‎#themeBar{
-‎    display:grid;
-‎    grid-template-columns:repeat(4,1fr);
-‎    gap:14px;
-‎    padding:16px;
-‎}
-‎
-‎.theme-circle{
-‎    width:46px;
-‎    height:46px;
-‎    border-radius:50%;
-‎    overflow:hidden;
-‎    display:flex;
-‎    flex-direction:column;
-‎    border:2px solid rgba(255,255,255,.15);
-‎    cursor:pointer;
-‎}
-‎
-‎.theme-circle div{
-‎    height:50%;
-‎}
+        body { margin:0; background:var(--bg); color:var(--text); font-family:system-ui; overflow:hidden; transition: 0.3s; }
         
         /* Fixed Header and Z-Indices */
         .top-bar { position:fixed; top:0; width:100%; height:56px; background:var(--bar); display:flex; align-items:center; z-index:1000; border-bottom:1px solid rgba(255,255,255,0.1); }
@@ -138,9 +109,6 @@
 
     <div id="swiper" class="swiper"><div class="swiper-wrapper" id="feed"></div></div>
     <audio id="bgMusic" loop></audio>
-    
-    ‎<!-- THEME SELECTOR -->
-‎<div id="themeBar"></div>
 
     <script>
         const API_URL = "https://imagifhub.onrender.com"; 
@@ -231,20 +199,15 @@
         function save(id) { alert("Saved to Playlist!"); }
 
         const themes = [
-‎ {id:"theme-white",  p:"#fff",     s:"#000"},
-‎ {id:"theme-black",  p:"#000",     s:"#000"},
-‎ {id:"theme-blood",  p:"#7a0000",  s:"#ff4d4d"},
-‎ {id:"theme-cyan",   p:"#000",     s:"#00ffff"},
-‎ {id:"theme-sky",    p:"#0a1a26",  s:"#6fd3ff"},
-‎ {id:"theme-orange", p:"#1a0c00",  s:"#ff9f43"},
-‎ {id:"theme-green",  p:"#03140c",  s:"#5cff9d"},
-‎ {id:"theme-violet", p:"#100018",  s:"#ff4dff"}
-‎];
-‎
-‎function applyTheme(theme){
-‎ document.body.className = theme;
-‎ localStorage.setItem("theme",theme);
-‎}
+    {id:'dark', p:'#000', s:'#fff'}, 
+    {id:'white', p:'#fff', s:'#000'},
+    {id:'blood', p:'#4a0e0e', s:'#f00'}, 
+    {id:'neon', p:'#000', s:'#0ff'},
+    {id:'midnight', p:'#020617', s:'#38bdf8'},
+    {id:'sunset', p:'#2d142c', s:'#ff7e5f'},
+    {id:'forest', p:'#052e16', s:'#4ade80'},
+    {id:'cyberpunk', p:'#000', s:'#f0f'}
+];
 
 window.onload = () => {
     // Generate Category Buttons
@@ -253,16 +216,13 @@ window.onload = () => {
     ).join('');
     
     // Generate Theme Circles
-    document.getElementById("themeBar").innerHTML =
-‎themes.map(t=>`
-‎<div class="theme-circle" onclick="applyTheme('${t.id}')">
-‎ <div style="background:${t.p}"></div>
-‎ <div style="background:${t.s}"></div>
-‎</div>
-‎`).join("");
-‎
-‎applyTheme(localStorage.getItem("theme") || "theme-black");
-    
+    document.getElementById('themeBar').innerHTML = themes.map(t => `
+        <div class="theme-circle" onclick="applyTheme('${t.id}')">
+            <div class="half-p" style="background:${t.p}"></div>
+            <div class="half-s" style="background:${t.s}"></div>
+        </div>
+    `).join('');
+
     loadFeed("All");
 };
         
