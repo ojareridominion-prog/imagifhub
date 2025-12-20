@@ -231,15 +231,20 @@
         function save(id) { alert("Saved to Playlist!"); }
 
         const themes = [
-    {id:'dark', p:'#000', s:'#fff'}, 
-    {id:'white', p:'#fff', s:'#000'},
-    {id:'blood', p:'#4a0e0e', s:'#f00'}, 
-    {id:'neon', p:'#000', s:'#0ff'},
-    {id:'midnight', p:'#020617', s:'#38bdf8'},
-    {id:'sunset', p:'#2d142c', s:'#ff7e5f'},
-    {id:'forest', p:'#052e16', s:'#4ade80'},
-    {id:'cyberpunk', p:'#000', s:'#f0f'}
-];
+‎ {id:"theme-white",  p:"#fff",     s:"#000"},
+‎ {id:"theme-black",  p:"#000",     s:"#000"},
+‎ {id:"theme-blood",  p:"#7a0000",  s:"#ff4d4d"},
+‎ {id:"theme-cyan",   p:"#000",     s:"#00ffff"},
+‎ {id:"theme-sky",    p:"#0a1a26",  s:"#6fd3ff"},
+‎ {id:"theme-orange", p:"#1a0c00",  s:"#ff9f43"},
+‎ {id:"theme-green",  p:"#03140c",  s:"#5cff9d"},
+‎ {id:"theme-violet", p:"#100018",  s:"#ff4dff"}
+‎];
+‎
+‎function applyTheme(theme){
+‎ document.body.className = theme;
+‎ localStorage.setItem("theme",theme);
+‎}
 
 window.onload = () => {
     // Generate Category Buttons
