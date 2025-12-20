@@ -22,125 +22,139 @@
         .theme-white { --bg: #fff; --text: #000; --bar: #f0f0f0; --accent: #000; }
         .theme-blood { --bg: #4a0e0e; --text: #ffcfcf; --bar: #2a0505; --accent: #ff4d4d; }
         .theme-neon { --bg: #000; --text: #0ff; --bar: #001a1a; --accent: #0ff; }
-        .theme-midnight { --bg: #020617; --text: #94a3b8; --bar: #0f172a; --accent: #38bdf8; }
+        .theme-midnight { --bg: #020617; --text: #38bdf8; --bar: #0f172a; --accent: #38bdf8; }
         .theme-sunset { --bg: #2d142c; --text: #feb47b; --bar: #1a0a19; --accent: #ff7e5f; }
-        .theme-forest { --bg: #052e16; --text: #dcfce7; --bar: #064e3b; --accent: #4ade80; }
-        .theme-cyberpunk { --bg: #000; --text: #f0f; --bar: #1a001a; --accent: #ffee00; }
+        .theme-forest { --bg: #052e16; --text: #4ade80; --bar: #02140a; --accent: #4ade80; }
+        .theme-cyberpunk { --bg: #000; --text: #f0f; --bar: #1a001a; --accent: #f0f; }
 
         body { 
             margin:0; 
             background:var(--bg); 
             color:var(--text); 
-            font-family:system-ui, -apple-system, sans-serif; 
+            font-family:system-ui; 
             overflow:hidden; 
-            transition: background 0.3s, color 0.3s; 
+            transition: 0.3s;
         }
         
-        /* --- NAVIGATION BARS --- */
+        /* --- TOP NAVIGATION --- */
         .top-bar { 
             position:fixed; 
             top:0; 
             width:100%; 
-            height:60px; 
+            height:56px; 
             background:var(--bar); 
             display:flex; 
             align-items:center; 
-            padding:0 15px; 
             z-index:100; 
-            box-sizing:border-box;
-            border-bottom: 1px solid rgba(255,255,255,0.05);
+            border-bottom:1px solid rgba(255,255,255,0.1); 
         }
 
-        .cat-bar { 
-            position:fixed; 
-            top:60px; 
-            width:100%; 
-            height:45px; 
-            background:var(--bar); 
+        .cat-scroll { 
             display:flex; 
             overflow-x:auto; 
-            white-space:nowrap; 
-            padding:5px; 
-            z-index:90; 
-            scrollbar-width: none;
+            padding:0 10px; 
+            gap:10px; 
+            scrollbar-width:none; 
         }
-        .cat-bar::-webkit-scrollbar { display:none; }
+
+        .cat-scroll::-webkit-scrollbar { display:none; }
+
         .cat-btn { 
             background:rgba(255,255,255,0.1); 
-            color:var(--text); 
             border:none; 
+            color:inherit; 
             padding:6px 15px; 
-            margin:0 5px; 
             border-radius:20px; 
-            font-size:13px;
-            cursor: pointer;
+            white-space:nowrap; 
+            font-size:14px; 
         }
 
-        /* --- FEED STYLES --- */
-        .swiper { width:100vw; height:100vh; }
-        .swiper-slide { position:relative; display:flex; justify-content:center; align-items:center; }
-        .slide-img { width:100%; height:100%; object-fit:cover; }
+        /* --- SWIPER FEED --- */
+        #swiper { height:100vh; width:100vw; }
+        .swiper-slide { position:relative; background:#111; display:flex; align-items:center; justify-content:center; }
+        .swiper-slide img { width:100%; height:100%; object-fit:cover; }
 
+        /* --- UI OVERLAYS --- */
         .overlay { 
             position:absolute; 
             bottom:0; 
             width:100%; 
             padding:40px 20px; 
             background:linear-gradient(transparent, rgba(0,0,0,0.8)); 
-            color:#fff; 
-            box-sizing:border-box;
+            pointer-events:none; 
         }
 
-        /* --- SIDEBAR MENU --- */
-        .menu-panel { 
+        .action-btns { 
+            position:absolute; 
+            right:15px; 
+            bottom:100px; 
+            display:flex; 
+            flex-direction:column; 
+            gap:20px; 
+            pointer-events:all; 
+        }
+
+        .action-btns button { 
+            background:none; 
+            border:none; 
+            color:#fff; 
+            font-size:28px; 
+            text-shadow: 0 2px 10px rgba(0,0,0,0.5); 
+        }
+
+        /* --- SIDE MENU --- */
+        .menu-btn { 
+            padding:15px; 
+            font-size:20px; 
+            cursor:pointer; 
+            z-index:101; 
+        }
+
+        .side-menu { 
             position:fixed; 
+            left:-280px; 
             top:0; 
-            left:-100%; 
-            width:80%; 
+            width:260px; 
             height:100%; 
             background:var(--bar); 
+            transition:0.3s; 
             z-index:1000; 
-            transition:0.4s; 
-            box-shadow: 5px 0 15px rgba(0,0,0,0.5);
-            overflow-y: auto;
-        }
-        .menu-panel.open { left:0; }
-        .menu-link { 
-            display:block; 
-            padding:15px 25px; 
-            color:var(--text); 
-            text-decoration:none; 
-            border-bottom:1px solid rgba(255,255,255,0.05); 
+            padding:20px; 
+            box-shadow: 5px 0 15px rgba(0,0,0,0.5); 
         }
 
-        /* --- THEME PREVIEWS (CIRCLES) --- */
-        .theme-row { 
+        .side-menu.open { left:0; }
+
+        /* --- THEME CIRCLES --- */
+        .theme-grid { 
             display:grid; 
             grid-template-columns: repeat(4, 1fr); 
             gap:15px; 
-            padding:15px 25px; 
+            margin-top:20px; 
         }
+
         .theme-circle { 
             width:50px; 
             height:50px; 
             border-radius:50%; 
             overflow:hidden; 
             border:2px solid rgba(255,255,255,0.2); 
-            cursor:pointer;
-            display: flex;
-            flex-direction: column;
+            display:flex; 
+            cursor:pointer; 
         }
-        .half-p { height:50%; width:100%; }
-        .half-s { height:50%; width:100%; }
 
-        /* --- ANIMATIONS --- */
+        .half-p { width:50%; height:100%; }
+        .half-s { width:50%; height:100%; }
+
         .heart-pop { 
             position:absolute; 
             font-size:80px; 
+            color:#f00; 
             animation: pop 0.6s ease-out forwards; 
             pointer-events:none; 
-            z-index:200;
+            z-index:10; 
         }
+
         @keyframes pop { 
             0% { transform:scale(0); opacity:0; } 
             50% { transform:scale(1.2); opacity:1; } 
@@ -150,54 +164,42 @@
 </head>
 
 <body>
-
     <div class="top-bar">
-        <span onclick="toggleMenu()" style="font-size:24px; cursor:pointer;">☰</span>
-        <b style="margin-left:20px; font-size:18px; letter-spacing:1px;">IMAGIFHUB</b>
-        <span onclick="triggerSearch()" style="margin-left:auto; font-size:20px; cursor:pointer;">🔍</span>
+        <div class="menu-btn" onclick="toggleMenu()">☰</div>
+        <div class="cat-scroll" id="catBar"></div>
+        <div class="menu-btn" onclick="triggerSearch()">🔍</div>
     </div>
 
-    <div class="cat-bar" id="catBar"></div>
+    <div class="side-menu" id="menuPanel">
+        <h3>Styles</h3>
+        <div class="theme-grid" id="themeBar"></div>
+        <hr style="opacity:0.1; margin:20px 0;">
+        <button onclick="alert('Join Premium for more!')" style="width:100%; padding:10px; background:var(--accent); border:none; color:#fff; border-radius:5px;">⭐ Upgrade</button>
+    </div>
 
     <div class="swiper" id="swiper">
-        <div class="swiper-wrapper" id="feedContainer">
-            <div class="swiper-slide">Loading Wallpapers...</div>
+        <div class="swiper-wrapper" id="feed">
+            <div class="swiper-slide">Loading Images...</div>
         </div>
     </div>
-
-    <div id="menuPanel" class="menu-panel">
-        <a href="#" class="menu-link" onclick="toggleMenu()" style="color:var(--accent); text-align:right;">✕ Close</a>
-        
-        <div style="padding: 20px 25px; background: linear-gradient(45deg, #9c4dff, #ff4d4d); color: white; margin: 15px; border-radius: 12px; text-align: center;">
-            <div style="font-weight: bold;">PREMIUM ⭐</div>
-            <div style="font-size: 11px; opacity: 0.9;">Unlock 4K Downloads & Themes</div>
-        </div>
-
-        <a href="#" class="menu-link">📂 My Playlist</a>
-        <a href="https://t.me/imagifhub" target="_blank" class="menu-link">📢 Telegram Channel</a> 
-        
-        <div style="padding:20px 25px 5px; font-size:11px; opacity:0.5; letter-spacing: 1px; font-weight: bold;">SELECT THEME</div>
-        <div class="theme-row" id="themeBar">
-            </div>
-        
-        <div style="padding: 40px 20px; font-size: 10px; opacity: 0.3; text-align: center;">
-            IMAGIFHUB v2.5.0
-        </div>
-    </div>
-
-    <audio id="bgMusic" loop>
-        <source src="YOUR_MUSIC_URL_HERE" type="audio/mpeg">
-    </audio>
 
     <script>
-        const API_URL = "https://imagifhub.onrender.com"; 
-        const categories = ["All", "Nature", "Space", "City", "Superhero", "Anime", "Minimal", "Car"];
+        const webApp = window.Telegram.WebApp;
+        webApp.expand();
+
+        // --- CONFIG & STATE ---
+        const API_URL = "https://your-render-app-url.com"; // UPDATE THIS
         
-        // --- THEME DATA ---
+        // Restored Full Categories List
+        const categories = [
+            "All", "Nature", "Space", "City", "Superhero", "Supervillain", 
+            "Robotic", "Anime", "Aesthetic", "Minimalist", "Cars", "Abstract", "Animals"
+        ];
+
         const themes = [
             {id:'dark', p:'#000', s:'#fff'}, 
             {id:'white', p:'#fff', s:'#000'},
-            {id:'blood', p:'#4a0e0e', s:'#ff4d4d'}, 
+            {id:'blood', p:'#4a0e0e', s:'#f00'}, 
             {id:'neon', p:'#000', s:'#0ff'},
             {id:'midnight', p:'#020617', s:'#38bdf8'},
             {id:'sunset', p:'#2d142c', s:'#ff7e5f'},
@@ -208,37 +210,49 @@
         let activeSwiper = null;
         let lastTap = 0;
 
-        async function loadFeed(cat, search = "") {
-            const feed = document.getElementById('feedContainer');
+        // --- CORE FUNCTIONS ---
+        async function loadFeed(cat = "All", search = "") {
+            const feed = document.getElementById('feed');
+            feed.innerHTML = '<div class="swiper-slide">Fetching...</div>';
+            
             try {
                 const res = await fetch(`${API_URL}/media?category=${cat}&search=${search}`);
                 const data = await res.json();
                 
+                if(data.length === 0) {
+                    feed.innerHTML = '<div class="swiper-slide">No Wallpapers Found</div>';
+                    return;
+                }
+
                 feed.innerHTML = data.map(img => `
                     <div class="swiper-slide" onclick="handleDoubleTap(event, ${img.id})">
-                        <img class="slide-img" src="${img.url}" loading="lazy">
+                        <img src="${img.url}" loading="lazy">
                         <div class="overlay">
                             <b style="font-size:18px">@IMAGIFHUB</b><br>
                             <span style="opacity:0.8;">#${img.Keyword || img.category}</span>
                         </div>
-                        <div style="position:absolute; right:20px; bottom:100px; display:flex; flex-direction:column; gap:25px; z-index:10;">
-                            <button onclick="like(${img.id})" style="background:none; border:none; color:#fff; font-size:28px;">❤️</button>
-                            <button onclick="save(${img.id})" style="background:none; border:none; color:#fff; font-size:28px;">📂</button>
+                        <div class="action-btns">
+                            <button id="like-${img.id}" onclick="like(${img.id})">❤️</button>
+                            <button onclick="save(${img.id})">📂</button>
                         </div>
                     </div>
                 `).join('');
                 
                 if (activeSwiper) activeSwiper.destroy(true, true);
-                activeSwiper = new Swiper('#swiper', { direction: 'vertical', mousewheel: true });
+                activeSwiper = new Swiper('#swiper', { 
+                    direction: 'vertical', 
+                    loop: true,
+                    threshold: 4
+                });
             } catch(e) { 
-                feed.innerHTML = '<div class="swiper-slide"><h3>Server Offline</h3></div>'; 
+                feed.innerHTML = '<div class="swiper-slide">Server Offline</div>'; 
             }
         }
 
         function toggleMenu() { 
             document.getElementById('menuPanel').classList.toggle('open'); 
         }
-        
+      
         function applyTheme(id) {
             document.body.className = id === 'dark' ? '' : 'theme-' + id;
             toggleMenu();
@@ -261,6 +275,9 @@
             lastTap = now;
         }
 
+        function like(id) { console.log("Liked:", id); }
+        function save(id) { alert("Saved to Playlist!"); }
+
         // --- INITIALIZATION ---
         window.onload = () => {
             // 1. Render Categories
@@ -268,7 +285,7 @@
                 `<button class="cat-btn" onclick="loadFeed('${c}')">${c}</button>`
             ).join('');
             
-            // 2. Render Theme Preview Circles (The fix you requested)
+            // 2. Render Theme Preview Circles
             document.getElementById('themeBar').innerHTML = themes.map(t => `
                 <div class="theme-circle" onclick="applyTheme('${t.id}')">
                     <div class="half-p" style="background:${t.p}"></div>
