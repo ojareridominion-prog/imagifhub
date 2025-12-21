@@ -147,6 +147,7 @@
                         <div class="action-btns">
                             <button id="like-${img.id}" onclick="like(${img.id})">❤️</button>
                             <button onclick="save(${img.id})">📂</button>
+                            <button onclick="downloadImg('${img.url}', ${img.id})">📥</button>
                         </div>
                     </div>
                 `).join('');
