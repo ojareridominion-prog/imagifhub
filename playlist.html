@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Playlist</title>
+    <style>
+        body { background: #000; color: #fff; font-family: sans-serif; padding: 15px; }
+        .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-top: 20px; }
+        .grid img { width: 100%; height: 250px; object-fit: cover; border-radius: 10px; border: 1px solid #333; }
+        .back { background: #9c4dff; color: #fff; border: none; padding: 10px 20px; border-radius: 5px; }
+    </style>
+</head>
+<body>
+    <button class="back" onclick="location.href='index.html'">← Home</button>
+    <h2>Saved Wallpapers</h2>
+    <div id="grid" class="grid">Loading...</div>
+
+    <script>
+        const API_URL = "https://imagifhub.onrender.com";
+        const USER_ID = window.Telegram?.WebApp?.initDataUnsafe?.user?.id || 999;
+
+        async function load() {
+            const res = await fetch(`${API_URL}/playlist/${USER_ID}`);
+            const data = await res.json();
+            document.getElementById('grid').innerHTML = data.map(i => `<img src="${i.url}">`).join('') || "No saves yet.";
+        }
+        load();
+    </script>
+</body>
+</html>
