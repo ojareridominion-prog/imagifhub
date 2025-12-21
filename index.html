@@ -13,43 +13,42 @@
         :root { --bg: #000; --text: #fff; --bar: #1a1a1a; --accent: #9c4dff; }
         body { margin:0; background:var(--bg); color:var(--text); font-family:system-ui; overflow:hidden; transition: 0.3s; }
         
+        /* Layout */
         .top-bar { position:fixed; top:0; width:100%; height:56px; background:var(--bar); display:flex; align-items:center; z-index:1000; border-bottom:1px solid rgba(255,255,255,0.1); }
         .cat-bar { position:fixed; top:56px; width:100%; height:48px; background:var(--bar); overflow-x:auto; display:flex; align-items:center; gap:10px; padding:0 12px; z-index:900; scrollbar-width: none; }
-        .cat-bar::-webkit-scrollbar { display: none; }
         
+        /* Buttons & Actions */
         .cat-btn { padding:6px 15px; border-radius:20px; background:#333; font-size:12px; white-space:nowrap; border:none; color:#fff; cursor:pointer; }
         .cat-btn.active { background:var(--accent); font-weight: bold; }
-
-        .menu-panel { position:fixed; left:-100%; width:85%; height:100%; background:var(--bar); z-index:2000; transition:0.4s; padding-top:60px; box-shadow: 5px 0 15px rgba(0,0,0,0.5); }
-        .menu-panel.open { left:0; }
-        .menu-link { padding:15px 25px; border-bottom:1px solid rgba(255,255,255,0.05); display:block; text-decoration:none; color:var(--text); font-weight:500; }
-        
-        #swiper { position:absolute; top:104px; bottom:0; width:100%; z-index:10; }
-        .swiper-slide { position: relative; width: 100%; height: 100%; }
-        .swiper-slide img { width:100%; height:100%; object-fit:cover; }
         
         .action-btns { position:absolute; right:15px; bottom:220px; display:flex; flex-direction:column; gap:25px; z-index:20; }
         .action-btns button { background:none; border:none; color:#fff; font-size:32px; filter: drop-shadow(0 0 5px #000); cursor:pointer; transition: 0.2s; }
         
-        .meta-overlay { position:absolute; bottom:50px; left:15px; text-shadow: 2px 2px 5px #000; pointer-events: none; z-index: 15; }
-        .heart-pop { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) scale(0); font-size: 100px; color: #ff4d4d; pointer-events: none; z-index: 30; animation: pop 0.6s ease-out; }
-        @keyframes pop { 0% { transform: scale(0); opacity: 0; } 50% { transform: scale(1.2); opacity: 1; } 100% { transform: scale(1); opacity: 0; } }
+        #swiper { position:absolute; top:104px; bottom:0; width:100%; z-index:10; }
+        .swiper-slide img { width:100%; height:100%; object-fit:cover; }
 
-        .theme-grid { display: flex; overflow-x: auto; gap: 15px; padding: 10px 25px; scrollbar-width: none; }
+        /* Full Theme Library */
+        .theme-white { --bg: #fff; --text: #000; --bar: #f0f0f0; --accent: #9c4dff; }
+        .theme-blood { --bg: #1b0000; --text: #ffd6d6; --bar: #290000; --accent: #ff4d4d; }
+        .theme-cyan { --bg: #001616; --text: #00ffff; --bar: #002222; --accent: #00ffff; }
+        .theme-sky { --bg: #071824; --text: #7fd6ff; --bar: #0c2233; --accent: #7fd6ff; }
+        .theme-violet { --bg: #16001f; --text: #f0b3ff; --bar: #220033; --accent: #f0b3ff; }
+
+        .theme-grid { display: flex; overflow-x: auto; gap: 15px; padding: 10px 25px; }
         .theme-circle { flex: 0 0 48px; width: 48px; height: 48px; border-radius: 50%; overflow: hidden; border: 2px solid rgba(255,255,255,.15); cursor: pointer; display: flex; flex-direction: column; }
         .theme-circle div { height: 50%; }
 
-        .theme-white { --bg: #fff; --text: #000; --bar: #f0f0f0; --accent: #9c4dff; }
-        .theme-blood { --bg: #1b0000; --text: #ffd6d6; --bar: #290000; --accent: #ff4d4d; }
+        .menu-panel { position:fixed; left:-100%; width:85%; height:100%; background:var(--bar); z-index:2000; transition:0.4s; padding-top:60px; }
+        .menu-panel.open { left:0; }
+        .menu-link { padding:15px 25px; display:block; text-decoration:none; color:var(--text); border-bottom:1px solid rgba(255,255,255,0.05); }
     </style>
 </head>
 <body>
 
     <div class="top-bar">
-        <button onclick="toggleMenu()" style="background:none; border:none; color:#fff; font-size:24px; padding:15px; cursor:pointer;">☰</button>
-        <h2 style="flex:1; text-align:center; font-size:16px; margin:0;">IMAGIFHUB</h2>
-        <button id="muteBtn" onclick="toggleMute()" style="background:none; border:none; color:#fff; font-size:22px; padding:15px; cursor:pointer;">🔊</button>
-        <button onclick="triggerSearch()" style="background:none; border:none; color:#fff; font-size:22px; padding:15px; cursor:pointer;">🔍</button>
+        <button onclick="toggleMenu()" style="background:none; border:none; color:#fff; font-size:24px; padding:15px;">☰</button>
+        <h2 style="flex:1; text-align:center; font-size:16px;">IMAGIFHUB</h2>
+        <button id="muteBtn" onclick="toggleMute()" style="background:none; border:none; color:#fff; font-size:22px; padding:15px;">🔊</button>
     </div>
 
     <div class="cat-bar" id="catBar"></div>
@@ -57,7 +56,6 @@
     <div id="menuPanel" class="menu-panel">
         <a href="#" class="menu-link" onclick="toggleMenu()" style="color:var(--accent)">✕ Close Menu</a>
         <a href="playlist.html" class="menu-link">📂 My Playlist</a>
-        <a href="https://t.me/imagifhub" class="menu-link">📢 Join Official Channel</a> 
         <div style="padding:15px 25px 5px; font-size:12px; opacity:0.6;">SELECT THEME</div>
         <div class="theme-grid" id="themeGrid"></div>
     </div>
@@ -67,43 +65,31 @@
 
     <script>
         const API_URL = "https://imagifhub.onrender.com"; 
-        const tgUser = window.Telegram?.WebApp?.initDataUnsafe?.user;
-        const USER_ID = tgUser ? tgUser.id : 999; // 999 for local testing
-
+        const USER_ID = window.Telegram?.WebApp?.initDataUnsafe?.user?.id || 999;
         let activeSwiper = null;
-        let lastTap = 0;
         let currentCategory = "All";
 
-        const musicLibrary = {
-            "All": ["https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3"],
-            "Default": ["https://www.soundhelix.com/examples/mp3/SoundHelix-Song-8.mp3"]
-        };
-
-        const categories = ["All", "Nature", "Space", "City", "Superhero", "Supervillain", "Robotic", "Anime", "Cars", "Wildlife", "Funny", "Seasonal Greeting", "Dark Aesthetic", "Luxury", "Gaming", "Ancient World"];
         const themesList = [
             {id: "theme-black", top: "#000", bottom: "#000"},
             {id: "theme-white", top: "#fff", bottom: "#eee"},
-            {id: "theme-blood", top: "#4a0e0e", bottom: "#ff4d4d"}
+            {id: "theme-blood", top: "#4a0e0e", bottom: "#ff4d4d"},
+            {id: "theme-cyan", top: "#001616", bottom: "#00ffff"},
+            {id: "theme-sky", top: "#071824", bottom: "#7fd6ff"},
+            {id: "theme-violet", top: "#16001f", bottom: "#f0b3ff"}
         ];
 
-        async function loadFeed(cat, search="") {
+        async function loadFeed(cat) {
             currentCategory = cat;
             const feed = document.getElementById('feed');
             feed.innerHTML = '<div class="swiper-slide" style="display:flex; align-items:center; justify-content:center;"><h3>Loading...</h3></div>';
             
-            document.querySelectorAll('.cat-btn').forEach(b => b.classList.toggle('active', b.innerText === cat));
-            playRandomMusic(cat);
-
             try {
-                const res = await fetch(`${API_URL}/media?category=${encodeURIComponent(cat)}&search=${search}`);
+                const res = await fetch(`${API_URL}/media?category=${encodeURIComponent(cat)}`);
                 const data = await res.json();
                 
                 feed.innerHTML = data.map(img => `
-                    <div class="swiper-slide" ontouchend="handleDoubleTap(event, ${img.id})">
+                    <div class="swiper-slide">
                         <img src="${img.url}" loading="lazy">
-                        <div class="meta-overlay">
-                            <b>@IMAGIFHUB</b><br><span>#${img.Keyword || img.category}</span>
-                        </div>
                         <div class="action-btns">
                             <button id="like-${img.id}" onclick="like(${img.id})">❤️</button>
                             <button onclick="addToPlaylist(${img.id})">📂</button>
@@ -117,13 +103,13 @@
                     direction: 'vertical', 
                     on: { reachEnd: () => setTimeout(() => loadFeed(currentCategory), 500) }
                 });
-            } catch(e) { feed.innerHTML = '<h3>Connection Error</h3>'; }
+            } catch(e) { feed.innerHTML = '<h3>Error Loading Feed</h3>'; }
         }
 
         async function like(id) {
             const btn = document.getElementById(`like-${id}`);
-            btn.style.color = "#ff4d4d";
-            btn.style.transform = "scale(1.3)";
+            btn.style.transform = "scale(1.4)";
+            btn.style.filter = "drop-shadow(0 0 10px #ff4d4d)";
             await fetch(`${API_URL}/like/${id}`, { method: 'POST' });
         }
 
@@ -133,10 +119,12 @@
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ user_id: USER_ID, media_id: mediaId })
             });
-            if(res.ok) alert("Added to Playlist!");
+            if(res.ok) alert("Saved to Playlist!");
         }
 
         async function downloadImg(url, id) {
+            const btn = event.currentTarget;
+            btn.innerText = "⏳";
             try {
                 const res = await fetch(url);
                 const blob = await res.blob();
@@ -144,22 +132,11 @@
                 a.href = URL.createObjectURL(blob);
                 a.download = `imagif-${id}.jpg`;
                 a.click();
-            } catch { window.open(url, '_blank'); }
-        }
-
-        function playRandomMusic(cat) {
-            const audio = document.getElementById('bgMusic');
-            if (!audio.src || audio.paused) {
-                const songs = musicLibrary[cat] || musicLibrary["Default"];
-                audio.src = songs[0];
-                audio.play().catch(() => {});
+                btn.innerText = "✅";
+            } catch {
+                window.open(url, '_blank');
+                btn.innerText = "📥";
             }
-        }
-
-        function toggleMute() {
-            const audio = document.getElementById('bgMusic');
-            audio.muted = !audio.muted;
-            document.getElementById('muteBtn').innerText = audio.muted ? "🔇" : "🔊";
         }
 
         function toggleMenu() { document.getElementById('menuPanel').classList.toggle('open'); }
@@ -171,6 +148,7 @@
         }
 
         window.onload = () => {
+            const categories = ["All", "Nature", "Space", "Anime", "Cars", "Wildlife"];
             document.getElementById('catBar').innerHTML = categories.map(c => `<button class="cat-btn" onclick="loadFeed('${c}')">${c}</button>`).join('');
             document.getElementById('themeGrid').innerHTML = themesList.map(t => `<div class="theme-circle" onclick="applyTheme('${t.id}')"><div style="background:${t.top}"></div><div style="background:${t.bottom}"></div></div>`).join('');
             applyTheme(localStorage.getItem("imagifhub-theme") || "theme-black");
