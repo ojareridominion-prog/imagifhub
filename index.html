@@ -326,27 +326,42 @@ window.onload = () => {
 ];
 
 function applyTheme(themeId) {
-    // Remove all possible theme classes
+    [span_0](start_span)// 1. Update the body class for the actual theme change[span_0](end_span)
     themesList.forEach(t => document.body.classList.remove(t.id));
-    // Add selected one
     document.body.classList.add(themeId);
     localStorage.setItem("imagifhub-theme", themeId);
+
+    // 2. Update the UI Checkmark
+    const allCircles = document.querySelectorAll('.theme-circle');
+    allCircles.forEach(circle => {
+        // Remove active class from everyone
+        circle.classList.remove('active');
+        
+        // Add active class if the ID matches
+        if (circle.getAttribute('data-id') === themeId) {
+            circle.classList.add('active');
+        }
+    });
 }
 
-// Render the horizontal list
+// Render the horizontal list with data-id attributes
 const grid = document.getElementById("themeGrid");
+
 if (grid) {
     grid.innerHTML = themesList.map(t => `
-        <div class="theme-circle" onclick="applyTheme('${t.id}')">
+        <div class="theme-circle" 
+             data-id="${t.id}" 
+             onclick="applyTheme('${t.id}')">
             <div style="background:${t.top}"></div>
             <div style="background:${t.bottom}"></div>
         </div>
     `).join('');
 
-    // Load saved theme
+    // Load saved theme on startup
     const saved = localStorage.getItem("imagifhub-theme") || "theme-black";
     applyTheme(saved);
 }
+        
         
     </script>
 </body>
