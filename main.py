@@ -147,3 +147,8 @@ async def main():
 if __name__ == "__main__":
     asyncio.run(main())
     
+@app.delete("/playlist/remove/{user_id}/{media_id}")
+async def remove_item(user_id: int, media_id: int):
+    supabase.table('user_playlists').delete().eq('user_id', user_id).eq('media_id', media_id).execute()
+    return {"status": "removed"}
+    
