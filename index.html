@@ -270,40 +270,40 @@ window.onload = () => {
         
     </script>
     <script>
-        const themes = [
- {id:"theme-white",  top:"#fff", bottom:"#000"},
- {id:"theme-black",  top:"#000", bottom:"#000"},
- {id:"theme-blood",  top:"#5a0000", bottom:"#ff4d4d"},
- {id:"theme-cyan",   top:"#000", bottom:"#00ffff"},
- {id:"theme-sky",    top:"#0c2233", bottom:"#7fd6ff"},
- {id:"theme-orange", top:"#3a1d00", bottom:"#ff9a3d"},
- {id:"theme-green",  top:"#08301e", bottom:"#66ffb2"},
- {id:"theme-violet", top:"#220033", bottom:"#ff4dff"}
+        const themesList = [
+    {id: "theme-black",  top: "#000", bottom: "#000"},
+    {id: "theme-white",  top: "#fff", bottom: "#eee"},
+    {id: "theme-blood",  top: "#4a0e0e", bottom: "#ff4d4d"},
+    {id: "theme-cyan",   top: "#001616", bottom: "#00ffff"},
+    {id: "theme-sky",    top: "#071824", bottom: "#7fd6ff"},
+    {id: "theme-orange", top: "#2a1400", bottom: "#ff9a3d"},
+    {id: "theme-green",  top: "#051f13", bottom: "#66ffb2"},
+    {id: "theme-violet", top: "#16001f", bottom: "#f0b3ff"}
 ];
 
-function applyTheme(theme){
-  themes.forEach(t => document.body.classList.remove(t.id));
-  document.body.classList.add(theme);
-  localStorage.setItem("imagifhub-theme", theme);
+function applyTheme(themeId) {
+    // Remove all possible theme classes
+    themesList.forEach(t => document.body.classList.remove(t.id));
+    // Add selected one
+    document.body.classList.add(themeId);
+    localStorage.setItem("imagifhub-theme", themeId);
 }
 
+// Render the horizontal list
 const grid = document.getElementById("themeGrid");
+if (grid) {
+    grid.innerHTML = themesList.map(t => `
+        <div class="theme-circle" onclick="applyTheme('${t.id}')">
+            <div style="background:${t.top}"></div>
+            <div style="background:${t.bottom}"></div>
+        </div>
+    `).join('');
 
-if(grid){
-  themes.forEach(t=>{
-    const c = document.createElement("div");
-    c.className = "theme-circle";
-    c.onclick = () => applyTheme(t.id);
-
-    c.innerHTML = `
-      <div style="background:${t.top}"></div>
-      <div style="background:${t.bottom}"></div>
-    `;
-    grid.appendChild(c);
-  });
-
-  applyTheme(localStorage.getItem("imagifhub-theme") || "theme-black");
+    // Load saved theme
+    const saved = localStorage.getItem("imagifhub-theme") || "theme-black";
+    applyTheme(saved);
 }
+        
     </script>
 </body>
 </html>
