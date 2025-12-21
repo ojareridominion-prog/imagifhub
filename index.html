@@ -74,27 +74,36 @@
     cursor: pointer;
         }
 
-   /* === THEME CIRCLES === */
-.theme-grid{
-  display:grid;
-  grid-template-columns:repeat(4,1fr);
-  gap:14px;
+   /* === THEME ROW (Horizontal Scroll) === */
+.theme-grid {
+    display: flex;             /* Align items in a row */
+    overflow-x: auto;         /* Enable horizontal scrolling */
+    gap: 15px;                 /* Space between circles */
+    padding: 10px 25px;       /* Match your menu padding */
+    scrollbar-width: none;     /* Hide scrollbar for Firefox */
+    -ms-overflow-style: none;  /* Hide scrollbar for IE/Edge */
 }
 
-.theme-circle{
-  width:48px;
-  height:48px;
-  border-radius:50%;
-  overflow:hidden;
-  border:2px solid rgba(255,255,255,.15);
-  cursor:pointer;
-  display:flex;
-  flex-direction:column;
+.theme-grid::-webkit-scrollbar {
+    display: none;             /* Hide scrollbar for Chrome/Safari */
 }
 
-.theme-circle div{
-  height:50%;
+.theme-circle {
+    flex: 0 0 48px;           /* Prevent circles from shrinking */
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    overflow: hidden;
+    border: 2px solid rgba(255,255,255,.15);
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
 }
+
+.theme-circle div {
+    height: 50%;
+}
+        
 
 /* === THEMES === */
 .theme-black{ --bg:#000; --panel:#0d0d0d; --text:#fff; }
