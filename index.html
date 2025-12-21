@@ -197,14 +197,25 @@
                     </div>
                 `).join('');
 
-                if (activeSwiper) activeSwiper.destroy(true, true);
-                activeSwiper = new Swiper('#swiper', { 
-                    direction: 'vertical', 
-                    loop: true, // Infinite Scrolling enabled
-                    threshold: 5 
-                });
-            } catch(e) { feed.innerHTML = '<h3>Connection Error</h3>'; }
+                // Replace your current Swiper initialization inside loadFeed with this:
+
+if (activeSwiper) activeSwiper.destroy(true, true);
+
+activeSwiper = new Swiper('#swiper', { 
+    direction: 'vertical', 
+    loop: false, // Turn off native loop to control the reshuffle manually
+    threshold: 5,
+    on: {
+        reachEnd: async function () {
+            // When user reaches the last image, wait a moment and reload
+            setTimeout(() => {
+                // Keep the current category and search, but reload to reshuffle
+                const activeCat = document.querySelector('.cat-btn.active')?.innerText || "All";
+                loadFeed(activeCat); 
+            }, 500);
         }
+    }
+});
 
         // Hamburger Toggle
         function toggleMenu() { 
