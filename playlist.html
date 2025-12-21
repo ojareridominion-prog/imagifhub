@@ -5,16 +5,21 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>My Playlist</title>
     <style>
-        body { background: #000; color: #fff; font-family: sans-serif; padding: 15px; }
-        .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-top: 20px; }
-        .grid img { width: 100%; height: 250px; object-fit: cover; border-radius: 10px; border: 1px solid #333; }
-        .back { background: #9c4dff; color: #fff; border: none; padding: 10px 20px; border-radius: 5px; }
+        body { background: #000; color: #fff; font-family: sans-serif; padding: 15px; margin: 0; }
+        .header { display: flex; align-items: center; padding: 10px 0; border-bottom: 1px solid #222; margin-bottom: 20px; }
+        .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+        .card { position: relative; border-radius: 12px; overflow: hidden; height: 280px; background: #111; }
+        .card img { width: 100%; height: 100%; object-fit: cover; }
+        .del-btn { position: absolute; top: 8px; right: 8px; background: rgba(0,0,0,0.6); border: none; color: #fff; border-radius: 50%; width: 30px; height: 30px; font-weight: bold; }
+        .back { background: none; border: 1px solid #444; color: #fff; padding: 8px 15px; border-radius: 8px; margin-right: 15px; }
     </style>
 </head>
 <body>
-    <button class="back" onclick="location.href='index.html'">← Home</button>
-    <h2>Saved Wallpapers</h2>
-    <div id="grid" class="grid">Loading...</div>
+    <div class="header">
+        <button class="back" onclick="location.href='index.html'">← Home</button>
+        <h2 style="margin:0; font-size: 18px;">Saved Items</h2>
+    </div>
+    <div id="grid" class="grid"></div>
 
     <script>
         const API_URL = "https://imagifhub.onrender.com";
@@ -23,8 +28,28 @@
         async function load() {
             const res = await fetch(`${API_URL}/playlist/${USER_ID}`);
             const data = await res.json();
-            document.getElementById('grid').innerHTML = data.map(i => `<img src="${i.url}">`).join('') || "No saves yet.";
+            const container = document.getElementById('grid');
+            
+            if(data.length === 0) {
+                container.innerHTML = "<p style='grid-column: 1/3; text-align: center; opacity: 0.5;'>No saved wallpapers yet.</p>";
+                return;
+            }
+
+            container.innerHTML = data.map(img => `
+                <div class="card" id="card-${img.id}">
+                    <img src="${img.url}" onclick="window.open('${img.url}', '_blank')">
+                    <button class="del-btn" onclick="removeFromPlaylist(${img.id})">×</button>
+                </div>
+            `).join('');
         }
+
+        async function removeFromPlaylist(mediaId) {
+            if(!confirm("Remove from playlist?")) return;
+            // You can add a DELETE endpoint in main.py, or just use this logic:
+            document.getElementById(`card-${mediaId}`).style.display = 'none';
+            // Backend call here...
+        }
+
         load();
     </script>
 </body>
