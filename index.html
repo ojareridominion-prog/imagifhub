@@ -191,6 +191,14 @@
         }
 
         function like(id) { console.log("Liked:", id); }
+function downloadImg(url, id) {
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `imagifhub_${id}.jpg`; // change extension if gif/png
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+}
         function save(id) { alert("Saved!"); }
 
         window.onload = () => {
