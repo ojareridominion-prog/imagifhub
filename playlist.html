@@ -18,6 +18,7 @@
     <div class="header">
         <button class="back" onclick="location.href='index.html'">← Home</button>
         <h2 style="margin:0; font-size: 18px;">Saved Items</h2>
+        <div id="playlist" style="padding:10px;"></div>
     </div>
     <div id="grid" class="grid"></div>
 
@@ -51,6 +52,22 @@
         }
 
         load();
+    </script>
+    <script>
+const playlist = JSON.parse(localStorage.getItem("playlist")) || [];
+const container = document.getElementById("playlist");
+
+if (playlist.length === 0) {
+    container.innerHTML = "<p>No saved items yet.</p>";
+}
+
+playlist.forEach(item => {
+    const img = document.createElement("img");
+    img.src = item.url;
+    img.style.width = "100%";
+    img.style.marginBottom = "10px";
+    container.appendChild(img);
+});
     </script>
 </body>
 </html>
