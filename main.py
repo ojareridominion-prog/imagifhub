@@ -83,10 +83,12 @@ async def set_category(call: CallbackQuery, state: FSMContext):
 async def save_to_supabase(message: Message, state: FSMContext):
     user_data = await state.get_data()
     for url in user_data['urls']:
-        # Updated "Likes" to lowercase "likes" here for database insertion
+        # Using lowercase "likes" to match the updated database column
         supabase.table('media_content').insert({
-            "url": url, "category": user_data['category'], 
-            "Keyword": message.text, "likes": 0
+            "url": url, 
+            "category": user_data['category'], 
+            "Keyword": message.text, 
+            "likes": 0
         }).execute()
     await message.reply("✅ Saved successfully!")
     await state.clear()
@@ -111,12 +113,13 @@ async def like_media(media_id: int):
     # Fetch current likes using lowercase "likes"
     res = supabase.table('media_content').select('likes').eq('id', media_id).single().execute()
     new_count = (res.data.get('likes') or 0) + 1
-    # Update likes using lowercase "likes"
+    # Update using lowercase "likes"
     supabase.table('media_content').update({"likes": new_count}).eq('id', media_id).execute()
     return {"status": "success", "new_likes": new_count}
 
 @app.post("/playlist/add")
 async def add_to_playlist(payload: dict = Body(...)):
+    # Connects the frontend Save button to the user_playlists table
     supabase.table('user_playlists').upsert({
         "user_id": payload['user_id'],
         "media_id": payload['media_id']
@@ -125,6 +128,7 @@ async def add_to_playlist(payload: dict = Body(...)):
 
 @app.get("/playlist/{user_id}")
 async def get_playlist(user_id: int):
+    # Retrieve only images saved by a specific user
     res = supabase.table('user_playlists').select('media_id').eq('user_id', user_id).execute()
     ids = [x['media_id'] for x in res.data]
     if not ids: return []
@@ -133,7 +137,7 @@ async def get_playlist(user_id: int):
 
 @app.delete("/playlist/remove/{user_id}/{media_id}")
 async def remove_item(user_id: int, media_id: int):
-    # Ensure this is registered correctly with the app
+    # Deletes the entry from the playlist table
     supabase.table('user_playlists').delete().eq('user_id', user_id).eq('media_id', media_id).execute()
     return {"status": "removed"}
 
@@ -150,4 +154,3 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
-    
