@@ -1,6 +1,12 @@
-// =======================
-// DOWNLOAD IMAGE
-// =======================
+function like(id) {
+    let likes = JSON.parse(localStorage.getItem("likes")) || {};
+    likes[id] = !likes[id];
+    localStorage.setItem("likes", JSON.stringify(likes));
+
+    const btn = document.getElementById(`like-${id}`);
+    if (btn) btn.style.color = likes[id] ? "red" : "white";
+}
+
 function downloadImg(url, id) {
     const a = document.createElement("a");
     a.href = url;
@@ -10,32 +16,11 @@ function downloadImg(url, id) {
     document.body.removeChild(a);
 }
 
-// =======================
-// LIKE IMAGE
-// =======================
-function like(id) {
-    let likes = JSON.parse(localStorage.getItem("likes")) || {};
-
-    likes[id] = !likes[id];
-    localStorage.setItem("likes", JSON.stringify(likes));
-
-    const btn = document.getElementById(`like-${id}`);
-    if (btn) {
-        btn.style.color = likes[id] ? "red" : "white";
-    }
-}
-
-// =======================
-// SAVE TO PLAYLIST
-// =======================
 function saveToPlaylist(id, url) {
     let playlist = JSON.parse(localStorage.getItem("playlist")) || [];
-
-    if (!playlist.some(item => item.id === id)) {
+    if (!playlist.some(i => i.id === id)) {
         playlist.push({ id, url });
         localStorage.setItem("playlist", JSON.stringify(playlist));
-        alert("Saved to Playlist ✅");
-    } else {
-        alert("Already saved ⚠️");
+        alert("Saved ✅");
     }
 }
