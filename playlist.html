@@ -10,64 +10,72 @@
         .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
         .card { position: relative; border-radius: 12px; overflow: hidden; height: 280px; background: #111; }
         .card img { width: 100%; height: 100%; object-fit: cover; }
-        .del-btn { position: absolute; top: 8px; right: 8px; background: rgba(0,0,0,0.6); border: none; color: #fff; border-radius: 50%; width: 30px; height: 30px; font-weight: bold; }
-        .back { background: none; border: 1px solid #444; color: #fff; padding: 8px 15px; border-radius: 8px; margin-right: 15px; }
+        .del-btn { position: absolute; top: 8px; right: 8px; background: rgba(0,0,0,0.6); border: none; color: #fff; border-radius: 50%; width: 30px; height: 30px; font-weight: bold; cursor: pointer; }
+        .back { background: none; border: 1px solid #444; color: #fff; padding: 8px 15px; border-radius: 8px; margin-right: 15px; cursor: pointer; }
     </style>
+    <script src="https://unpkg.com/@telegram-apps/sdk@7.2.0/dist/core.min.js"></script>
 </head>
 <body>
     <div class="header">
         <button class="back" onclick="location.href='index.html'">← Home</button>
         <h2 style="margin:0; font-size: 18px;">Saved Items</h2>
-        <div id="playlist" style="padding:10px;"></div>
     </div>
-    <div id="grid" class="grid"></div>
+    
+    <div id="grid" class="grid">
+        <p style="grid-column: 1/3; text-align: center; margin-top: 50px;">Loading playlist...</p>
+    </div>
 
     <script>
         const API_URL = "https://imagifhub.onrender.com";
+        // Ensure we get the same User ID used in script.js
         const USER_ID = window.Telegram?.WebApp?.initDataUnsafe?.user?.id || 999;
 
         async function load() {
-            const res = await fetch(`${API_URL}/playlist/${USER_ID}`);
-            const data = await res.json();
             const container = document.getElementById('grid');
-            
-            if(data.length === 0) {
-                container.innerHTML = "<p style='grid-column: 1/3; text-align: center; opacity: 0.5;'>No saved wallpapers yet.</p>";
-                return;
-            }
+            try {
+                const res = await fetch(`${API_URL}/playlist/${USER_ID}`);
+                const data = await res.json();
+                
+                if(!data || data.length === 0) {
+                    container.innerHTML = "<p style='grid-column: 1/3; text-align: center; opacity: 0.5; margin-top: 50px;'>No saved wallpapers yet.</p>";
+                    return;
+                }
 
-            container.innerHTML = data.map(img => `
-                <div class="card" id="card-${img.id}">
-                    <img src="${img.url}" onclick="window.open('${img.url}', '_blank')">
-                    <button class="del-btn" onclick="removeFromPlaylist(${img.id})">×</button>
-                </div>
-            `).join('');
+                container.innerHTML = data.map(img => `
+                    <div class="card" id="card-${img.id}">
+                        <img src="${img.url}" onclick="window.open('${img.url}', '_blank')">
+                        <button class="del-btn" onclick="removeFromPlaylist(${img.id})">×</button>
+                    </div>
+                `).join('');
+            } catch (e) {
+                container.innerHTML = "<p style='grid-column: 1/3; text-align: center; color: #ff4d4d;'>Error loading playlist.</p>";
+            }
         }
 
         async function removeFromPlaylist(mediaId) {
             if(!confirm("Remove from playlist?")) return;
-            // You can add a DELETE endpoint in main.py, or just use this logic:
-            document.getElementById(`card-${mediaId}`).style.display = 'none';
-            // Backend call here...
+            
+            const card = document.getElementById(`card-${mediaId}`);
+            // Optimistic UI removal
+            card.style.opacity = '0.5';
+
+            try {
+                // Call the DELETE endpoint in main.py
+                await fetch(`${API_URL}/playlist/remove/${USER_ID}/${mediaId}`, { method: 'DELETE' });
+                card.remove();
+                
+                // If grid is empty after removal, show message
+                if(document.querySelectorAll('.card').length === 0) {
+                     document.getElementById('grid').innerHTML = "<p style='grid-column: 1/3; text-align: center; opacity: 0.5;'>No saved wallpapers yet.</p>";
+                }
+            } catch(e) { 
+                console.error(e);
+                alert("Failed to remove item.");
+                card.style.opacity = '1';
+            }
         }
 
         load();
-    </script>
-    <script>
-const playlist = JSON.parse(localStorage.getItem("playlist")) || [];
-const container = document.getElementById("playlist");
-
-if (playlist.length === 0) {
-    container.innerHTML = "<p>No saved items yet.</p>";
-}
-
-playlist.forEach(item => {
-    const img = document.createElement("img");
-    img.src = item.url;
-    img.style.width = "100%";
-    img.style.marginBottom = "10px";
-    container.appendChild(img);
-});
     </script>
 </body>
 </html>
