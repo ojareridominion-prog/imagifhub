@@ -190,7 +190,16 @@
             lastTap = now;
         }
 
-        function like(id) { console.log("Liked:", id); }
+        function like(id) {
+    let likes = JSON.parse(localStorage.getItem("likes")) || {};
+
+    likes[id] = likes[id] ? false : true;
+    localStorage.setItem("likes", JSON.stringify(likes));
+
+    const btn = document.getElementById(`like-${id}`);
+    btn.style.color = likes[id] ? "red" : "white";
+        }
+        
 function downloadImg(url, id) {
     const a = document.createElement("a");
     a.href = url;
