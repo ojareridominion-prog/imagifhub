@@ -146,9 +146,9 @@
                             <b>@IMAGIFHUB</b><br><span>#${img.Keyword || img.category}</span>
                         </div>
                         <div class="action-btns">
-                            <button onclick="downloadImg('${img.url}', ${img.id})">📥</button>
 <button id="like-${img.id}" onclick="like(${img.id})">❤️</button>
 <button onclick="saveToPlaylist(${img.id}, '${img.url}')">➕</button>
+<button onclick="downloadImg('${img.url}', ${img.id})">📥</button>
                         </div>
                     </div>
                 `).join('');
