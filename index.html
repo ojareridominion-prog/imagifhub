@@ -108,7 +108,6 @@
             {id: "theme-violet", top: "#16001f", bottom: "#f0b3ff"}
         ];
 
-        
         function playRandomMusic(cat) {
             const audio = document.getElementById('bgMusic');
             // Only change/play if source is empty or paused to avoid restart glitches during reshuffle
@@ -146,9 +145,9 @@
                             <b>@IMAGIFHUB</b><br><span>#${img.Keyword || img.category}</span>
                         </div>
                         <div class="action-btns">
-<button id="like-${img.id}" onclick="like(${img.id})">❤️</button>
-<button onclick="saveToPlaylist(${img.id}, '${img.url}')">➕</button>
-<button onclick="downloadImg('${img.url}', ${img.id})">📥</button>
+                            <button id="like-${img.id}" onclick="like(${img.id})">❤️</button>
+                            <button onclick="save(${img.id})">📂</button>
+                            <button onclick="downloadImg('${img.url}', ${img.id})">📥</button>
                         </div>
                     </div>
                 `).join('');
@@ -191,36 +190,7 @@
             lastTap = now;
         }
 
-        function like(id) {
-    let likes = JSON.parse(localStorage.getItem("likes")) || {};
-
-    likes[id] = likes[id] ? false : true;
-    localStorage.setItem("likes", JSON.stringify(likes));
-
-    const btn = document.getElementById(`like-${id}`);
-    btn.style.color = likes[id] ? "red" : "white";
-        }
-        
-function downloadImg(url, id) {
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `imagifhub_${id}.jpg`; // change extension if gif/png
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-}
-        function saveToPlaylist(id, url) {
-    let playlist = JSON.parse(localStorage.getItem("playlist")) || [];
-
-    if (!playlist.find(item => item.id === id)) {
-        playlist.push({ id, url });
-        localStorage.setItem("playlist", JSON.stringify(playlist));
-        alert("Saved to Playlist ✅");
-    } else {
-        alert("Already in Playlist ⚠️");
-    }
-        }
-        
+        function like(id) { console.log("Liked:", id); }
         function save(id) { alert("Saved!"); }
 
         window.onload = () => {
@@ -240,6 +210,5 @@ function downloadImg(url, id) {
             loadFeed("All");
         };
     </script>
-    <script src="script.js"></script>
 </body>
 </html>
