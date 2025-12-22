@@ -209,6 +209,18 @@ function downloadImg(url, id) {
     a.click();
     document.body.removeChild(a);
 }
+        function saveToPlaylist(id, url) {
+    let playlist = JSON.parse(localStorage.getItem("playlist")) || [];
+
+    if (!playlist.find(item => item.id === id)) {
+        playlist.push({ id, url });
+        localStorage.setItem("playlist", JSON.stringify(playlist));
+        alert("Saved to Playlist ✅");
+    } else {
+        alert("Already in Playlist ⚠️");
+    }
+        }
+        
         function save(id) { alert("Saved!"); }
 
         window.onload = () => {
