@@ -108,6 +108,12 @@
             {id: "theme-violet", top: "#16001f", bottom: "#f0b3ff"}
         ];
 
+
+        const likes = JSON.parse(localStorage.getItem("likes")) || {};
+if (likes[img.id]) {
+    document.getElementById(`like-${img.id}`).style.color = "red";
+}
+        
         function playRandomMusic(cat) {
             const audio = document.getElementById('bgMusic');
             // Only change/play if source is empty or paused to avoid restart glitches during reshuffle
