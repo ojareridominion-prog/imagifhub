@@ -59,9 +59,8 @@ async function loadFeed(cat, search="") {
                     <b>@IMAGIFHUB</b><br><span>#${img.Keyword || img.category}</span>
                 </div>
                 <div class="action-btns">
-                    <button id="like-${img.id}" onclick="like(${img.id})">❤️</button>
-                    <button onclick="save(${img.id})">📂</button>
-                    <button onclick="downloadImg('${img.url}', ${img.id})">📥</button>
+
+                    
                 </div>
             </div>
         `).join('');
@@ -92,19 +91,9 @@ function triggerSearch() {
     if(q) loadFeed("All", q);
 }
 
-function handleDoubleTap(e, id) {
-    const now = Date.now();
-    if (now - lastTap < 300) {
-        const heart = document.createElement('div');
-        heart.className = 'heart-pop';
-        heart.innerHTML = '❤️';
-        e.currentTarget.appendChild(heart);
-        setTimeout(() => heart.remove(), 600);
-    }
-    lastTap = now;
-}
 
-function like(id) { console.log("Liked:", id); }
+
+
 function save(id) { alert("Saved!"); }
 
 window.onload = () => {
