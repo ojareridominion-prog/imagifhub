@@ -76,3 +76,50 @@ const API_URL = "https://imagifhub.onrender.com";
                         }
                     }
                 });
+} catch(e) { feed.innerHTML = '<h3>Connection Error</h3>'; }
+        }
+
+        function toggleMenu() { document.getElementById('menuPanel').classList.toggle('open'); }
+        
+        function applyTheme(themeId) {
+            themesList.forEach(t => document.body.classList.remove(t.id));
+            if(themeId !== "theme-black") document.body.classList.add(themeId);
+            localStorage.setItem("imagifhub-theme", themeId);
+        }
+
+        function triggerSearch() {
+            let q = prompt("Search wallpapers:");
+            if(q) loadFeed("All", q);
+        }
+
+        function handleDoubleTap(e, id) {
+            const now = Date.now();
+            if (now - lastTap < 300) {
+                const heart = document.createElement('div');
+                heart.className = 'heart-pop';
+                heart.innerHTML = '❤️';
+                e.currentTarget.appendChild(heart);
+                setTimeout(() => heart.remove(), 600);
+            }
+            lastTap = now;
+        }
+
+        function like(id) { console.log("Liked:", id); }
+        function save(id) { alert("Saved!"); }
+
+        window.onload = () => {
+            document.getElementById('catBar').innerHTML = categories.map(c => 
+                `<button class="cat-btn" onclick="loadFeed('${c}')">${c}</button>`
+            ).join('');
+            
+            document.getElementById('themeGrid').innerHTML = themesList.map(t => `
+                <div class="theme-circle" onclick="applyTheme('${t.id}')">
+                    <div style="background:${t.top}"></div>
+                    <div style="background:${t.bottom}"></div>
+                </div>
+            `).join('');
+
+            const saved = localStorage.getItem("imagifhub-theme") || "theme-black";
+            applyTheme(saved);
+            loadFeed("All");
+        };
