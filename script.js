@@ -1,4 +1,5 @@
 const API_URL = "https://imagifhub.onrender.com"; 
+const USER_ID = window.Telegram?.WebApp?.initDataUnsafe?.user?.id || 999;
 let activeSwiper = null;
 let lastTap = 0;
 let currentCategory = "All";
