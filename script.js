@@ -165,16 +165,36 @@ async function downloadImage(url) {
     }
 }
 
-// Replace or update your existing save function
-function saveImage(id) {
-    // In a full implementation, this would call your API endpoint:
-    // fetch(`${API_URL}/playlist/add`, { method: 'POST', ... })
-    
-    // For now, using a visual confirmation based on your existing code's style
-    alert(`Image ${id} saved to playlist!`);
-    // Alternatively, you could trigger the heart animation here if you have it:
-    // triggerHeartAnimation(id); 
-}
+// 2. REPLACE THE EXISTING saveImage FUNCTION AT THE BOTTOM WITH THIS:
+‎async function saveImage(mediaId) {
+‎    // Show user it's processing
+‎    const btn = document.activeElement; 
+‎    if(btn) btn.innerHTML = "⏳";
+‎
+‎    try {
+‎        const response = await fetch(`${API_URL}/playlist/add`, {
+‎            method: 'POST',
+‎            headers: {
+‎                'Content-Type': 'application/json'
+‎            },
+‎            body: JSON.stringify({
+‎                user_id: USER_ID,
+‎                media_id: mediaId
+‎            })
+‎        });
+‎
+‎        const data = await response.json();
+‎        
+‎        if (data.status === "added") {
+‎            alert("✅ Saved to your playlist!");
+‎        } else {
+‎            alert("❌ Error saving image.");
+‎        }
+‎    } catch (error) {
+‎        console.error("Save failed:", error);
+‎        alert("❌ Connection error.");
+‎    }
+‎}
 
 
 window.onload = () => {
