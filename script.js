@@ -1,4 +1,9 @@
-const API_URL = "https://imagifhub.onrender.com"; 
+const API_URL = "https://imagifhub.onrender.com";
+
+‎// Get the Telegram User ID, or use 999 for testing if outside Telegram
+‎const USER_ID = window.Telegram?.WebApp?.initDataUnsafe?.user?.id || 999; 
+‎
+‎// ... keep existing code ...
 let activeSwiper = null;
 let lastTap = 0;
 let currentCategory = "All";
