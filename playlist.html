@@ -28,9 +28,17 @@
 
     <script>
         const API_URL = "https://imagifhub.onrender.com";
-        // Ensure we get the same User ID used in script.js
-        const USER_ID = window.Telegram?.WebApp?.initDataUnsafe?.user?.id || 999;
-
+‎        
+‎        // ADD THIS: Define the User ID correctly
+‎        const tg = window.Telegram?.WebApp;
+‎        if (tg) tg.expand(); // Optional: expands the app
+‎
+‎        // Use the Telegram ID if available, otherwise 999
+‎        const USER_ID = tg?.initDataUnsafe?.user?.id || 999;
+‎        
+‎        // --- DEBUG: Uncomment this line to see your ID on screen if it still fails ---
+‎        document.body.insertAdjacentHTML('afterbegin', `<div style="color:red; background:white;">User ID: ${USER_ID}</div>`);
+        
         async function load() {
             const container = document.getElementById('grid');
             try {
