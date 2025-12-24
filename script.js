@@ -117,8 +117,6 @@ function triggerSearch() {
 
 
 
-function save(id) { alert("Saved!"); }
-
 // --- New functions for menu handling ---
 
 function toggleOptionsMenu(event, id) {
