@@ -1,10 +1,9 @@
 const API_URL = "https://imagifhub.onrender.com";
+const USER_ID = window.Telegram?.WebApp?.initDataUnsafe?.user?.id || 999; 
 
-‎// Get the Telegram User ID, or use 999 for testing if outside Telegram
-‎const USER_ID = window.Telegram?.WebApp?.initDataUnsafe?.user?.id || 999; 
-‎
-‎// ... keep existing code ...
 let activeSwiper = null;
+// ... rest of your variables
+
 let lastTap = 0;
 let currentCategory = "All";
 
@@ -165,34 +164,19 @@ async function downloadImage(url) {
 
 // 2. REPLACE THE EXISTING saveImage FUNCTION AT THE BOTTOM WITH THIS:
 ‎async function saveImage(mediaId) {
-‎    // Show user it's processing
-‎    const btn = document.activeElement; 
-‎    if(btn) btn.innerHTML = "⏳";
-‎
-‎    try {
-‎        const response = await fetch(`${API_URL}/playlist/add`, {
-‎            method: 'POST',
-‎            headers: {
-‎                'Content-Type': 'application/json'
-‎            },
-‎            body: JSON.stringify({
-‎                user_id: USER_ID,
-‎                media_id: mediaId
-‎            })
-‎        });
-‎
-‎        const data = await response.json();
-‎        
-‎        if (data.status === "added") {
-‎            alert("✅ Saved to your playlist!");
-‎        } else {
-‎            alert("❌ Error saving image.");
-‎        }
-‎    } catch (error) {
-‎        console.error("Save failed:", error);
-‎        alert("❌ Connection error.");
-‎    }
-‎}
+    try {
+        const response = await fetch(`${API_URL}/playlist/add`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ user_id: USER_ID, media_id: mediaId })
+        });
+        const data = await response.json();
+        if (data.status === "added") alert("✅ Saved!");
+    } catch (error) {
+        console.error("Save failed:", error);
+    }
+}
+
 
 
 window.onload = () => {
