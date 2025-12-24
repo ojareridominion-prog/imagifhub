@@ -173,6 +173,37 @@ function saveImage(id) {
 }
 
 
+async function saveImage(mediaId) {
+‎    // Show user it's processing
+‎    const btn = document.activeElement; 
+‎    if(btn) btn.innerHTML = "⏳";
+‎
+‎    try {
+‎        const response = await fetch(`${API_URL}/playlist/add`, {
+‎            method: 'POST',
+‎            headers: {
+‎                'Content-Type': 'application/json'
+‎            },
+‎            body: JSON.stringify({
+‎                user_id: USER_ID,
+‎                media_id: mediaId
+‎            })
+‎        });
+‎
+‎        const data = await response.json();
+‎        
+‎        if (data.status === "added") {
+‎            alert("✅ Saved to your playlist!");
+‎        } else {
+‎            alert("❌ Error saving image.");
+‎        }
+‎    } catch (error) {
+‎        console.error("Save failed:", error);
+‎        alert("❌ Connection error.");
+‎    }
+‎}
+
+
 window.onload = () => {
     document.getElementById('catBar').innerHTML = categories.map(c => 
         `<button class="cat-btn" onclick="loadFeed('${c}')">${c}</button>`
