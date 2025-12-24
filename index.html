@@ -54,6 +54,93 @@
 
         .premium-box { margin: 15px; padding: 15px; background: linear-gradient(45deg, #9c4dff, #ff4d4d); border-radius: 12px; color: white; text-align: center; }
         .premium-btn { background: white; color: #9c4dff; border: none; padding: 8px 15px; border-radius: 20px; font-weight: bold; margin-top: 10px; cursor: pointer; }
+
+                /* --- Additions for Options Menu --- */
+        .more-btn {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.6);
+            color: #fff;
+            border: none;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            font-size: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            z-index: 25;
+            backdrop-filter: blur(5px);
+            -webkit-backdrop-filter: blur(5px);
+        }
+
+        .options-menu {
+            position: absolute;
+            top: 70px;
+            right: 20px;
+            background: rgba(26, 26, 26, 0.95); /* Matches var(--bar) with opacity */
+            border-radius: 16px;
+            padding: 15px 0;
+            width: 200px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.8);
+            display: none; /* Hidden by default */
+            flex-direction: column;
+            z-index: 30;
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.1);
+            animation: menuFadeIn 0.2s ease-out;
+        }
+
+        @keyframes menuFadeIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .options-menu.show {
+            display: flex;
+        }
+
+        .menu-header {
+             padding: 5px 20px 15px;
+             border-bottom: 1px solid rgba(255,255,255,0.1);
+             margin-bottom: 5px;
+             font-weight: bold;
+             display: flex;
+             justify-content: space-between;
+             align-items: center;
+        }
+
+        .menu-close {
+            background: none;
+            border: none;
+            color: #aaa;
+            font-size: 24px;
+            cursor: pointer;
+            padding: 0;
+            line-height: 1;
+        }
+        .menu-close:hover { color: #fff; }
+
+        .menu-item {
+            background: none;
+            border: none;
+            color: #fff;
+            padding: 12px 20px;
+            text-align: left;
+            font-size: 16px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            transition: background 0.2s;
+        }
+
+        .menu-item:hover { background: rgba(255,255,255,0.1); }
+        .menu-item span { font-size: 20px; width: 24px; text-align: center;}
+        
     </style>
 </head>
 <body>
