@@ -114,6 +114,64 @@ function triggerSearch() {
 
 function save(id) { alert("Saved!"); }
 
+// --- New functions for menu handling ---
+
+function toggleOptionsMenu(event, id) {
+    event.stopPropagation(); // Prevent triggering slide taps
+    const menuId = `menu-${id}`;
+    
+    // Close other open menus first
+    document.querySelectorAll('.options-menu.show').forEach(m => {
+        if(m.id !== menuId) m.classList.remove('show');
+    });
+
+    const menu = document.getElementById(menuId);
+    if (menu) {
+        menu.classList.toggle('show');
+    }
+}
+
+// Close menu if clicking outside on the slide
+document.addEventListener('click', function(e) {
+    if (!e.target.closest('.options-menu') && !e.target.closest('.more-btn')) {
+         document.querySelectorAll('.options-menu.show').forEach(m => m.classList.remove('show'));
+    }
+});
+
+async function downloadImage(url) {
+    try {
+        // Attempt to fetch the image as a blob to force download
+        const response = await fetch(url);
+        const blob = await response.blob();
+        const blobUrl = window.URL.createObjectURL(blob);
+        
+        const a = document.createElement('a');
+        a.href = blobUrl;
+        // Use a generic name or try to extract from URL
+        a.download = `imagifhub-${new Date().getTime()}.jpg`; 
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(blobUrl);
+    } catch (e) {
+        console.error("Download failed due to CORS or network error, opening in new tab:", e);
+        // Fallback: Open in new tab if fetch fails (common due to CORS on external image hosts)
+        window.open(url, '_blank');
+    }
+}
+
+// Replace or update your existing save function
+function saveImage(id) {
+    // In a full implementation, this would call your API endpoint:
+    // fetch(`${API_URL}/playlist/add`, { method: 'POST', ... })
+    
+    // For now, using a visual confirmation based on your existing code's style
+    alert(`Image ${id} saved to playlist!`);
+    // Alternatively, you could trigger the heart animation here if you have it:
+    // triggerHeartAnimation(id); 
+}
+
+
 window.onload = () => {
     document.getElementById('catBar').innerHTML = categories.map(c => 
         `<button class="cat-btn" onclick="loadFeed('${c}')">${c}</button>`
