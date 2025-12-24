@@ -52,18 +52,36 @@ async function loadFeed(cat, search="") {
         const res = await fetch(`${API_URL}/media?category=${encodeURIComponent(cat)}&search=${search}`);
         const data = await res.json();
         
+        // --- Find this part in loadFeed function and replace it ---
         feed.innerHTML = data.map(img => `
             <div class="swiper-slide" ontouchend="handleDoubleTap(event, ${img.id})">
-                <img src="${img.url}" loading="lazy">
+                <img src="${img.url}" loading="lazy" alt="${img.category}">
+                
+                <button class="more-btn" onclick="toggleOptionsMenu(event, '${img.id}')">⋮</button>
+
+                <div class="options-menu" id="menu-${img.id}" onclick="event.stopPropagation()">
+                    <div class="menu-header">
+                        Options
+                        <button class="menu-close" onclick="toggleOptionsMenu(event, '${img.id}')">×</button>
+                    </div>
+                    
+                    <button class="menu-item" onclick="downloadImage('${img.url}'); toggleOptionsMenu(event, '${img.id}')">
+                        <span>📥</span> Download
+                    </button>
+                    
+                    <button class="menu-item" onclick="saveImage(${img.id}); toggleOptionsMenu(event, '${img.id}')">
+                        <span>🔖</span> Save
+                    </button>
+                </div>
                 <div class="meta-overlay">
                     <b>@IMAGIFHUB</b><br><span>#${img.Keyword || img.category}</span>
                 </div>
                 <div class="action-btns">
-
-                    
-                </div>
+                    </div>
             </div>
         `).join('');
+// --- End replacement ---
+        
 
         if (activeSwiper) activeSwiper.destroy(true, true);
         activeSwiper = new Swiper('#swiper', { 
