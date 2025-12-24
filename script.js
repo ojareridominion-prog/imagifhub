@@ -113,7 +113,6 @@ function triggerSearch() {
 
 
 
-function save(id) { alert("Saved!"); }
 
 // --- New functions for menu handling ---
 
@@ -161,16 +160,7 @@ async function downloadImage(url) {
     }
 }
 
-// Replace or update your existing save function
-function saveImage(id) {
-    // In a full implementation, this would call your API endpoint:
-    // fetch(`${API_URL}/playlist/add`, { method: 'POST', ... })
-    
-    // For now, using a visual confirmation based on your existing code's style
-    alert(`Image ${id} saved to playlist!`);
-    // Alternatively, you could trigger the heart animation here if you have it:
-    // triggerHeartAnimation(id); 
-}
+
 
 
 async function saveImage(mediaId) {
