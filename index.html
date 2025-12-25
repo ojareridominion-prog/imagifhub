@@ -140,6 +140,31 @@
 
         .menu-item:hover { background: rgba(255,255,255,0.1); }
         .menu-item span { font-size: 20px; width: 24px; text-align: center;}
+
+        .actions {
+    position: absolute;
+    bottom: 20px;
+    right: 20px;
+    z-index: 100; /* Ensures it sits on top of the image */
+    display: flex;
+    gap: 15px;
+}
+
+.icon-btn {
+    background: rgba(0, 0, 0, 0.6);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    color: white;
+    font-size: 20px;
+    width: 45px;
+    height: 45px;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(5px);
+}
+        
         
     </style>
 </head>
