@@ -187,38 +187,6 @@ async function downloadImage(url) {
 
 
 
-async function saveImage(mediaId) {
-    // 1. Give immediate visual feedback
-    const saveBtn = document.querySelector(`#menu-${mediaId} .menu-item span`); // Optional: targets the icon
-    
-    try {
-        // 2. Send data to your Python backend
-        const response = await fetch(`${API_URL}/playlist/add`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                user_id: USER_ID,   // The user ID we defined at the top
-                media_id: mediaId   // The ID of the image being saved
-            })
-        });
-
-        // 3. Handle success or failure
-        if (response.ok) {
-            alert("Saved to playlist! ✅"); 
-        } else {
-            console.error("Server returned error:", response.status);
-            alert("Could not save image. ❌");
-        }
-    } catch (error) {
-        console.error("Connection failed:", error);
-        alert("Network error. Check your connection.");
-    }
-}
-
-
-
 
 
 
