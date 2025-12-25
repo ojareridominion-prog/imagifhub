@@ -163,18 +163,44 @@ async function downloadImage(url) {
 
 
 async function saveImage(mediaId) {
+    // 1. Get the button that was clicked to give visual feedback
+    const btn = event.target; 
+    const originalText = btn.innerHTML;
+    
+    // 2. Change icon to hourglass
+    btn.innerHTML = "⏳"; 
+    
+    // 3. Debugging alert (Optional: remove this after it starts working)
+    // alert("Attempting to save ID: " + mediaId);
+
     try {
         const response = await fetch(`${API_URL}/playlist/add`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ user_id: USER_ID, media_id: mediaId })
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                user_id: USER_ID,
+                media_id: mediaId
+            })
         });
+
         const data = await response.json();
-        if (data.status === "added") alert("✅ Saved!");
+        
+        if (data.status === "added") {
+            btn.innerHTML = "✅"; // Success checkmark
+            setTimeout(() => btn.innerHTML = originalText, 2000); // Reset after 2s
+        } else {
+            alert("❌ Server Error: " + JSON.stringify(data));
+            btn.innerHTML = originalText;
+        }
     } catch (error) {
         console.error("Save failed:", error);
+        alert("❌ Connection failed. Check console.");
+        btn.innerHTML = originalText;
     }
 }
+
 
 
 
