@@ -163,43 +163,35 @@ async function downloadImage(url) {
 
 
 async function saveImage(mediaId) {
-    // 1. Get the button that was clicked to give visual feedback
-    const btn = event.target; 
-    const originalText = btn.innerHTML;
+    // 1. Give immediate visual feedback
+    const saveBtn = document.querySelector(`#menu-${mediaId} .menu-item span`); // Optional: targets the icon
     
-    // 2. Change icon to hourglass
-    btn.innerHTML = "⏳"; 
-    
-    // 3. Debugging alert (Optional: remove this after it starts working)
-    // alert("Attempting to save ID: " + mediaId);
-
     try {
+        // 2. Send data to your Python backend
         const response = await fetch(`${API_URL}/playlist/add`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-                user_id: USER_ID,
-                media_id: mediaId
+                user_id: USER_ID,   // The user ID we defined at the top
+                media_id: mediaId   // The ID of the image being saved
             })
         });
 
-        const data = await response.json();
-        
-        if (data.status === "added") {
-            btn.innerHTML = "✅"; // Success checkmark
-            setTimeout(() => btn.innerHTML = originalText, 2000); // Reset after 2s
+        // 3. Handle success or failure
+        if (response.ok) {
+            alert("Saved to playlist! ✅"); 
         } else {
-            alert("❌ Server Error: " + JSON.stringify(data));
-            btn.innerHTML = originalText;
+            console.error("Server returned error:", response.status);
+            alert("Could not save image. ❌");
         }
     } catch (error) {
-        console.error("Save failed:", error);
-        alert("❌ Connection failed. Check console.");
-        btn.innerHTML = originalText;
+        console.error("Connection failed:", error);
+        alert("Network error. Check your connection.");
     }
 }
+
 
 
 
