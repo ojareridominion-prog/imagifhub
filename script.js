@@ -16,7 +16,7 @@ async function saveImage(mediaId) {
              media_id: mediaId,
              playlist_id: selectedPlaylistId
 })
-        });
+        
 
         const result = await response.json();
 
