@@ -66,11 +66,11 @@ async function loadFeed(cat, search="") {
                         <button class="menu-close" onclick="toggleOptionsMenu(event, '${img.id}')">×</button>
                     </div>
                     
-                    <button class="menu-item" onclick="downloadImage('${img.url}'); toggleOptionsMenu(event, '${img.id}')">
+                    <button class="icon-btn" onclick="downloadImage('${img.url}'); toggleOptionsMenu(event, '${img.id}')">
                         <span>📥</span> Download
                     </button>
                     
-                    <button class="menu-item" onclick="saveImage(${img.id}); toggleOptionsMenu(event, '${img.id}')">
+                    <button class="icon-btn" onclick="saveImage(${img.id}); toggleOptionsMenu(event, '${img.id}')">
                         <span>🔖</span> Save
                     </button>
                 </div>
