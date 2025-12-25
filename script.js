@@ -12,9 +12,10 @@ async function saveImage(mediaId) {
                 'Accept': 'application/json'
             },
             body: JSON.stringify({
-                user_id: Number(USER_ID),
-                media_id: Number(mediaId)
-            })
+             user_id: USER_ID,
+             media_id: mediaId,
+             playlist_id: selectedPlaylistId
+})
         });
 
         const result = await response.json();
