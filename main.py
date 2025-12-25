@@ -167,10 +167,11 @@ async def add_to_playlist(payload: dict = Body(...)):
             raise HTTPException(status_code=400, detail="User ID and Media ID required")
 
         # Explicitly converting to int for Supabase int8 compatibility
-        supabase.table('user_playlists').upsert({
-            "user_id": int(user_id),
-            "media_id": int(media_id)
-        }).execute()
+        supabase.table('user_playlists').insert({
+    "user_id": user_id,
+    "playlist_id": playlist_id,
+    "media_id": media_id
+}).execute()
         
         return {"status": "added"}
     except Exception as e:
