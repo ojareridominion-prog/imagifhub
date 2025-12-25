@@ -1,5 +1,30 @@
 const API_URL = "https://imagifhub.onrender.com"; 
 const USER_ID = window.Telegram?.WebApp?.initDataUnsafe?.user?.id || 999;
+async function saveImage(mediaId) {
+    try {
+        const response = await fetch(`${API_URL}/playlist/add`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                user_id: Number(USER_ID), // Ensure it's a number to match DB schema
+                media_id: Number(mediaId)  // Ensure it's a number to match DB schema
+            })
+        });
+
+        const result = await response.json();
+
+        if (response.ok && result.status === "added") {
+            alert("Saved to playlist! ✅");
+        } else {
+            alert("Could not save: " + (result.detail || "Unknown error"));
+        }
+    } catch (error) {
+        console.error("Save failed:", error);
+        alert("Network error. Is the backend running?");
+    }
+}
 let activeSwiper = null;
 let lastTap = 0;
 let currentCategory = "All";
