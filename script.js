@@ -1,30 +1,38 @@
 const API_URL = "https://imagifhub.onrender.com"; 
 const USER_ID = window.Telegram?.WebApp?.initDataUnsafe?.user?.id || 999;
 async function saveImage(mediaId) {
+    // Ensure the menu closes immediately for better UX
+    document.querySelectorAll('.options-menu.show').forEach(m => m.classList.remove('show'));
+
     try {
         const response = await fetch(`${API_URL}/playlist/add`, {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json'
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
             },
             body: JSON.stringify({
-                user_id: Number(USER_ID), // Ensure it's a number to match DB schema
-                media_id: Number(mediaId)  // Ensure it's a number to match DB schema
+                user_id: Number(USER_ID),
+                media_id: Number(mediaId)
             })
         });
 
         const result = await response.json();
 
         if (response.ok && result.status === "added") {
+            // Optional: Telegram Haptic Feedback
+            window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred('success');
             alert("Saved to playlist! ✅");
         } else {
-            alert("Could not save: " + (result.detail || "Unknown error"));
+            alert("Save failed: " + (result.detail || "Server error"));
         }
     } catch (error) {
         console.error("Save failed:", error);
-        alert("Network error. Is the backend running?");
+        alert("Network error. Please check your connection.");
     }
 }
+
+
 let activeSwiper = null;
 let lastTap = 0;
 let currentCategory = "All";
