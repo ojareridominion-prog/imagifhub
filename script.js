@@ -12,11 +12,10 @@ async function saveImage(mediaId) {
                 'Accept': 'application/json'
             },
             body: JSON.stringify({
-             user_id: USER_ID,
-             media_id: mediaId,
-             playlist_id: selectedPlaylistId
-});
-        
+                user_id: Number(USER_ID),
+                media_id: Number(mediaId)
+            })
+        });
 
         const result = await response.json();
 
@@ -27,13 +26,11 @@ async function saveImage(mediaId) {
         } else {
             alert("Save failed: " + (result.detail || "Server error"));
         }
-        
     } catch (error) {
         console.error("Save failed:", error);
         alert("Network error. Please check your connection.");
     }
 }
-
 
 
 let activeSwiper = null;
