@@ -150,19 +150,24 @@
     gap: 15px;
 }
 
+/* Fix the stray bracket and ensure buttons are clickable */
 .icon-btn {
     background: transparent;
-            border: none;
-            color: #fff;
-            padding: 12px 20px;
-            text-align: left;
-            font-size: 16px;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            gap: 15px;
-            transition: background 0.2s;
-    }
+    border: none;
+    color: #fff;
+    padding: 12px 20px;
+    text-align: left;
+    font-size: 16px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    width: 100%; /* Ensure button fills the menu width */
+    transition: background 0.2s;
+}
+
+.icon-btn:hover {
+    background: rgba(255,255,255,0.1);
 }
         
         
