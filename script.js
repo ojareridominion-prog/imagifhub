@@ -12,10 +12,9 @@ async function saveImage(mediaId) {
                 'Accept': 'application/json'
             },
             body: JSON.stringify({
-              user_id: USER_ID,
-              media_id: mediaId,
-              playlist_id: selectedPlaylistId
-                })
+                user_id: Number(USER_ID),
+                media_id: Number(mediaId)
+            })
         });
 
         const result = await response.json();
@@ -33,10 +32,6 @@ async function saveImage(mediaId) {
     }
 }
 
-if (!window.Telegram?.WebApp?.initDataUnsafe?.user?.id) {
-    alert("Please open this app inside Telegram to save images.");
-    return;
-}
 
 let activeSwiper = null;
 let lastTap = 0;
