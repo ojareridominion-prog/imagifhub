@@ -27,10 +27,7 @@ async function saveImage(mediaId) {
         } else {
             alert("Save failed: " + (result.detail || "Server error"));
         }
-        if (!window.Telegram?.WebApp?.initDataUnsafe?.user?.id) {
-    alert("Please open this app inside Telegram to save images.");
-    return;
-        }
+        
     } catch (error) {
         console.error("Save failed:", error);
         alert("Network error. Please check your connection.");
