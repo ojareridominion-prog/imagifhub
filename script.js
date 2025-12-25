@@ -32,6 +32,10 @@ async function saveImage(mediaId) {
     }
 }
 
+if (!window.Telegram?.WebApp?.initDataUnsafe?.user?.id) {
+    alert("Please open this app inside Telegram to save images.");
+    return;
+}
 
 let activeSwiper = null;
 let lastTap = 0;
