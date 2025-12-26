@@ -157,6 +157,31 @@ function triggerSearch() {
     if(q) loadFeed("Featured", q);
 }
 
+// --- SHARE BOT FUNCTION ---
+async function shareBot() {
+    // Configuration for sharing
+    const shareData = {
+        title: 'IMAGIFHUB',
+        text: 'Check out IMAGIFHUB! The best place for 4K Gifs and Wallpapers. ✨',
+        url: 'https://t.me/YourBotUsernameHere' // Replace with your actual bot link
+    };
+
+    try {
+        // Check if the browser supports native sharing (mobile)
+        if (navigator.share) {
+            await navigator.share(shareData);
+            console.log('Shared successfully');
+        } else {
+            // Fallback: Copy to clipboard if native share isn't available (desktop)
+            await navigator.clipboard.writeText(`${shareData.text} ${shareData.url}`);
+            alert('Link & Text copied to clipboard! Share it with your friends.');
+        }
+    } catch (err) {
+        console.log('Error sharing:', err);
+    }
+}
+
+
 window.onload = () => {
     document.getElementById('catBar').innerHTML = categories.map(c => 
         `<button class="cat-btn" onclick="loadFeed('${c}')">${c}</button>`
