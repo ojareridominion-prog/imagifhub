@@ -163,7 +163,7 @@ async function shareBot() {
     const shareData = {
         title: 'IMAGIFHUB',
         text: 'Check out IMAGIFHUB! The best place for 4K Gifs and Wallpapers. ✨',
-        url: 'https://t.me/YourBotUsernameHere' // Replace with your actual bot link
+        url: 'https://t.me/IMAGIFHUB_bot' // Replace with your actual bot link
     };
 
     try {
