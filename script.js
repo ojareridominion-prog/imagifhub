@@ -1,39 +1,4 @@
 const API_URL = "https://imagifhub.onrender.com"; 
-const USER_ID = window.Telegram?.WebApp?.initDataUnsafe?.user?.id || 999;
-async function saveImage(mediaId) {
-    // Ensure the menu closes immediately for better UX
-    document.querySelectorAll('.options-menu.show').forEach(m => m.classList.remove('show'));
-
-    try {
-        const response = await fetch(`${API_URL}/playlist/add`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Accept': 'application/json'
-            },
-            body: JSON.stringify({
-    user_id: USER_ID,
-    media_id: mediaId,
-    playlist_id: selectedPlaylistId
-})
-        });
-
-        const result = await response.json();
-
-        if (response.ok && result.status === "added") {
-            // Optional: Telegram Haptic Feedback
-            window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred('success');
-            alert("Saved to playlist! ✅");
-        } else {
-            alert("Save failed: " + (result.detail || "Server error"));
-        }
-    } catch (error) {
-        console.error("Save failed:", error);
-        alert("Network error. Please check your connection.");
-    }
-}
-
-
 let activeSwiper = null;
 let lastTap = 0;
 let currentCategory = "All";
@@ -87,35 +52,6 @@ async function loadFeed(cat, search="") {
         const res = await fetch(`${API_URL}/media?category=${encodeURIComponent(cat)}&search=${search}`);
         const data = await res.json();
         
-        // --- Find this part in loadFeed function and replace it ---
-        feed.innerHTML = data.map(img => `
-            <div class="swiper-slide" ontouchend="handleDoubleTap(event, ${img.id})">
-                <img src="${img.url}" loading="lazy" alt="${img.category}">
-                
-                <button class="more-btn" onclick="toggleOptionsMenu(event, '${img.id}')">⋮</button>
-
-                <div class="options-menu" id="menu-${img.id}" onclick="event.stopPropagation()">
-                    <div class="menu-header">
-                        Options
-                        <button class="menu-close" onclick="toggleOptionsMenu(event, '${img.id}')">×</button>
-                    </div>
-                    
-                    <button class="icon-btn" onclick="downloadImage('${img.url}'); toggleOptionsMenu(event, '${img.id}')">
-                        <span>📥</span> Download
-                    </button>
-                    
-                    <button class="icon-btn" onclick="saveImage(${img.id}); toggleOptionsMenu(event, '${img.id}')">
-                        <span>🔖</span> Save
-                    </button>
-                </div>
-                <div class="meta-overlay">
-                    <b>@IMAGIFHUB</b><br><span>#${img.Keyword || img.category}</span>
-                </div>
-                <div class="action-btns">
-                    </div>
-            </div>
-        `).join('');
-// --- End replacement ---
         
 
         if (activeSwiper) activeSwiper.destroy(true, true);
