@@ -44,8 +44,9 @@ class AdminUpload(StatesGroup):
     waiting_category = State()
     waiting_keywords = State()
 
+# Cleaned list to avoid SyntaxError: invalid non-printable character
 CATEGORIES = [
-    ‎ "Nature", "Places", "Aesthetic", "Cars", "Luxury", "Anime", "Animals", "Ancient"
+    "Nature", "Places", "Aesthetic", "Cars", "Luxury", "Anime", "Animals", "Ancient"
 ]
 
 # ==================== BOT ADMIN LOGIC ====================
@@ -84,6 +85,7 @@ async def handle_media(message: Message, state: FSMContext):
     urls.append(url)
     await state.update_data(urls=urls)
     
+    # Create category buttons for selection
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text=cat, callback_data=f"cat_{cat}") for cat in CATEGORIES[i:i+3]]
         for i in range(0, len(CATEGORIES), 3)
@@ -118,12 +120,11 @@ async def save_to_supabase(message: Message, state: FSMContext):
 async def get_media(category: str = "all", search: str = ""):
     query = supabase.table('media_content').select('*')
     
-    # Handle specific category filtering
-    if category.lower() != "all" and category.lower() != "featured":
+    # [span_2](start_span)[span_3](start_span)"Featured" and "all" now act as a global feed[span_2](end_span)[span_3](end_span)
+    if category.lower() not in ["all", "featured"]:
         formatted_cat = category.replace("-", " ").title()
         query = query.eq('category', formatted_cat)
     
-    # Handle search functionality
     if search:
         query = query.ilike('Keyword', f'%{search}%')
         
@@ -149,3 +150,4 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
+    
