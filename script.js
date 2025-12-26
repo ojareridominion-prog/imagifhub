@@ -162,7 +162,8 @@ async function shareBot() {
     // Configuration for sharing
     const shareData = {
         title: 'IMAGIFHUB',
-        text: 'Check out IMAGIFHUB! The best place for 4K Gifs and Wallpapers. ✨',
+        text: '‎"SnapShot 📸 - Your vibe, your view. Swipe, zoom, vibe 🎉. Effortless image magic ✨." 😊
+‎',
         url: 'https://t.me/IMAGIFHUB_bot' // Replace with your actual bot link
     };
 
