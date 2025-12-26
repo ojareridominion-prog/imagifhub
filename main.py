@@ -46,7 +46,9 @@ class AdminUpload(StatesGroup):
     waiting_keywords = State()
 
 CATEGORIES = [
-     "Nature", "Places", "Aesthetic", "Cars", "Luxury", "Anime", "Animals", "Ancient"
+    "Nature", "Space", "City", "Superhero", "Supervillain", 
+    "Robotic", "Anime", "Cars", "Wildlife", "Funny", 
+    "Seasonal Greetings", "Dark Aesthetic", "Luxury", "Gaming", "Ancient World"
 ]
 
 # ==================== BOT ADMIN LOGIC ====================
@@ -120,10 +122,10 @@ async def save_to_supabase(message: Message, state: FSMContext):
 # ==================== API ENDPOINTS ====================
 
 @app.get("/media")
-async def get_media(category: str = "Featured", search: str = ""):
+async def get_media(category: str = "all", search: str = ""):
     query = supabase.table('media_content').select('*')
     
-    if category.lower() != "Featured":
+    if category.lower() != "all":
         formatted_cat = category.replace("-", " ").title()
         query = query.eq('category', formatted_cat)
     
@@ -134,30 +136,6 @@ async def get_media(category: str = "Featured", search: str = ""):
     data = response.data
     random.shuffle(data)
     return data[:50]
-
-        
-        return {"status": "added"}
-    except Exception as e:
-        logging.error(f"Error adding to playlist: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@app.get("/playlist/{user_id}")
-async def get_playlist(user_id: int):
-    res = supabase.table('user_playlists').select('media_id').eq('user_id', user_id).execute()
-    ids = [x['media_id'] for x in res.data]
-    
-    if not ids: 
-        return []
-        
-    media_res = supabase.table('media_content').select('*').in_('id', ids).execute()
-    return media_res.data
-
-
-@app.delete("/playlist/remove/{user_id}/{media_id}")
-async def remove_item(user_id: int, media_id: int):
-    supabase.table('user_playlists').delete().eq('user_id', user_id).eq('media_id', media_id).execute()
-    return {"status": "removed"}
 
 
 @app.get("/")
