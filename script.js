@@ -67,10 +67,7 @@ async function loadFeed(cat, search="") {
                     <div style="font-size:12px; opacity:0.8;">${item.Keyword || ''}</div>
                 </div>
 
-                <div class="action-btns">
-                    <button onclick="window.open('${item.url}', '_blank')">📥</button>
-                    <button onclick="navigator.share({url: '${item.url}'})">🔗</button>
-                </div>
+                
             </div>
         `).join('');
 
