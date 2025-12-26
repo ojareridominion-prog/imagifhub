@@ -1,15 +1,15 @@
 const API_URL = "https://imagifhub.onrender.com"; 
 let activeSwiper = null;
 let lastTap = 0;
-let currentCategory = "All";
+let currentCategory = "Featured";
 
 const musicLibrary = {
-    "All": ["https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3"],
+    "Featured": ["https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3"],
     "Nature": ["https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3"],
     "Default": ["https://www.soundhelix.com/examples/mp3/SoundHelix-Song-8.mp3"]
 };
 
-const categories = ["All", "Nature", "Space", "City", "Superhero", "Supervillain", "Robotic", "Anime", "Cars", "Wildlife", "Funny", "Seasonal Greetings", "Dark Aesthetic", "Luxury", "Gaming", "Ancient World"];
+const categories = ["Featured", "Nature", "Places", "Aesthetic", "Cars", "Luxury", "Anime", "Animals", "Ancient"];
 
 const themesList = [
     {id: "theme-black",  top: "#000", bottom: "#000"},
@@ -76,8 +76,8 @@ function applyTheme(themeId) {
 }
 
 function triggerSearch() {
-    let q = prompt("Search wallpapers:");
-    if(q) loadFeed("All", q);
+    let q = prompt("Search images:");
+    if(q) loadFeed("Featured", q);
 }
 
 
@@ -108,32 +108,6 @@ document.addEventListener('click', function(e) {
     }
 });
 
-async function downloadImage(url) {
-    try {
-        // Attempt to fetch the image as a blob to force download
-        const response = await fetch(url);
-        const blob = await response.blob();
-        const blobUrl = window.URL.createObjectURL(blob);
-        
-        const a = document.createElement('a');
-        a.href = blobUrl;
-        // Use a generic name or try to extract from URL
-        a.download = `imagifhub-${new Date().getTime()}.jpg`; 
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        window.URL.revokeObjectURL(blobUrl);
-    } catch (e) {
-        console.error("Download failed due to CORS or network error, opening in new tab:", e);
-        // Fallback: Open in new tab if fetch fails (common due to CORS on external image hosts)
-        window.open(url, '_blank');
-    }
-}
-
-
-
-
-
 
 window.onload = () => {
     document.getElementById('catBar').innerHTML = categories.map(c => 
@@ -149,6 +123,6 @@ window.onload = () => {
 
     const saved = localStorage.getItem("imagifhub-theme") || "theme-black";
     applyTheme(saved);
-    loadFeed("All");
+    loadFeed("Featured");
 };
           
