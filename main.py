@@ -46,7 +46,7 @@ class AdminUpload(StatesGroup):
 
 # Cleaned list to avoid SyntaxError: invalid non-printable character
 CATEGORIES = [
-    "Nature", "Places", "Aesthetic", "Cars", "Luxury", "Anime", "Animals", "Ancient"
+    "Nature", "Places", "Aesthetic", "Cars", "Luxury", "Anime", "Animals", "Ancient", "Others"
 ]
 
 # ==================== BOT ADMIN LOGIC ====================
