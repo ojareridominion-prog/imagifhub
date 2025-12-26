@@ -31,7 +31,6 @@ bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher(storage=MemoryStorage())
 app = FastAPI()
 
-# Enhanced CORS to ensure frontend requests aren't blocked
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -46,9 +45,7 @@ class AdminUpload(StatesGroup):
     waiting_keywords = State()
 
 CATEGORIES = [
-    "Nature", "Space", "City", "Superhero", "Supervillain", 
-    "Robotic", "Anime", "Cars", "Wildlife", "Funny", 
-    "Seasonal Greetings", "Dark Aesthetic", "Luxury", "Gaming", "Ancient World"
+    ‎ "Nature", "Places", "Aesthetic", "Cars", "Luxury", "Anime", "Animals", "Ancient"
 ]
 
 # ==================== BOT ADMIN LOGIC ====================
@@ -64,12 +61,10 @@ async def admin_panel(message: Message):
     
     await message.reply("<b>IMAGIFHUB ADMIN</b>", reply_markup=keyboard, parse_mode="HTML")
 
-
 @dp.callback_query(F.data == "up")
 async def start_upload(call: CallbackQuery, state: FSMContext):
     await call.message.edit_text("Please send the image(s) you want to upload.")
     await state.set_state(AdminUpload.waiting_media)
-
 
 @dp.message(AdminUpload.waiting_media, F.photo)
 async def handle_media(message: Message, state: FSMContext):
@@ -97,13 +92,11 @@ async def handle_media(message: Message, state: FSMContext):
     await message.reply(f"Received {len(urls)} image(s). Pick a category:", reply_markup=keyboard)
     await state.set_state(AdminUpload.waiting_category)
 
-
 @dp.callback_query(F.data.startswith("cat_"))
 async def set_category(call: CallbackQuery, state: FSMContext):
     await state.update_data(category=call.data[4:])
     await call.message.edit_text("Enter Keywords (separated by commas):")
     await state.set_state(AdminUpload.waiting_keywords)
-
 
 @dp.message(AdminUpload.waiting_keywords)
 async def save_to_supabase(message: Message, state: FSMContext):
@@ -125,18 +118,21 @@ async def save_to_supabase(message: Message, state: FSMContext):
 async def get_media(category: str = "all", search: str = ""):
     query = supabase.table('media_content').select('*')
     
-    if category.lower() != "all":
+    # Handle specific category filtering
+    if category.lower() != "all" and category.lower() != "featured":
         formatted_cat = category.replace("-", " ").title()
         query = query.eq('category', formatted_cat)
     
+    # Handle search functionality
     if search:
         query = query.ilike('Keyword', f'%{search}%')
         
     response = query.execute()
     data = response.data
+    
+    # Randomize order for the "TikTok" feel
     random.shuffle(data)
     return data[:50]
-
 
 @app.get("/")
 async def health(): 
@@ -145,15 +141,11 @@ async def health():
 # ==================== RUN ====================
 
 async def main():
-    # Start Telegram Bot in background
     asyncio.create_task(dp.start_polling(bot))
-    
-    # Start FastAPI Server
     port = int(os.environ.get("PORT", 10000))
     config = uvicorn.Config(app, host="0.0.0.0", port=port)
     server = uvicorn.Server(config)
     await server.serve()
-
 
 if __name__ == "__main__":
     asyncio.run(main())
