@@ -107,7 +107,7 @@ async function loadFeed(cat, search="") {
             </div>
         `).join('');
 
-        // Refresh Swiper instance
+         // Refresh Swiper instance
         if (activeSwiper) activeSwiper.destroy(true, true);
         activeSwiper = new Swiper('#swiper', { 
             direction: 'vertical', 
@@ -115,11 +115,28 @@ async function loadFeed(cat, search="") {
             mousewheel: true,
             on: {
                 reachEnd: function () {
-                    // Fetch new shuffled batch when user hits the end
                     setTimeout(() => loadFeed(currentCategory), 1000);
+                },
+                // --- ADD THIS EVENT ---
+                slideChange: function () {
+                    const activeSlide = this.slides[this.activeIndex];
+                    const img = activeSlide.querySelector('img');
+                    if (img && img.src) {
+                        trackSeenImage(img.src);
+                    }
+                },
+                init: function() {
+                    // Track the very first image immediately upon load
+                    const activeSlide = this.slides[this.activeIndex];
+                    if(activeSlide) {
+                         const img = activeSlide.querySelector('img');
+                         if (img && img.src) trackSeenImage(img.src);
+                    }
                 }
+                // ----------------------
             }
         });
+        
     } catch(e) { 
         feed.innerHTML = '<div class="swiper-slide" style="display:flex; align-items:center; justify-content:center;"><h3>Connection Error</h3></div>'; 
     }
