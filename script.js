@@ -70,10 +70,25 @@ async function loadFeed(cat, search="") {
     playRandomMusic(cat);
 
     try {
-        const res = await fetch(`${API_URL}/media?category=${encodeURIComponent(cat)}&search=${search}`);
-        const data = await res.json();
+                const res = await fetch(`${API_URL}/media?category=${encodeURIComponent(cat)}&search=${search}`);
+        let data = await res.json(); // Changed 'const' to 'let' to allow reassignment
+
+        // --- ADD THIS FILTERING LOGIC ---
+        if (data && data.length > 0) {
+            const seenList = getSeenList();
+            // Filter out images that are in the seen list
+            const uniqueData = data.filter(item => !seenList.includes(item.url));
+            
+            // If we have unique images, use them. 
+            // If filtering removed everything (rare), fall back to original data to avoid empty screen.
+            if (uniqueData.length > 0) {
+                data = uniqueData;
+            }
+        }
+        // -------------------------------
         
         if (!data || data.length === 0) {
+            
             feed.innerHTML = '<div class="swiper-slide" style="display:flex; align-items:center; justify-content:center;"><h3>No Images Found</h3></div>';
             return;
         }
