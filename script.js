@@ -10,6 +10,27 @@ const musicLibrary = {
 
 const categories = ["Featured", "Nature", "Places", "Aesthetic", "Cars", "Luxury", "Anime", "Animals", "Ancient"];
 
+const SEEN_LIMIT = 20;
+const SEEN_KEY = "imagifhub-seen-history";
+
+function getSeenList() {
+    try { return JSON.parse(localStorage.getItem(SEEN_KEY) || "[]"); } 
+    catch { return []; }
+}
+
+function trackSeenImage(url) {
+    let seen = getSeenList();
+    // Remove if exists (to move it to the end/most recent position)
+    seen = seen.filter(u => u !== url);
+    seen.push(url);
+    
+    // Keep only the last 20
+    if (seen.length > SEEN_LIMIT) seen.shift();
+    
+    localStorage.setItem(SEEN_KEY, JSON.stringify(seen));
+}
+// ----------------------
+
 const themesList = [
     {id: "theme-black",  top: "#000", bottom: "#000"},
     {id: "theme-white",  top: "#fff", bottom: "#eee"},
