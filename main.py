@@ -46,9 +46,7 @@ class AdminUpload(StatesGroup):
     waiting_keywords = State()
 
 CATEGORIES = [
-    "Nature", "Space", "City", "Superhero", "Supervillain", 
-    "Robotic", "Anime", "Cars", "Wildlife", "Funny", 
-    "Seasonal Greetings", "Dark Aesthetic", "Luxury", "Gaming", "Ancient World"
+     "Nature", "Places", "Aesthetic", "Cars", "Luxury", "Anime", "Animals", "Ancient"
 ]
 
 # ==================== BOT ADMIN LOGIC ====================
@@ -122,10 +120,10 @@ async def save_to_supabase(message: Message, state: FSMContext):
 # ==================== API ENDPOINTS ====================
 
 @app.get("/media")
-async def get_media(category: str = "all", search: str = ""):
+async def get_media(category: str = "Featured", search: str = ""):
     query = supabase.table('media_content').select('*')
     
-    if category.lower() != "all":
+    if category.lower() != "Featured":
         formatted_cat = category.replace("-", " ").title()
         query = query.eq('category', formatted_cat)
     
@@ -137,41 +135,6 @@ async def get_media(category: str = "all", search: str = ""):
     random.shuffle(data)
     return data[:50]
 
-
-@app.post("/like/{media_id}")
-async def like_media(media_id: int, payload: dict = Body(...)):
-    user_id = payload.get('user_id')
-    if not user_id:
-        raise HTTPException(status_code=400, detail="User ID required")
-        
-    try:
-        supabase.table('likes').upsert({
-            "user_id": int(user_id),
-            "media_id": int(media_id)
-        }).execute()
-        
-        count_res = supabase.table('likes').select('id', count='exact').eq('media_id', media_id).execute()
-        
-        return {"status": "success", "new_likes": count_res.count}
-    except Exception as e:
-        return {"status": "error", "message": str(e)}
-
-
-@app.post("/playlist/add")
-async def add_to_playlist(payload: dict = Body(...)):
-    try:
-        user_id = payload.get('user_id')
-        media_id = payload.get('media_id')
-        
-        if not user_id or not media_id:
-            raise HTTPException(status_code=400, detail="User ID and Media ID required")
-
-        # Explicitly converting to int for Supabase int8 compatibility
-        supabase.table('user_playlists').insert({
-    "user_id": user_id,
-    "playlist_id": playlist_id,
-    "media_id": media_id
-}).execute()
         
         return {"status": "added"}
     except Exception as e:
