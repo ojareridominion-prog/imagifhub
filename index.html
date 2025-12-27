@@ -273,15 +273,17 @@
     <audio id="bgMusic" loop></audio>
 
 
-    <!-- Native Ad Container -->
-<div id="nativeAd" class="native-ad hidden">
+    <div id="nativeAd" class="native-ad hidden" onclick="handleAdClick(event)">
+    <button class="close-ad-btn" onclick="hideAd(event)">✕</button>
+    
     <img id="adImage" src="" alt="Ad">
     <div class="ad-text">
-        <div id="adTitle" class="ad-title"></div>
-        <div id="adSubtitle" class="ad-subtitle"></div>
+        <div id="adTitle" class="ad-title" style="font-size: 18px; font-weight: bold;"></div>
+        <div id="adSubtitle" class="ad-subtitle" style="opacity: 0.8; font-size: 14px;"></div>
     </div>
-</div>
+    </div>
 
+    
     <script src="script.js"></script>
     
 </body>
