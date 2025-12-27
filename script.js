@@ -256,7 +256,7 @@ function handleAdClick(event) {
 }
 
 
-//let actionCount = Number(localStorage.getItem("actionCount") || 0);
+let actionCount = Number(localStorage.getItem("actionCount") || 0);
 
 function maybeShowAd() {
     const isPremium = localStorage.getItem("isPremium") === "true";
