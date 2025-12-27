@@ -181,6 +181,75 @@ async function shareBot() {
     }
 }
 
+// ===== Native Ads Inventory =====
+const NATIVE_ADS = [
+    {
+        id: "premium",
+        image: "ads/premium.png",
+        title: "Go Premium",
+        subtitle: "Remove all ads",
+        action: () => openPremium()
+    },
+    {
+        id: "placeholder1",
+        image: "ads/ad1.jpg",
+        title: "Sponsored",
+        subtitle: "Discover something new",
+        action: () => {}
+    },
+    {
+        id: "placeholder2",
+        image: "ads/ad2.jpg",
+        title: "Sponsored",
+        subtitle: "Check this out",
+        action: () => {}
+    }
+];
+
+let adIndex = Number(localStorage.getItem("adIndex") || 0);
+
+function getNextAd() {
+    const ad = NATIVE_ADS[adIndex % NATIVE_ADS.length];
+    adIndex++;
+    localStorage.setItem("adIndex", adIndex);
+    return ad;
+}
+
+function showAd() {
+    const isPremium = localStorage.getItem("isPremium") === "true";
+    if (isPremium) return;
+
+    const ad = getNextAd();
+
+    const adBox = document.getElementById("nativeAd");
+    document.getElementById("adImage").src = ad.image;
+    document.getElementById("adTitle").innerText = ad.title;
+    document.getElementById("adSubtitle").innerText = ad.subtitle;
+
+    adBox.onclick = ad.action || null;
+    adBox.classList.remove("hidden");
+}
+
+function hideAd() {
+    document.getElementById("nativeAd").classList.add("hidden");
+}
+
+let actionCount = Number(localStorage.getItem("actionCount") || 0);
+
+function maybeShowAd() {
+    const isPremium = localStorage.getItem("isPremium") === "true";
+    if (isPremium) return;
+
+    actionCount++;
+    localStorage.setItem("actionCount", actionCount);
+
+    if (actionCount % 4 === 0) {
+        showAd();
+    } else {
+        hideAd();
+    }
+}
+
 
 window.onload = () => {
     document.getElementById('catBar').innerHTML = categories.map(c => 
