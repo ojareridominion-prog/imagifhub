@@ -219,26 +219,44 @@ function getNextAd() {
     return ad;
 }
 
+// --- 1. NEW CLICK HANDLER (Support for X button) ---
+let currentAdLink = null; // Store the link temporarily
+
 function showAd() {
     const isPremium = localStorage.getItem("isPremium") === "true";
     if (isPremium) return;
 
     const ad = getNextAd();
+    currentAdLink = ad.action; // Save the action for later
 
     const adBox = document.getElementById("nativeAd");
     document.getElementById("adImage").src = ad.image;
     document.getElementById("adTitle").innerText = ad.title;
     document.getElementById("adSubtitle").innerText = ad.subtitle;
 
-    adBox.onclick = ad.action || null;
     adBox.classList.remove("hidden");
 }
 
-function hideAd() {
+function hideAd(event) {
+    // Stop the click from triggering the ad link if X is clicked
+    if (event) event.stopPropagation(); 
     document.getElementById("nativeAd").classList.add("hidden");
 }
 
-let actionCount = Number(localStorage.getItem("actionCount") || 0);
+function handleAdClick(event) {
+    // Only run if the click was NOT on the close button
+    if (!event.target.classList.contains('close-ad-btn')) {
+        if (typeof currentAdLink === 'function') {
+            currentAdLink();
+        } else if (typeof currentAdLink === 'string') {
+            window.open(currentAdLink, '_blank');
+        }
+        hideAd(); // Close ad after clicking
+    }
+}
+
+
+//let actionCount = Number(localStorage.getItem("actionCount") || 0);
 
 function maybeShowAd() {
     const isPremium = localStorage.getItem("isPremium") === "true";
