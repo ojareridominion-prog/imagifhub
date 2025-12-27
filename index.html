@@ -242,6 +242,9 @@
 .hidden {
     display: none;
 }
+
+
+        /* "alert('Coming Soon!')" */
         
     </style>
 </head>
@@ -256,12 +259,14 @@
 
     <div class="cat-bar" id="catBar"></div>
 
+
+    
     <div id="menuPanel" class="menu-panel">
         <a href="#" class="menu-link" onclick="toggleMenu()" style="color:var(--accent)">✕ Close Menu</a>
         <div class="premium-box">
             <div style="font-weight: bold; font-size: 18px;">IMAGIF PREMIUM ⭐</div>
             <div style="font-size: 11px; opacity: 0.9; margin-top: 5px;">Unlock 4K Downloads & Exclusive Themes</div>
-            <button class="premium-btn" onclick="alert('Coming Soon!')">UPGRADE NOW</button>
+            <button class="premium-btn" onclick="openPremium()">UPGRADE NOW</button>
         </div>
         <a href="#" class="menu-link" onclick="shareBot()">🔗 Share Bot with Friends</a>
         <a href="https://t.me/imagifhub" class="menu-link">📢 Join Official Channel</a> 
@@ -285,6 +290,14 @@
 
     
     <script src="script.js"></script>
+
+    <script>
+
+function openPremium() {
+    window.location.href = "premium.html";
+}
+
+    </script>
     
 </body>
 </html>
