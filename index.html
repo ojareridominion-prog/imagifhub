@@ -171,30 +171,59 @@
 }
         
       /* ===== Native Ad Styles ===== */
+/* In index.html <style> section */
+
 .native-ad {
-    position: fixed; /* Changed from static flow to fixed overlay */
-    bottom: 80px;    /* Place it above the bottom navigation area */
-    left: 50%;
-    transform: translateX(-50%); /* Center it horizontally */
-    z-index: 3000;   /* Ensure it sits on top of everything (Menu is 2000) */
+    position: fixed;
+    top: 50%;               /* Move to center vertical */
+    left: 50%;              /* Move to center horizontal */
+    transform: translate(-50%, -50%); /* Perfectly center it */
+    z-index: 3000;          /* On top of everything */
+    
+    width: 85%;             /* Wider */
+    max-width: 350px;       /* Max width for tablets */
+    padding: 20px;          /* More breathing room */
+    
+    background: rgba(20, 20, 20, 0.95); /* Dark background */
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 16px;
+    box-shadow: 0 20px 50px rgba(0,0,0,0.9);
+    
+    display: flex;
+    flex-direction: column; /* Stack image and text */
+    align-items: center;
+    text-align: center;
+    gap: 15px;
+}
+
+/* Style the Ad Image to be bigger */
+.native-ad img {
+    width: 100%;
+    height: 180px;          /* Taller image */
+    object-fit: cover;
+    border-radius: 12px;
+}
+
+/* Close Button Style */
+.close-ad-btn {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background: rgba(255, 255, 255, 0.2);
+    border: none;
+    color: white;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    cursor: pointer;
+    font-weight: bold;
+    font-size: 16px;
     display: flex;
     align-items: center;
-    gap: 12px;
-    padding: 12px;
-    margin: 16px auto;
-    max-width: 420px;
-    background: #111;
-    border-radius: 12px;
-    cursor: pointer;
+    justify-content: center;
+    z-index: 3001;
 }
-
-.native-ad img {
-    width: 80px;
-    height: 80px;
-    object-fit: cover;
-    border-radius: 10px;
-}
-
+        
 .ad-text {
     flex: 1;
 }
