@@ -132,6 +132,7 @@ async function loadFeed(cat, search="") {
                          const img = activeSlide.querySelector('img');
                          if (img && img.src) trackSeenImage(img.src);
                     }
+                    maybeShowAd();
                 }
                 // ----------------------
             }
