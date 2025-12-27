@@ -92,22 +92,7 @@ button {
     font-size: 14px;
     color: #a5b4fc;
 }
-
-
-    .secondary {
-        border: 1px solid #ff4d4d; 
-        background: #6366f1;
-        color: white;
-        z-index: 1000
-    }
-    .secondary:enabled {
-        display: none; 
-        background: #6366f1;
-        color: white;
-        padding: 1px;
-    }
-    
-    
+ 
 </style>
 </head>
 
@@ -134,13 +119,14 @@ button {
             Coming Soon
         </button>
 
-        <button id="cancelBtn" class="secondary" enabled>
-            Cancel Subscription 
-        </button>
+        <button id="cancelBtn" class="secondary hidden" style="background:none; color:#ff4d4d; margin-top:10px;">
+    Cancel Subscription
+</button>
 
-        
-
-
+<style>
+    .hidden { display: none; }
+    .secondary { border: 1px solid #ff4d4d; }
+</style>
 
         <div class="status" id="statusText"></div>
     </div>
