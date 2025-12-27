@@ -22,3 +22,10 @@ if (telegramId && ADMIN_IDS.includes(telegramId)) {
 subscribeBtn.addEventListener("click", () => {
     alert("Premium subscriptions are coming soon 🚀");
 });
+
+document.getElementById("cancelBtn").addEventListener("click", async () => {
+    if (confirm("Are you sure? Your premium features will stop at the end of the current period.")) {
+        // Update Supabase to set auto_renew = false (if you implement recurring)
+        alert("Auto-renewal cancelled.");
+    }
+});
