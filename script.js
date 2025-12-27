@@ -119,12 +119,15 @@ async function loadFeed(cat, search="") {
                 },
                 // --- ADD THIS EVENT ---
                 slideChange: function () {
-                    const activeSlide = this.slides[this.activeIndex];
-                    const img = activeSlide.querySelector('img');
-                    if (img && img.src) {
-                        trackSeenImage(img.src);
-                    }
-                },
+    const activeSlide = this.slides[this.activeIndex];
+    const img = activeSlide.querySelector('img');
+    if (img && img.src) {
+        trackSeenImage(img.src);
+    }
+    // This makes the ad appear after 4 swipes
+    maybeShowAd(); 
+},
+                
                 init: function() {
                     // Track the very first image immediately upon load
                     const activeSlide = this.slides[this.activeIndex];
@@ -132,7 +135,7 @@ async function loadFeed(cat, search="") {
                          const img = activeSlide.querySelector('img');
                          if (img && img.src) trackSeenImage(img.src);
                     }
-                    maybeShowAd();
+                
                 }
                 // ----------------------
             }
