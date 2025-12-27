@@ -172,6 +172,11 @@
         
       /* ===== Native Ad Styles ===== */
 .native-ad {
+    position: fixed; /* Changed from static flow to fixed overlay */
+    bottom: 80px;    /* Place it above the bottom navigation area */
+    left: 50%;
+    transform: translateX(-50%); /* Center it horizontally */
+    z-index: 3000;   /* Ensure it sits on top of everything (Menu is 2000) */
     display: flex;
     align-items: center;
     gap: 12px;
