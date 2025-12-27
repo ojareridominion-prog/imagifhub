@@ -265,9 +265,11 @@ function maybeShowAd() {
     actionCount++;
     localStorage.setItem("actionCount", actionCount);
 
+    // Only trigger the show function; let the User close it manually
     if (actionCount % 4 === 0) {
         showAd();
-    } else {
+    }
+     else {
         hideAd();
     }
 }
