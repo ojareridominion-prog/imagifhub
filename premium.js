@@ -29,3 +29,14 @@ document.getElementById("cancelBtn").addEventListener("click", async () => {
         alert("Auto-renewal cancelled.");
     }
 });
+
+function startPremiumPayment() {
+  Telegram.WebApp.openInvoice({
+    slug: "imagifhub_premium_149", // from BotFather
+    callback: function (status) {
+      if (status === "paid") {
+        alert("Payment successful 🎉");
+      }
+    }
+  });
+}
