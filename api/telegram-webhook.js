@@ -1,13 +1,29 @@
 export default async function handler(req, res) {
+  // CORS
   res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
+  res.setHeader("Access-Control-Allow-Methods", "POST,OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
 
+  // Handle preflight
   if (req.method === "OPTIONS") {
     return res.status(200).end();
   }
 
-  // rest of your code
+  // Reject everything except POST
+  if (req.method !== "POST") {
+    return res.status(405).json({ ok: false, error: "Method Not Allowed" });
+  }
+
+  try {
+    // 👇 YOUR EXISTING TELEGRAM LOGIC GOES HERE
+    console.log("Webhook received:", req.body);
+
+    return res.status(200).json({ ok: true });
+  } catch (err) {
+    console.error("Webhook error:", err);
+    return res.status(500).json({ ok: false, error: "Server error" });
+  }
+}
 
 
 import { createClient } from "@supabase/supabase-js";
@@ -50,4 +66,4 @@ export default async function handler(req, res) {
   return res.status(200).json({ received: true });
                                }
 
-}
+
