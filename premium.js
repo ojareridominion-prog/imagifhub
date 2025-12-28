@@ -5,7 +5,7 @@ const telegramId = user?.id || null;
 
 // --- ADMIN WHITELIST ---
 const ADMIN_IDS = [
-    123456789 // ← REPLACE WITH YOUR TELEGRAM ID
+    6403924487 // ← REPLACE WITH YOUR TELEGRAM ID
 ];
 
 // --- ELEMENTS ---
