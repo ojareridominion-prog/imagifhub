@@ -1,4 +1,4 @@
-const API_URL = "/api"; 
+const API_URL = "https://imagifhub.onrender.com"; 
 let activeSwiper = null;
 let currentCategory = "Featured";
 
