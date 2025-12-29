@@ -70,8 +70,11 @@ async function loadFeed(cat, search="") {
     playRandomMusic(cat);
 
     try {
-                const res = await fetch(`${API_URL}/media?category=${encodeURIComponent(cat)}&search=${search}`);
-        let data = await res.json(); // Changed 'const' to 'let' to allow reassignment
+
+        const response = await fetch(`${API_URL}/media?category=${category}`);
+    const data = await response.json();
+                //const res = await fetch(`${API_URL}/media?category=${encodeURIComponent(cat)}&search=${search}`);
+        //let data = await res.json(); // Changed 'const' to 'let' to allow reassignment
 
         // --- ADD THIS FILTERING LOGIC ---
         if (data && data.length > 0) {
