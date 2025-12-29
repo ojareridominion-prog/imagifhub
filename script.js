@@ -1,4 +1,4 @@
-const API_URL = "https://imagifhub.vercel.app/"; 
+const API_URL = "https://imagifhub.vercel.app"; 
 let activeSwiper = null;
 let currentCategory = "Featured";
 
