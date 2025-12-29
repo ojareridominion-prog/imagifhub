@@ -1,4 +1,4 @@
-const API_URL = " "; 
+const API_URL = ""; 
 let activeSwiper = null;
 let currentCategory = "Featured";
 
