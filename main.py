@@ -85,7 +85,7 @@ app.add_middleware(
 async def bot_webhook(request: Request):
     try:
         update_data = await request.json()
-        # Manually create the Update object to avoid 'unpack' errors
+        # Use direct dictionary expansion for stability
         update = Update(**update_data)
         # Feed the update to the dispatcher
         await dp.feed_update(bot, update)
@@ -93,7 +93,8 @@ async def bot_webhook(request: Request):
     except Exception as e:
         logging.error(f"Webhook Error: {e}")
         return {"status": "error", "message": str(e)}
-        
+
+
         
 # ==================== BOT HANDLERS ====================
 
