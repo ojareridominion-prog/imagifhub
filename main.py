@@ -28,12 +28,13 @@ IMGBB_API_KEY = os.environ["IMGBB_API_KEY"]
 SUPABASE_URL = os.environ["SUPABASE_URL"]
 SUPABASE_KEY = os.environ["SUPABASE_KEY"]
 
-# Ensure BASE_URL is your Render URL (e.g., https://imagifhub.onrender.com)
-BASE_URL = os.environ.get("BASE_URL", "").rstrip("/")
-WEBHOOK_PATH = f"/webhook/{BOT_TOKEN}"
+# [span_0](start_span)Matches the path Telegram is already looking for in your screenshot[span_0](end_span)
+BASE_URL = os.environ.get("BASE_URL", "https://imagifhub.onrender.com").rstrip("/")
+WEBHOOK_PATH = "/api/telegram-webhook"
 WEBHOOK_URL = f"{BASE_URL}{WEBHOOK_PATH}"
 
 # Initialize Clients
+# Note: Using 'supabase' package as specified in requirements.txt
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher(storage=MemoryStorage())
@@ -45,7 +46,6 @@ class AdminUpload(StatesGroup):
     waiting_category = State()
     waiting_keywords = State()
 
-# "Featured" is NOT here because it is a global feed, not a category for uploading.
 CATEGORIES = [
     "Nature", "Places", "Aesthetic", "Cars", "Luxury", 
     "Anime", "Animals", "Ancient", "Others"
@@ -55,12 +55,16 @@ CATEGORIES = [
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # This part was missing! It tells Telegram where to send messages.
+    # This forces Telegram to send updates to your specific Render URL
     if BASE_URL:
         logging.info(f"Setting webhook to: {WEBHOOK_URL}")
-        await bot.set_webhook(url=WEBHOOK_URL, drop_pending_updates=True)
+        await bot.set_webhook(
+            url=WEBHOOK_URL, 
+            drop_pending_updates=True,
+            allowed_updates=["message", "callback_query"]
+        )
     else:
-        logging.error("BASE_URL is missing. The bot will NOT work on Render.")
+        logging.error("BASE_URL environment variable is missing!")
     
     yield
     # Cleanup on shutdown
@@ -82,11 +86,12 @@ async def bot_webhook(request: Request):
     try:
         update_data = await request.json()
         update = Update.unpack(update_data)
+        # Feeds the Telegram update into the Aiogram dispatcher
         await dp.feed_update(bot, update)
         return {"status": "ok"}
     except Exception as e:
-        logging.error(f"Error: {e}")
-        return {"status": "error"}
+        logging.error(f"Webhook Error: {e}")
+        return {"status": "error", "message": str(e)}
 
 # ==================== BOT HANDLERS ====================
 
@@ -96,10 +101,12 @@ async def cmd_start(message: Message):
 
 @dp.message(Command("admin"))
 async def admin_panel(message: Message, state: FSMContext):
+    # Ensure this matches your ID: 6403924487
     if message.from_user.id != ADMIN_ID:
+        logging.warning(f"Unauthorized admin access attempt by {message.from_user.id}")
         return
     
-    await state.clear() # Reset any stuck states
+    await state.clear() 
     
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="📤 Upload New Media", callback_data="up")]
@@ -113,6 +120,7 @@ async def start_upload(call: CallbackQuery, state: FSMContext):
 
 @dp.message(AdminUpload.waiting_media, F.photo)
 async def handle_media(message: Message, state: FSMContext):
+    # Get the highest resolution photo
     file = await bot.get_file(message.photo[-1].file_id)
     file_bytes = await bot.download_file(file.file_path)
     
@@ -122,17 +130,21 @@ async def handle_media(message: Message, state: FSMContext):
         params={'key': IMGBB_API_KEY}, 
         files={'image': file_bytes.read()}
     )
-    url = resp.json()['data']['url']
-    await state.update_data(url=url)
     
-    # Category buttons (2 per row)
-    btns = []
-    for i in range(0, len(CATEGORIES), 2):
-        row = [InlineKeyboardButton(text=c, callback_data=f"cat_{c}") for c in CATEGORIES[i:i+2]]
-        btns.append(row)
-    
-    await message.reply("Select a category:", reply_markup=InlineKeyboardMarkup(inline_keyboard=btns))
-    await state.set_state(AdminUpload.waiting_category)
+    try:
+        url = resp.json()['data']['url']
+        await state.update_data(url=url)
+        
+        btns = []
+        for i in range(0, len(CATEGORIES), 2):
+            row = [InlineKeyboardButton(text=c, callback_data=f"cat_{c}") for c in CATEGORIES[i:i+2]]
+            btns.append(row)
+        
+        await message.reply("Select a category:", reply_markup=InlineKeyboardMarkup(inline_keyboard=btns))
+        await state.set_state(AdminUpload.waiting_category)
+    except Exception as e:
+        logging.error(f"ImgBB Upload Error: {e}")
+        await message.reply("Failed to upload image to ImgBB. Check your API key.")
 
 @dp.callback_query(F.data.startswith("cat_"))
 async def set_category(call: CallbackQuery, state: FSMContext):
@@ -144,6 +156,7 @@ async def set_category(call: CallbackQuery, state: FSMContext):
 @dp.message(AdminUpload.waiting_keywords)
 async def save_media(message: Message, state: FSMContext):
     data = await state.get_data()
+    # Inserts content into Supabase media_content table
     supabase.table('media_content').insert({
         "url": data['url'],
         "category": data['category'],
@@ -159,7 +172,6 @@ async def save_media(message: Message, state: FSMContext):
 async def get_media(category: str = "all", search: str = ""):
     query = supabase.table('media_content').select('*')
     
-    # "Featured" or "all" acts as the universal feed (no filter)
     if category.lower() not in ["all", "featured"]:
         query = query.eq('category', category.title())
     
@@ -173,11 +185,14 @@ async def get_media(category: str = "all", search: str = ""):
 
 @app.get("/")
 async def health():
-    return {"status": "Live", "webhook": WEBHOOK_URL}
+    return {
+        "status": "Live", 
+        "webhook_url": WEBHOOK_URL,
+        "configured_admin": ADMIN_ID
+    }
 
 # ==================== RUN ====================
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 10000))
     uvicorn.run(app, host="0.0.0.0", port=port)
-    
