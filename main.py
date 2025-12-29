@@ -94,7 +94,7 @@ async def get_media(category: str = "all", search: str = ""):
 
 @dp.message(F.text == "/start")
 async def cmd_start(message: Message):
-    await message.answer("ImagifHub Bot is Live! 🚀\nUse /admin if you are the owner.")
+    await message.answer("IMAGIFHUB isn't just an app—it’s your personal portal to a world of endless, breathtaking beauty.")
 
 @dp.message(F.from_user.id == ADMIN_ID, F.text == "/admin")
 async def admin_cmd(message: Message, state: FSMContext):
