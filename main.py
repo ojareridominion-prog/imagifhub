@@ -84,15 +84,20 @@ app.add_middleware(
 @app.post(WEBHOOK_PATH)
 async def bot_webhook(request: Request):
     try:
+        # Get the raw JSON from the request
         update_data = await request.json()
-        update = Update.unpack(update_data)
-        # Feeds the Telegram update into the Aiogram dispatcher
+        
+        # Create an Update object directly from the dictionary
+        update = Update(**update_data)
+        
+        # Feed the update to the dispatcher
         await dp.feed_update(bot, update)
+        
         return {"status": "ok"}
     except Exception as e:
         logging.error(f"Webhook Error: {e}")
         return {"status": "error", "message": str(e)}
-
+        
 # ==================== BOT HANDLERS ====================
 
 @dp.message(Command("start"))
