@@ -1,6 +1,6 @@
-fastapi==0.115.0
-uvicorn[standard]==0.30.6
-aiogram==3.13.1
-requests==2.32.3
-supabase==2.10.0
-python-multipart==0.0.12
+fastapi
+uvicorn
+aiogram
+requests
+supabase
+python-multipart
