@@ -142,7 +142,7 @@ async def health():
 # ==================== RUN ====================
 
 async def main():
-    asyncio.create_task(dp.start_polling(bot))
+    #asyncio.create_task(dp.start_polling(bot))
     port = int(os.environ.get("PORT", 10000))
     config = uvicorn.Config(app, host="0.0.0.0", port=port)
     server = uvicorn.Server(config)
