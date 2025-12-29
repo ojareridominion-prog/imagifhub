@@ -6,7 +6,8 @@
     }
   ],
   "rewrites": [
-    { "source": "/api/(.*)", "destination": "/main.py" },
-    { "source": "/media(.*)", "destination": "/main.py" }
+    { "source": "/api/telegram-webhook", "destination": "/main.py" },
+    { "source": "/api/set-webhook", "destination": "/main.py" },
+    { "source": "/media", "destination": "/main.py" }
   ]
 }
