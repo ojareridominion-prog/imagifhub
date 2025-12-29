@@ -150,4 +150,30 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
+
+from aiogram.types import Update
+
+# 1. Define your Webhook URL (Change this to your actual Render/Railway URL)
+BASE_URL = "https://imagifhub.onrender.com"
+WEBHOOK_PATH = f"/webhook/{BOT_TOKEN}"
+WEBHOOK_URL = f"{BASE_URL}{WEBHOOK_PATH}"
+
+# 2. Add the Webhook Handler to FastAPI
+@app.post(WEBHOOK_PATH)
+async def bot_webhook(update: dict):
+    telegram_update = Update.unpack(update)
+    await dp.feed_update(bot, telegram_update)
+    return {"status": "ok"}
+
+# 3. Setup Webhook on Startup
+@app.on_event("startup")
+async def on_startup():
+    # Remove any existing webhooks or polling
+    await bot.delete_webhook(drop_pending_updates=True)
+    # Set the new webhook URL
+    await bot.set_webhook(url=WEBHOOK_URL)
+
+@app.on_event("shutdown")
+async def on_shutdown():
+    await bot.delete_webhook()
     
