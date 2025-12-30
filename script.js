@@ -230,6 +230,15 @@ const NATIVE_ADS = [
             window.open("https://getblock.me/u/24239713", "_blank") // Add your clickable link here
         }
     },
+    {
+        id: "palmpay",
+        image: "ads/palmpay.png",
+        title: "Sponsored",
+        subtitle: "enjoy free, safe transactions and cashbacks",
+        action: () => {
+            window.open("https://info.palmpay.com/tNYOx0uv", "_blank") // Add your clickable link here
+        }
+    },
     
 ];
 
