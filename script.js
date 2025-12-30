@@ -212,17 +212,6 @@ const NATIVE_ADS = [
             window.open("https://stake.com/?c=hcYKazFc", "_blank") // Add your clickable link here
         }
     },
-    ‎{
-‎        id: "placeholder2",
-‎        image: "ads/bitoshi.png",
-‎        title: "Sponsored",
-‎        subtitle: "swap, buy, sell, send and receive crypto with bitoshi africa",
-‎        action: () => {
-‎window.open("https://bitoshi.africa/ref?username=ojareri", "_blank") 
-‎}
-‎    },
-‎
-
     
 ];
 
