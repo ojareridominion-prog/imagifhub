@@ -202,6 +202,14 @@ const NATIVE_ADS = [
         action: () => {}
     },
     {
+        id: "Stake.com",
+        image: "ads/stake.png",
+        title: "Sponsored",
+        subtitle: "The Global Giant of Crypto Gambling",
+        action: () => {}
+    },
+
+    {
         id: "placeholder2",
         image: "ads/ad2.jpg",
         title: "Sponsored",
