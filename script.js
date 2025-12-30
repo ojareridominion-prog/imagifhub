@@ -199,14 +199,18 @@ const NATIVE_ADS = [
         image: "ads/temu.png",
         title: "Sponsored",
         subtitle: "legitimate online marketplace",
-        action: () => {}
+        action: () => {
+            window.open("https://temu.to/k/eob8orcu3n0", "_blank") // Add your clickable link here
+        }
     },
     {
         id: "Stake.com",
         image: "ads/stake.png",
         title: "Sponsored",
         subtitle: "The Global Giant of Crypto Gambling",
-        action: () => {}
+        action: () => {
+            window.open("stake.com/?c=hcYKazFc", "_blank") // Add your clickable link here
+        }
     },
 
     {
