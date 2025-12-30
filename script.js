@@ -213,13 +213,7 @@ const NATIVE_ADS = [
         }
     },
 
-    {
-        id: "placeholder2",
-        image: "ads/ad2.jpg",
-        title: "Sponsored",
-        subtitle: "Check this out",
-        action: () => {}
-    }
+    
 ];
 
 let adIndex = Number(localStorage.getItem("adIndex") || 0);
