@@ -221,6 +221,15 @@ const NATIVE_ADS = [
             window.open("https://bitoshi.africa/ref?username=ojareri", "_blank") // Add your clickable link here
         }
     },
+    {
+        id: "gemgala",
+        image: "ads/gemgala.png",
+        title: "Sponsored",
+        subtitle: "chat, play games and earn",
+        action: () => {
+            window.open("https://getblock.me/u/24239713", "_blank") // Add your clickable link here
+        }
+    },
     
 ];
 
