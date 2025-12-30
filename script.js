@@ -225,7 +225,7 @@ const NATIVE_ADS = [
         id: "gemgala",
         image: "ads/gemgala.png",
         title: "Sponsored",
-        subtitle: "chat, play games and earn",
+        subtitle: "play games, chat and earn",
         action: () => {
             window.open("https://getblock.me/u/24239713", "_blank") // Add your clickable link here
         }
@@ -234,9 +234,18 @@ const NATIVE_ADS = [
         id: "palmpay",
         image: "ads/palmpay.png",
         title: "Sponsored",
-        subtitle: "enjoy free, safe transactions and cashbacks",
+        subtitle: "enjoy free & safe transactions and cashbacks",
         action: () => {
             window.open("https://info.palmpay.com/tNYOx0uv", "_blank") // Add your clickable link here
+        }
+    },
+    {
+        id: "opay",
+        image: "ads/opay.png",
+        title: "Sponsored",
+        subtitle: "enjoy free bank transfers, cashbacks and more",
+        action: () => {
+            window.open("https://opay.ng/s/2Tqtv", "_blank") // Add your clickable link here
         }
     },
     
