@@ -195,10 +195,10 @@ const NATIVE_ADS = [
         action: () => openPremium()
     },
     {
-        id: "placeholder1",
-        image: "ads/ad1.jpg",
+        id: "Temu",
+        image: "ads/temu.png",
         title: "Sponsored",
-        subtitle: "Discover something new",
+        subtitle: "legitimate online marketplace",
         action: () => {}
     },
     {
