@@ -209,7 +209,7 @@ const NATIVE_ADS = [
         title: "Sponsored",
         subtitle: "The Global Giant of Crypto Gambling",
         action: () => {
-            window.open("stake.com/?c=hcYKazFc", "_blank") // Add your clickable link here
+            window.open("https://stake.com/?c=hcYKazFc", "_blank") // Add your clickable link here
         }
     },
 
