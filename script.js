@@ -337,5 +337,5 @@ window.onload = () => {
 
     const saved = localStorage.getItem("imagifhub-theme") || "theme-black";
     applyTheme(saved);
-    loadFeed("Featured");
+    loadFeed("Discover");
 };
