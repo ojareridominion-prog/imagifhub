@@ -3,7 +3,7 @@ let activeSwiper = null;
 let currentCategory = "Featured";
 
 const musicLibrary = {
-    "Featured": ["https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3"],
+    "Discover": ["https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3"],
     "Nature": ["https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3"],
     "Places": [],
     "Aesthetic": [],
@@ -15,7 +15,7 @@ const musicLibrary = {
     "Default": ["https://www.soundhelix.com/examples/mp3/SoundHelix-Song-8.mp3"]
 };
 
-const categories = ["Featured", "Nature", "Places", "Aesthetic", "Cars", "Luxury", "Anime", "Animals", "Ancient"];
+const categories = ["Discover", "Nature", "Places", "Aesthetic", "Cars", "Luxury", "Anime", "Animals", "Ancient"];
 
 const SEEN_LIMIT = 20;
 const SEEN_KEY = "imagifhub-seen-history";
