@@ -42,7 +42,7 @@ class AdminUpload(StatesGroup):
 CATEGORIES = [
     "Nature", "Places", "Aesthetic", "Cars", 
     "Luxury", "Anime", "Animals", "Ancient", 
-    "Marine", "Art", "Fictional", "Funny", "Others"
+    "Marine", "Art", "Fictional", "Funny", "Featured"
 ]
 
 # ==================== WEBHOOK HELPERS ====================
@@ -75,7 +75,7 @@ async def get_media(category: str = "all", search: str = ""):
     query = supabase.table('media_content').select('*')
     
     # Category Filter
-    if category.lower() not in ["all", "featured"]:
+    if category.lower() not in ["all", "Discover"]:
         query = query.eq('category', category.title())
     
     # Search Filter
