@@ -41,7 +41,7 @@ class AdminUpload(StatesGroup):
 # Must match your script.js categories exactly
 CATEGORIES = [
     "Nature", "Places", "Aesthetic", "Cars", 
-    "Luxury", "Anime", "Animals", "Ancient", "Others"
+    "Luxury", "Anime", "Animals", "Ancient", "marine", "Others"
 ]
 
 # ==================== WEBHOOK HELPERS ====================
