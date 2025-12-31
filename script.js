@@ -1,6 +1,6 @@
 const API_URL = "https://imagifhub.vercel.app";
 let activeSwiper = null;
-let currentCategory = "Featured";
+let currentCategory = "Discover";
 
 const musicLibrary = {
     "Discover": ["https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3"],
@@ -165,7 +165,7 @@ function applyTheme(themeId) {
 
 function triggerSearch() {
     let q = prompt("Search images:");
-    if(q) loadFeed("Featured", q);
+    if(q) loadFeed("Discover", q);
 }
 
 // --- SHARE BOT FUNCTION ---
