@@ -75,7 +75,7 @@ async def get_media(category: str = "all", search: str = ""):
     query = supabase.table('media_content').select('*')
     
     # Category Filter
-    if category.lower() not in ["all", "Discover"]:
+    if category.lower() not in ["all", "discover"]:
         query = query.eq('category', category.title())
     
     # Search Filter
