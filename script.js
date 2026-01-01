@@ -277,6 +277,9 @@ window.onload = () => {
         </div>
     `).join('');
 
+    document.getElementById('bgMusic').addEventListener('ended', () => {
+    playRandomMusic(currentCategory);
+
     const saved = localStorage.getItem("imagifhub-theme") || "theme-black";
     applyTheme(saved);
     loadFeed("Discover");
