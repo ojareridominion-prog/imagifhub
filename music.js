@@ -27,14 +27,16 @@ export const musicLibrary = {
         "https://cdn.pixabay.com/download/audio/2025/10/14/audio_d7b510058d.mp3?filename=rock-420049.mp3",
         "https://cdn.pixabay.com/download/audio/2025/04/28/audio_63ab78fd28.mp3?filename=energetic-rock-333526.mp3",
         "https://cdn.pixabay.com/download/audio/2025/09/23/audio_cbb893b235.mp3?filename=uplfting-rock-music-409355.mp3",
-        "https://cdn.pixabay.com/download/audio/2025/06/25/audio_e8f60a3cf5.mp3?filename=sad-documentary-background-music-365827.mp3"
+        "https://cdn.pixabay.com/download/audio/2025/06/25/audio_e8f60a3cf5.mp3?filename=sad-documentary-background-music-365827.mp3",
+        "https://cdn.pixabay.com/download/audio/2025/06/13/audio_6545ba3c7c.mp3?filename=emotional-sad-guitar-music-349888.mp3"
               ],
     "Aesthetic": [
         "https://cdn.pixabay.com/download/audio/2025/07/22/audio_8fc5444c41.mp3?filename=cloud-kicker-is-awesome-378633.mp3",
         "https://cdn.pixabay.com/download/audio/2025/12/05/audio_3580f915fd.mp3?filename=soft-piano-background-444129.mp3",
         "https://cdn.pixabay.com/download/audio/2025/12/03/audio_6e76a1ff29.mp3?filename=stylish-rock-446683.mp3",
         "https://cdn.pixabay.com/download/audio/2025/03/18/audio_c38aba1e54.mp3?filename=upbeat-motivation-rock-315219.mp3",
-        "https://cdn.pixabay.com/download/audio/2025/06/25/audio_e8f60a3cf5.mp3?filename=sad-documentary-background-music-365827.mp3"
+        "https://cdn.pixabay.com/download/audio/2025/06/25/audio_e8f60a3cf5.mp3?filename=sad-documentary-background-music-365827.mp3",
+        "https://cdn.pixabay.com/download/audio/2025/06/13/audio_6545ba3c7c.mp3?filename=emotional-sad-guitar-music-349888.mp3"
     ],
     "Cars": [
         "https://cdn.pixabay.com/download/audio/2025/10/13/audio_879d2ff61e.mp3?filename=fun-pop-background-music-419356.mp3",
@@ -48,7 +50,8 @@ export const musicLibrary = {
         "https://cdn.pixabay.com/download/audio/2025/12/03/audio_6e76a1ff29.mp3?filename=stylish-rock-446683.mp3",
         "https://cdn.pixabay.com/download/audio/2025/10/14/audio_d7b510058d.mp3?filename=rock-420049.mp3",
         "https://cdn.pixabay.com/download/audio/2025/04/28/audio_63ab78fd28.mp3?filename=energetic-rock-333526.mp3",
-        "https://cdn.pixabay.com/download/audio/2025/03/18/audio_c38aba1e54.mp3?filename=upbeat-motivation-rock-315219.mp3"
+        "https://cdn.pixabay.com/download/audio/2025/03/18/audio_c38aba1e54.mp3?filename=upbeat-motivation-rock-315219.mp3",
+        "https://cdn.pixabay.com/download/audio/2025/06/13/audio_6545ba3c7c.mp3?filename=emotional-sad-guitar-music-349888.mp3"
     ],
     "Anime": ["https://cdn.pixabay.com/download/audio/2021/11/13/audio_343081d119.mp3?filename=rammstein-style-metal-10726.mp3", 
               "https://cdn.pixabay.com/download/audio/2025/07/22/audio_8fc5444c41.mp3?filename=cloud-kicker-is-awesome-378633.mp3",
@@ -64,7 +67,8 @@ export const musicLibrary = {
     ],
     "Ancient": [
                     "https://cdn.pixabay.com/download/audio/2025/09/23/audio_cbb893b235.mp3?filename=uplfting-rock-music-409355.mp3",
-                    "https://cdn.pixabay.com/download/audio/2025/06/25/audio_e8f60a3cf5.mp3?filename=sad-documentary-background-music-365827.mp3"
+                    "https://cdn.pixabay.com/download/audio/2025/06/25/audio_e8f60a3cf5.mp3?filename=sad-documentary-background-music-365827.mp3",
+                    "https://cdn.pixabay.com/download/audio/2025/06/13/audio_6545ba3c7c.mp3?filename=emotional-sad-guitar-music-349888.mp3"
     ],
     "Default": ["https://cdn.pixabay.com/download/audio/2021/11/13/audio_343081d119.mp3?filename=rammstein-style-metal-10726.mp3",
                "https://cdn.pixabay.com/download/audio/2025/07/22/audio_8fc5444c41.mp3?filename=cloud-kicker-is-awesome-378633.mp3",
@@ -76,7 +80,8 @@ export const musicLibrary = {
                "https://cdn.pixabay.com/download/audio/2025/04/28/audio_63ab78fd28.mp3?filename=energetic-rock-333526.mp3",
                "https://cdn.pixabay.com/download/audio/2025/09/23/audio_cbb893b235.mp3?filename=uplfting-rock-music-409355.mp3",
                "https://cdn.pixabay.com/download/audio/2025/03/18/audio_c38aba1e54.mp3?filename=upbeat-motivation-rock-315219.mp3",
-               "https://cdn.pixabay.com/download/audio/2025/06/25/audio_e8f60a3cf5.mp3?filename=sad-documentary-background-music-365827.mp3"
+               "https://cdn.pixabay.com/download/audio/2025/06/25/audio_e8f60a3cf5.mp3?filename=sad-documentary-background-music-365827.mp3",
+               "https://cdn.pixabay.com/download/audio/2025/06/13/audio_6545ba3c7c.mp3?filename=emotional-sad-guitar-music-349888.mp3"
     ]
 };
 
