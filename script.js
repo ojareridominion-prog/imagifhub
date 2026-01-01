@@ -277,7 +277,14 @@ window.onload = () => {
     const saved = localStorage.getItem("imagifhub-theme") || "theme-black";
     applyTheme(saved);
     loadFeed("Discover");
+    
+    const audioElem = document.getElementById('bgMusic');
+audioElem.addEventListener('ended', () => {
+    console.log("Song ended, picking next random track...");
+    playRandomMusic(currentCategory); 
+    
 };
+
 
 // REMOVE the extra } that was here
 // Expose functions to the HTML buttons
