@@ -1,14 +1,14 @@
 export const musicLibrary = {
-    "Discover": ["https://pixabay.com/music/rock-cloud-kicker-is-awesome-378633/"],
+    "Discover": ["https://cdn.pixabay.com/download/audio/2021/11/13/audio_343081d119.mp3?filename=rammstein-style-metal-10726.mp3"],
     "Nature": [],
-    "Places": ["https://pixabay.com/music/rock-cloud-kicker-is-awesome-378633/"],
+    "Places": ["https://cdn.pixabay.com/download/audio/2021/11/13/audio_343081d119.mp3?filename=rammstein-style-metal-10726.mp3"],
     "Aesthetic": [],
     "Cars": [],
     "Luxury": [],
-    "Anime": ["https://pixabay.com/music/rock-cloud-kicker-is-awesome-378633/"],
+    "Anime": ["https://cdn.pixabay.com/download/audio/2021/11/13/audio_343081d119.mp3?filename=rammstein-style-metal-10726.mp3"],
     "Animals": [],
     "Ancient": [],
-    "Default": ["https://pixabay.com/music/rock-cloud-kicker-is-awesome-378633/"]
+    "Default": ["https://cdn.pixabay.com/download/audio/2021/11/13/audio_343081d119.mp3?filename=rammstein-style-metal-10726.mp3"]
 };
 
 export const categories = ["Discover", "Nature", "Places", "Aesthetic", "Cars", "Luxury", "Anime", "Animals", "Ancient"];
