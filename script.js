@@ -4,12 +4,12 @@ import { nativeAds } from './ads.js';
 const API_URL = "https://imagifhub.vercel.app";
 let activeSwiper = null;
 let currentCategory = "Discover";
-let songPools = {};
-
+let songPools = {}; // Tracks unplayed songs for each category
 
 const SEEN_LIMIT = 20;
 const SEEN_KEY = "imagifhub-seen-history";
 
+// --- HISTORY TRACKING ---
 function getSeenList() {
     try { return JSON.parse(localStorage.getItem(SEEN_KEY) || "[]"); } 
     catch { return []; }
@@ -17,17 +17,13 @@ function getSeenList() {
 
 function trackSeenImage(url) {
     let seen = getSeenList();
-    // Remove if exists (to move it to the end/most recent position)
     seen = seen.filter(u => u !== url);
     seen.push(url);
-    
-    // Keep only the last 20
     if (seen.length > SEEN_LIMIT) seen.shift();
-    
     localStorage.setItem(SEEN_KEY, JSON.stringify(seen));
 }
-// ----------------------
 
+// --- THEME CONFIG ---
 const themesList = [
     {id: "theme-black",  top: "#000", bottom: "#000"},
     {id: "theme-white",  top: "#fff", bottom: "#eee"},
@@ -39,35 +35,27 @@ const themesList = [
     {id: "theme-violet", top: "#16001f", bottom: "#f0b3ff"}
 ];
 
+// --- MUSIC LOGIC (SHUFFLE POOL) ---
 function playRandomMusic(cat) {
     const audio = document.getElementById('bgMusic');
     const allSongs = musicLibrary[cat] || musicLibrary["Default"];
 
-    // 1. If no songs exist for this category, stop
     if (!allSongs || allSongs.length === 0) return;
 
-    // 2. If the pool for this category is empty or doesn't exist, refill it
+    // Refill and shuffle pool if empty
     if (!songPools[cat] || songPools[cat].length === 0) {
-        // Create a copy of the category's songs to shuffle
         songPools[cat] = [...allSongs];
-        
-        // Shuffle the new pool (Fisher-Yates Shuffle)
         for (let i = songPools[cat].length - 1; i > 0; i--) {
             const j = Math.floor(Math.random() * (i + 1));
             [songPools[cat][i], songPools[cat][j]] = [songPools[cat][j], songPools[cat][i]];
         }
     }
 
-    // 3. Pick the next song from the shuffled pool and remove it (pop)
     const nextSong = songPools[cat].pop();
-
-    // 4. Update the audio source and play
     audio.src = nextSong;
     audio.load();
-    audio.play().catch(() => console.log("Interaction required to play audio"));
+    audio.play().catch(() => console.log("Interaction required for audio"));
 }
-
-
 
 function toggleMute() {
     const audio = document.getElementById('bgMusic');
@@ -76,89 +64,67 @@ function toggleMute() {
     btn.innerText = audio.muted ? "🔇" : "🔊";
 }
 
+// --- CORE FEED LOGIC ---
 async function loadFeed(cat, search="") {
     currentCategory = cat;
     const feed = document.getElementById('feed');
+    const audio = document.getElementById('bgMusic');
     
-    // Show loading indicator while fetching
     feed.innerHTML = '<div class="swiper-slide" style="display:flex; align-items:center; justify-content:center;"><h3>Loading...</h3></div>';
     
     document.querySelectorAll('.cat-btn').forEach(b => b.classList.toggle('active', b.innerText === cat));
-    playRandomMusic(cat);
 
-    const audio = document.getElementById('bgMusic');
-if (audio.paused || currentCategory !== cat) {
-    playRandomMusic(cat);
+    // Play music if it's not already playing or if we switched categories
+    if (audio.paused || currentCategory !== cat) {
+        playRandomMusic(cat);
+    }
 
     try {
-                const res = await fetch(`${API_URL}/media?category=${encodeURIComponent(cat)}&search=${search}`);
-        let data = await res.json(); // Changed 'const' to 'let' to allow reassignment
+        const res = await fetch(`${API_URL}/media?category=${encodeURIComponent(cat)}&search=${search}`);
+        let data = await res.json();
 
-        // --- ADD THIS FILTERING LOGIC ---
         if (data && data.length > 0) {
             const seenList = getSeenList();
-            // Filter out images that are in the seen list
             const uniqueData = data.filter(item => !seenList.includes(item.url));
-            
-            // If we have unique images, use them. 
-            // If filtering removed everything (rare), fall back to original data to avoid empty screen.
-            if (uniqueData.length > 0) {
-                data = uniqueData;
-            }
+            if (uniqueData.length > 0) data = uniqueData;
         }
-        // -------------------------------
         
         if (!data || data.length === 0) {
-            
             feed.innerHTML = '<div class="swiper-slide" style="display:flex; align-items:center; justify-content:center;"><h3>No Images Found</h3></div>';
             return;
         }
 
-        // Map data to Swiper slides
         feed.innerHTML = data.map(item => `
             <div class="swiper-slide">
                 <img src="${item.url}" alt="${item.category}" style="width:100%; height:100%; object-fit:cover;">
-                
                 <div class="meta-overlay">
                     <div style="font-weight:bold; font-size:18px;">#${item.category}</div>
                     <div style="font-size:12px; opacity:0.8;">${item.Keyword || ''}</div>
                 </div>
-
-                
             </div>
         `).join('');
 
-         // Refresh Swiper instance
         if (activeSwiper) activeSwiper.destroy(true, true);
         activeSwiper = new Swiper('#swiper', { 
             direction: 'vertical', 
-            loop: false, 
             mousewheel: true,
             on: {
                 reachEnd: function () {
                     setTimeout(() => loadFeed(currentCategory), 1000);
                 },
-                // --- ADD THIS EVENT ---
                 slideChange: function () {
-    const activeSlide = this.slides[this.activeIndex];
-    const img = activeSlide.querySelector('img');
-    if (img && img.src) {
-        trackSeenImage(img.src);
-    }
-    // This makes the ad appear after 4 swipes
-    maybeShowAd(); 
-},
-                
+                    const activeSlide = this.slides[this.activeIndex];
+                    const img = activeSlide.querySelector('img');
+                    if (img && img.src) trackSeenImage(img.src);
+                    maybeShowAd(); 
+                },
                 init: function() {
-                    // Track the very first image immediately upon load
                     const activeSlide = this.slides[this.activeIndex];
                     if(activeSlide) {
-                         const img = activeSlide.querySelector('img');
-                         if (img && img.src) trackSeenImage(img.src);
+                        const img = activeSlide.querySelector('img');
+                        if (img && img.src) trackSeenImage(img.src);
                     }
-                
                 }
-                // ----------------------
             }
         });
         
@@ -167,6 +133,7 @@ if (audio.paused || currentCategory !== cat) {
     }
 }
 
+// --- UI & THEME FUNCTIONS ---
 function toggleMenu() { 
     document.getElementById('menuPanel').classList.toggle('open'); 
 }
@@ -182,33 +149,27 @@ function triggerSearch() {
     if(q) loadFeed("Discover", q);
 }
 
-// --- SHARE BOT FUNCTION ---
 async function shareBot() {
-    // Configuration for sharing
     const shareData = {
         title: 'IMAGIFHUB',
         text: '‎SnapShot 📸 - Your vibe, your view. Swipe, zoom, vibe 🎉. Effortless image magic ✨. 😊‎',
-        url: 'https://t.me/IMAGIFHUB_bot' // Replace with your actual bot link
+        url: 'https://t.me/IMAGIFHUB_bot'
     };
-
     try {
-        // Check if the browser supports native sharing (mobile)
         if (navigator.share) {
             await navigator.share(shareData);
-            console.log('Shared successfully');
         } else {
-            // Fallback: Copy to clipboard if native share isn't available (desktop)
             await navigator.clipboard.writeText(`${shareData.text} ${shareData.url}`);
-            alert('Link & Text copied to clipboard! Share it with your friends.');
+            alert('Link & Text copied to clipboard!');
         }
-    } catch (err) {
-        console.log('Error sharing:', err);
-    }
+    } catch (err) { console.log('Error sharing:', err); }
 }
 
+// --- ADS LOGIC ---
 let adIndex = Number(localStorage.getItem("adIndex") || 0);
+let currentAdLink = null;
+let actionCount = Number(localStorage.getItem("actionCount") || 0);
 
-// Change NATIVE_ADS to nativeAds to match your import at the top
 function getNextAd() {
     const ad = nativeAds[adIndex % nativeAds.length];
     adIndex++;
@@ -216,23 +177,15 @@ function getNextAd() {
     return ad;
 }
 
-let currentAdLink = null;
-
 function showAd() {
-    const isPremium = localStorage.getItem("isPremium") === "true";
-    if (isPremium) return;
-
+    if (localStorage.getItem("isPremium") === "true") return;
     const ad = getNextAd();
-    if (!ad) return; // Safety check
-
+    if (!ad) return;
     currentAdLink = ad.action; 
-
-    const adBox = document.getElementById("nativeAd");
     document.getElementById("adImage").src = ad.image;
     document.getElementById("adTitle").innerText = ad.title;
     document.getElementById("adSubtitle").innerText = ad.subtitle;
-
-    adBox.classList.remove("hidden");
+    document.getElementById("nativeAd").classList.remove("hidden");
 }
 
 function hideAd(event) {
@@ -240,40 +193,22 @@ function hideAd(event) {
     document.getElementById("nativeAd").classList.add("hidden");
 }
 
-// Make these functions global so index.html can see them
-window.hideAd = hideAd;
-window.handleAdClick = (event) => {
-    if (!event.target.classList.contains('close-ad-btn')) {
-        if (typeof currentAdLink === 'function') {
-            currentAdLink();
-        } else if (typeof currentAdLink === 'string') {
-            window.open(currentAdLink, '_blank');
-        }
-        hideAd();
-    }
-};
-
-let actionCount = Number(localStorage.getItem("actionCount") || 0);
-
 function maybeShowAd() {
-    const isPremium = localStorage.getItem("isPremium") === "true";
-    if (isPremium) return;
-
+    if (localStorage.getItem("isPremium") === "true") return;
     actionCount++;
     localStorage.setItem("actionCount", actionCount);
-
-    if (actionCount % 5 === 0) {
-        showAd();
-    } else {
-        hideAd();
-    }
+    if (actionCount % 5 === 0) showAd();
+    else hideAd();
 }
 
+// --- INITIALIZATION ---
 window.onload = () => {
+    // 1. Setup Categories
     document.getElementById('catBar').innerHTML = categories.map(c => 
         `<button class="cat-btn" onclick="loadFeed('${c}')">${c}</button>`
     ).join('');
     
+    // 2. Setup Themes
     document.getElementById('themeGrid').innerHTML = themesList.map(t => `
         <div class="theme-circle" onclick="applyTheme('${t.id}')">
             <div style="background:${t.top}"></div>
@@ -281,26 +216,31 @@ window.onload = () => {
         </div>
     `).join('');
 
-    document.getElementById('bgMusic').addEventListener('ended', () => {
-    playRandomMusic(currentCategory);
-
-    const saved = localStorage.getItem("imagifhub-theme") || "theme-black";
-    applyTheme(saved);
-    loadFeed("Discover");
-    
+    // 3. Audio Ended Listener
     const audioElem = document.getElementById('bgMusic');
-audioElem.addEventListener('ended', () => {
-    console.log("Song ended, picking next random track...");
-    playRandomMusic(currentCategory); 
-    
+    audioElem.addEventListener('ended', () => {
+        console.log("Song ended, picking next track...");
+        playRandomMusic(currentCategory); 
+    });
+
+    // 4. Load Saved Theme & Initial Feed
+    const savedTheme = localStorage.getItem("imagifhub-theme") || "theme-black";
+    applyTheme(savedTheme);
+    loadFeed("Discover");
 };
 
-
-// REMOVE the extra } that was here
-// Expose functions to the HTML buttons
+// --- GLOBAL EXPOSURE ---
 window.loadFeed = loadFeed;
 window.toggleMenu = toggleMenu;
 window.toggleMute = toggleMute;
 window.triggerSearch = triggerSearch;
 window.applyTheme = applyTheme;
 window.shareBot = shareBot;
+window.hideAd = hideAd;
+window.handleAdClick = (event) => {
+    if (!event.target.classList.contains('close-ad-btn')) {
+        if (typeof currentAdLink === 'function') currentAdLink();
+        else if (typeof currentAdLink === 'string') window.open(currentAdLink, '_blank');
+        hideAd();
+    }
+};
