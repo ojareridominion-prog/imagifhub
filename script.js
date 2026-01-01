@@ -68,6 +68,7 @@ function playRandomMusic(cat) {
 }
 
 
+
 function toggleMute() {
     const audio = document.getElementById('bgMusic');
     const btn = document.getElementById('muteBtn');
