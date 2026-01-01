@@ -27,7 +27,8 @@ export const musicLibrary = {
         "https://cdn.pixabay.com/download/audio/2024/11/25/audio_7aa9b5975d.mp3?filename=violin-is-in-painsad-violin-268426.mp3",
         "https://cdn.pixabay.com/download/audio/2025/12/03/audio_941ab1f710.mp3?filename=uplifting-epic-446685.mp3",
         "https://cdn.pixabay.com/download/audio/2025/12/07/audio_329d3502d7.mp3?filename=epic-448501.mp3",
-        "https://cdn.pixabay.com/download/audio/2025/12/07/audio_88fdf1567f.mp3?filename=emotional-epic-448497.mp3"
+        "https://cdn.pixabay.com/download/audio/2025/12/07/audio_88fdf1567f.mp3?filename=emotional-epic-448497.mp3",
+        "https://cdn.pixabay.com/download/audio/2024/10/07/audio_65ee49a298.mp3?filename=samurai-flutes-ethereal-fantasy-flute-relaxing-meditation-music-248255.mp3"
     ],
     "Places": [
         "https://cdn.pixabay.com/download/audio/2021/11/13/audio_343081d119.mp3?filename=rammstein-style-metal-10726.mp3", 
@@ -97,7 +98,8 @@ export const musicLibrary = {
                     "https://cdn.pixabay.com/download/audio/2025/02/18/audio_bbcb0e9b17.mp3?filename=cvilni-violin-302859.mp3",
                     "https://cdn.pixabay.com/download/audio/2025/12/03/audio_941ab1f710.mp3?filename=uplifting-epic-446685.mp3",
                     "https://cdn.pixabay.com/download/audio/2025/12/07/audio_329d3502d7.mp3?filename=epic-448501.mp3",
-                    "https://cdn.pixabay.com/download/audio/2025/12/07/audio_88fdf1567f.mp3?filename=emotional-epic-448497.mp3"
+                    "https://cdn.pixabay.com/download/audio/2025/12/07/audio_88fdf1567f.mp3?filename=emotional-epic-448497.mp3",
+                    "https://cdn.pixabay.com/download/audio/2024/10/07/audio_65ee49a298.mp3?filename=samurai-flutes-ethereal-fantasy-flute-relaxing-meditation-music-248255.mp3"
     ],
     "Ancient": [
                     "https://cdn.pixabay.com/download/audio/2025/09/23/audio_cbb893b235.mp3?filename=uplfting-rock-music-409355.mp3",
@@ -111,7 +113,8 @@ export const musicLibrary = {
                     "https://cdn.pixabay.com/download/audio/2024/11/25/audio_7aa9b5975d.mp3?filename=violin-is-in-painsad-violin-268426.mp3",
                     "https://cdn.pixabay.com/download/audio/2025/12/03/audio_941ab1f710.mp3?filename=uplifting-epic-446685.mp3",
                     "https://cdn.pixabay.com/download/audio/2025/12/07/audio_329d3502d7.mp3?filename=epic-448501.mp3",
-                    "https://cdn.pixabay.com/download/audio/2025/12/07/audio_88fdf1567f.mp3?filename=emotional-epic-448497.mp3"
+                    "https://cdn.pixabay.com/download/audio/2025/12/07/audio_88fdf1567f.mp3?filename=emotional-epic-448497.mp3",
+                    "https://cdn.pixabay.com/download/audio/2024/10/07/audio_65ee49a298.mp3?filename=samurai-flutes-ethereal-fantasy-flute-relaxing-meditation-music-248255.mp3"
     ],
     "Default": ["https://cdn.pixabay.com/download/audio/2021/11/13/audio_343081d119.mp3?filename=rammstein-style-metal-10726.mp3",
                "https://cdn.pixabay.com/download/audio/2025/07/22/audio_8fc5444c41.mp3?filename=cloud-kicker-is-awesome-378633.mp3",
@@ -133,7 +136,8 @@ export const musicLibrary = {
                 "https://cdn.pixabay.com/download/audio/2024/11/25/audio_7aa9b5975d.mp3?filename=violin-is-in-painsad-violin-268426.mp3",
                 "https://cdn.pixabay.com/download/audio/2025/12/03/audio_941ab1f710.mp3?filename=uplifting-epic-446685.mp3",
                 "https://cdn.pixabay.com/download/audio/2025/12/07/audio_329d3502d7.mp3?filename=epic-448501.mp3",
-                "https://cdn.pixabay.com/download/audio/2025/12/07/audio_88fdf1567f.mp3?filename=emotional-epic-448497.mp3"
+                "https://cdn.pixabay.com/download/audio/2025/12/07/audio_88fdf1567f.mp3?filename=emotional-epic-448497.mp3",
+                "https://cdn.pixabay.com/download/audio/2024/10/07/audio_65ee49a298.mp3?filename=samurai-flutes-ethereal-fantasy-flute-relaxing-meditation-music-248255.mp3"
     ]
 };
 
