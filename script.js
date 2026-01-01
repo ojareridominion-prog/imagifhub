@@ -39,13 +39,32 @@ const themesList = [
 
 function playRandomMusic(cat) {
     const audio = document.getElementById('bgMusic');
-    if (!audio.src || audio.paused) {
-        const songs = musicLibrary[cat] || musicLibrary["Default"];
-        const randomSong = songs[Math.floor(Math.random() * songs.length)];
-        audio.src = randomSong;
-        audio.play().catch(() => console.log("User interaction required for audio"));
+    const allSongs = musicLibrary[cat] || musicLibrary["Default"];
+
+    // 1. If no songs exist for this category, stop
+    if (!allSongs || allSongs.length === 0) return;
+
+    // 2. If the pool for this category is empty or doesn't exist, refill it
+    if (!songPools[cat] || songPools[cat].length === 0) {
+        // Create a copy of the category's songs to shuffle
+        songPools[cat] = [...allSongs];
+        
+        // Shuffle the new pool (Fisher-Yates Shuffle)
+        for (let i = songPools[cat].length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [songPools[cat][i], songPools[cat][j]] = [songPools[cat][j], songPools[cat][i]];
+        }
     }
+
+    // 3. Pick the next song from the shuffled pool and remove it (pop)
+    const nextSong = songPools[cat].pop();
+
+    // 4. Update the audio source and play
+    audio.src = nextSong;
+    audio.load();
+    audio.play().catch(() => console.log("Interaction required to play audio"));
 }
+
 
 function toggleMute() {
     const audio = document.getElementById('bgMusic');
