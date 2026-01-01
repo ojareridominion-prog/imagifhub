@@ -4,7 +4,7 @@ export const nativeAds = [
         image: "ads/premium.png",
         title: "Go Premium",
         subtitle: "Remove all ads",
-        action: () => onclick="alert('Coming Soon!')"/*openPremium()*/
+        action: () => "alert('Coming Soon!')"/*openPremium()*/
     },
     {
         id: "Temu",
