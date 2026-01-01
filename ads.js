@@ -1,11 +1,11 @@
 export const nativeAds = [
-    {
+    /*{
         id: "premium",
         image: "ads/premium.png",
         title: "Go Premium",
         subtitle: "Remove all ads",
-        action: () => "alert('Coming Soon!')"/*openPremium()*/
-    },
+        action: () => openPremium()
+    },*/
     {
         id: "Temu",
         image: "ads/temu.png",
