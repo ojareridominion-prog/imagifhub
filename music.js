@@ -69,7 +69,8 @@ export const musicLibrary = {
         "https://cdn.pixabay.com/download/audio/2025/12/03/audio_6e76a1ff29.mp3?filename=stylish-rock-446683.mp3",
         "https://cdn.pixabay.com/download/audio/2025/10/14/audio_d7b510058d.mp3?filename=rock-420049.mp3",
         "https://cdn.pixabay.com/download/audio/2025/04/28/audio_63ab78fd28.mp3?filename=energetic-rock-333526.mp3",
-        "https://cdn.pixabay.com/download/audio/2024/07/26/audio_ae5558d34f.mp3?filename=bouncy-flute-and-keys-hard-trap-beat-prod-by-onesevenbeatxs-227243.mp3"
+        "https://cdn.pixabay.com/download/audio/2024/07/26/audio_ae5558d34f.mp3?filename=bouncy-flute-and-keys-hard-trap-beat-prod-by-onesevenbeatxs-227243.mp3",
+        "https://cdn.pixabay.com/download/audio/2022/08/25/audio_0c3e26de3a.mp3?filename=bounce-118313.mp3"
     ],
     "Luxury": [
         "https://cdn.pixabay.com/download/audio/2025/10/13/audio_879d2ff61e.mp3?filename=fun-pop-background-music-419356.mp3",
@@ -143,7 +144,8 @@ export const musicLibrary = {
                 "https://cdn.pixabay.com/download/audio/2025/12/07/audio_329d3502d7.mp3?filename=epic-448501.mp3",
                 "https://cdn.pixabay.com/download/audio/2025/12/07/audio_88fdf1567f.mp3?filename=emotional-epic-448497.mp3",
                 "https://cdn.pixabay.com/download/audio/2024/10/07/audio_65ee49a298.mp3?filename=samurai-flutes-ethereal-fantasy-flute-relaxing-meditation-music-248255.mp3",
-                "https://cdn.pixabay.com/download/audio/2024/07/26/audio_ae5558d34f.mp3?filename=bouncy-flute-and-keys-hard-trap-beat-prod-by-onesevenbeatxs-227243.mp3"
+                "https://cdn.pixabay.com/download/audio/2024/07/26/audio_ae5558d34f.mp3?filename=bouncy-flute-and-keys-hard-trap-beat-prod-by-onesevenbeatxs-227243.mp3",
+                "https://cdn.pixabay.com/download/audio/2022/08/25/audio_0c3e26de3a.mp3?filename=bounce-118313.mp3"
     ]
 };
 
