@@ -18,7 +18,8 @@ export const musicLibrary = {
         "https://cdn.pixabay.com/download/audio/2024/07/26/audio_ae5558d34f.mp3?filename=bouncy-flute-and-keys-hard-trap-beat-prod-by-onesevenbeatxs-227243.mp3",
         "https://cdn.pixabay.com/download/audio/2025/03/18/audio_7d5c12b31a.mp3?filename=dont-talk-315229.mp3",
         "https://cdn.pixabay.com/download/audio/2023/11/04/audio_61107b7ef6.mp3?filename=bounce-gone-crazy-174657.mp3",
-        "https://cdn.pixabay.com/download/audio/2023/09/13/audio_635b38f516.mp3?filename=vapor-club-bounce-music-166350.mp3"
+        "https://cdn.pixabay.com/download/audio/2023/09/13/audio_635b38f516.mp3?filename=vapor-club-bounce-music-166350.mp3",
+        "https://cdn.pixabay.com/download/audio/2025/03/18/audio_3ff2b9369c.mp3?filename=promo-advertising-funk-315207.mp3"
                 ],
     "Nature": [
         "https://cdn.pixabay.com/download/audio/2025/12/05/audio_3580f915fd.mp3?filename=soft-piano-background-444129.mp3",
@@ -34,7 +35,8 @@ export const musicLibrary = {
         "https://cdn.pixabay.com/download/audio/2025/12/07/audio_88fdf1567f.mp3?filename=emotional-epic-448497.mp3",
         "https://cdn.pixabay.com/download/audio/2024/10/07/audio_65ee49a298.mp3?filename=samurai-flutes-ethereal-fantasy-flute-relaxing-meditation-music-248255.mp3",
         "https://cdn.pixabay.com/download/audio/2025/07/02/audio_a94fac3b19.mp3?filename=bounce-to-the-beat-ii-368772.mp3",
-        "https://cdn.pixabay.com/download/audio/2023/11/04/audio_61107b7ef6.mp3?filename=bounce-gone-crazy-174657.mp3"
+        "https://cdn.pixabay.com/download/audio/2023/11/04/audio_61107b7ef6.mp3?filename=bounce-gone-crazy-174657.mp3",
+        "https://cdn.pixabay.com/download/audio/2025/03/18/audio_3ff2b9369c.mp3?filename=promo-advertising-funk-315207.mp3"
     ],
     "Places": [
         "https://cdn.pixabay.com/download/audio/2021/11/13/audio_343081d119.mp3?filename=rammstein-style-metal-10726.mp3", 
@@ -52,7 +54,8 @@ export const musicLibrary = {
         "https://cdn.pixabay.com/download/audio/2024/07/26/audio_ae5558d34f.mp3?filename=bouncy-flute-and-keys-hard-trap-beat-prod-by-onesevenbeatxs-227243.mp3",
         "https://cdn.pixabay.com/download/audio/2025/03/18/audio_7d5c12b31a.mp3?filename=dont-talk-315229.mp3",
         "https://cdn.pixabay.com/download/audio/2023/11/04/audio_61107b7ef6.mp3?filename=bounce-gone-crazy-174657.mp3",
-        "https://cdn.pixabay.com/download/audio/2023/09/13/audio_635b38f516.mp3?filename=vapor-club-bounce-music-166350.mp3"
+        "https://cdn.pixabay.com/download/audio/2023/09/13/audio_635b38f516.mp3?filename=vapor-club-bounce-music-166350.mp3",
+        "https://cdn.pixabay.com/download/audio/2025/03/18/audio_3ff2b9369c.mp3?filename=promo-advertising-funk-315207.mp3"
               ],
     "Aesthetic": [
         "https://cdn.pixabay.com/download/audio/2025/07/22/audio_8fc5444c41.mp3?filename=cloud-kicker-is-awesome-378633.mp3",
@@ -123,7 +126,8 @@ export const musicLibrary = {
                     "https://cdn.pixabay.com/download/audio/2025/12/07/audio_88fdf1567f.mp3?filename=emotional-epic-448497.mp3",
                     "https://cdn.pixabay.com/download/audio/2024/10/07/audio_65ee49a298.mp3?filename=samurai-flutes-ethereal-fantasy-flute-relaxing-meditation-music-248255.mp3",
                     "https://cdn.pixabay.com/download/audio/2025/07/02/audio_a94fac3b19.mp3?filename=bounce-to-the-beat-ii-368772.mp3",
-                    "https://cdn.pixabay.com/download/audio/2023/11/04/audio_61107b7ef6.mp3?filename=bounce-gone-crazy-174657.mp3"
+                    "https://cdn.pixabay.com/download/audio/2023/11/04/audio_61107b7ef6.mp3?filename=bounce-gone-crazy-174657.mp3",
+                    "https://cdn.pixabay.com/download/audio/2025/03/18/audio_3ff2b9369c.mp3?filename=promo-advertising-funk-315207.mp3"
     ],
     "Ancient": [
                     "https://cdn.pixabay.com/download/audio/2025/09/23/audio_cbb893b235.mp3?filename=uplfting-rock-music-409355.mp3",
@@ -168,7 +172,8 @@ export const musicLibrary = {
                 "https://cdn.pixabay.com/download/audio/2025/03/18/audio_7d5c12b31a.mp3?filename=dont-talk-315229.mp3",
                 "https://cdn.pixabay.com/download/audio/2025/07/02/audio_a94fac3b19.mp3?filename=bounce-to-the-beat-ii-368772.mp3",
                 "https://cdn.pixabay.com/download/audio/2023/11/04/audio_61107b7ef6.mp3?filename=bounce-gone-crazy-174657.mp3",
-                "https://cdn.pixabay.com/download/audio/2023/09/13/audio_635b38f516.mp3?filename=vapor-club-bounce-music-166350.mp3"
+                "https://cdn.pixabay.com/download/audio/2023/09/13/audio_635b38f516.mp3?filename=vapor-club-bounce-music-166350.mp3",
+                "https://cdn.pixabay.com/download/audio/2025/03/18/audio_3ff2b9369c.mp3?filename=promo-advertising-funk-315207.mp3"
     ]
 };
 
