@@ -60,7 +60,8 @@ export const musicLibrary = {
         "https://cdn.pixabay.com/download/audio/2023/09/13/audio_635b38f516.mp3?filename=vapor-club-bounce-music-166350.mp3",
         "https://cdn.pixabay.com/download/audio/2025/03/18/audio_3ff2b9369c.mp3?filename=promo-advertising-funk-315207.mp3",
         "https://cdn.pixabay.com/download/audio/2023/08/09/audio_f3b6314859.mp3?filename=rap-beats-music-161432.mp3",
-        "https://cdn.pixabay.com/download/audio/2025/12/05/audio_1c1f8db6b0.mp3?filename=rap-beat-beats-music-444108.mp3"
+        "https://cdn.pixabay.com/download/audio/2025/12/05/audio_1c1f8db6b0.mp3?filename=rap-beat-beats-music-444108.mp3",
+        "https://cdn.pixabay.com/download/audio/2024/08/11/audio_ba941ef08f.mp3?filename=royalty-free-element-hard-rap-beat-231463.mp3"
               ],
     "Aesthetic": [
         "https://cdn.pixabay.com/download/audio/2025/07/22/audio_8fc5444c41.mp3?filename=cloud-kicker-is-awesome-378633.mp3",
@@ -111,7 +112,8 @@ export const musicLibrary = {
         "https://cdn.pixabay.com/download/audio/2025/07/02/audio_a94fac3b19.mp3?filename=bounce-to-the-beat-ii-368772.mp3",
         "https://cdn.pixabay.com/download/audio/2023/11/04/audio_61107b7ef6.mp3?filename=bounce-gone-crazy-174657.mp3",
         "https://cdn.pixabay.com/download/audio/2023/08/09/audio_f3b6314859.mp3?filename=rap-beats-music-161432.mp3",
-        "https://cdn.pixabay.com/download/audio/2025/12/05/audio_1c1f8db6b0.mp3?filename=rap-beat-beats-music-444108.mp3"
+        "https://cdn.pixabay.com/download/audio/2025/12/05/audio_1c1f8db6b0.mp3?filename=rap-beat-beats-music-444108.mp3",
+        "https://cdn.pixabay.com/download/audio/2024/08/11/audio_ba941ef08f.mp3?filename=royalty-free-element-hard-rap-beat-231463.mp3"
     ],
     "Anime": ["https://cdn.pixabay.com/download/audio/2021/11/13/audio_343081d119.mp3?filename=rammstein-style-metal-10726.mp3", 
               "https://cdn.pixabay.com/download/audio/2025/07/22/audio_8fc5444c41.mp3?filename=cloud-kicker-is-awesome-378633.mp3",
@@ -185,7 +187,8 @@ export const musicLibrary = {
                 "https://cdn.pixabay.com/download/audio/2023/09/13/audio_635b38f516.mp3?filename=vapor-club-bounce-music-166350.mp3",
                 "https://cdn.pixabay.com/download/audio/2025/03/18/audio_3ff2b9369c.mp3?filename=promo-advertising-funk-315207.mp3",
                 "https://cdn.pixabay.com/download/audio/2023/08/09/audio_f3b6314859.mp3?filename=rap-beats-music-161432.mp3",
-                "https://cdn.pixabay.com/download/audio/2025/12/05/audio_1c1f8db6b0.mp3?filename=rap-beat-beats-music-444108.mp3"
+                "https://cdn.pixabay.com/download/audio/2025/12/05/audio_1c1f8db6b0.mp3?filename=rap-beat-beats-music-444108.mp3",
+                "https://cdn.pixabay.com/download/audio/2024/08/11/audio_ba941ef08f.mp3?filename=royalty-free-element-hard-rap-beat-231463.mp3"
     ]
 };
 
