@@ -86,6 +86,10 @@ async function loadFeed(cat, search="") {
     document.querySelectorAll('.cat-btn').forEach(b => b.classList.toggle('active', b.innerText === cat));
     playRandomMusic(cat);
 
+    const audio = document.getElementById('bgMusic');
+if (audio.paused || currentCategory !== cat) {
+    playRandomMusic(cat);
+
     try {
                 const res = await fetch(`${API_URL}/media?category=${encodeURIComponent(cat)}&search=${search}`);
         let data = await res.json(); // Changed 'const' to 'let' to allow reassignment
