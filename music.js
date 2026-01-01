@@ -1,14 +1,14 @@
 export const musicLibrary = {
-    "Discover": ["https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3"],
-    "Nature": ["https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3"],
-    "Places": [],
+    "Discover": ["https://pixabay.com/music/rock-cloud-kicker-is-awesome-378633/"],
+    "Nature": [],
+    "Places": ["https://pixabay.com/music/rock-cloud-kicker-is-awesome-378633/"],
     "Aesthetic": [],
     "Cars": [],
     "Luxury": [],
-    "Anime": [],
+    "Anime": ["https://pixabay.com/music/rock-cloud-kicker-is-awesome-378633/"],
     "Animals": [],
     "Ancient": [],
-    "Default": ["https://www.soundhelix.com/examples/mp3/SoundHelix-Song-8.mp3"]
+    "Default": ["https://pixabay.com/music/rock-cloud-kicker-is-awesome-378633/"]
 };
 
 export const categories = ["Discover", "Nature", "Places", "Aesthetic", "Cars", "Luxury", "Anime", "Animals", "Ancient"];
