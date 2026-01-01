@@ -4,6 +4,8 @@ import { nativeAds } from './ads.js';
 const API_URL = "https://imagifhub.vercel.app";
 let activeSwiper = null;
 let currentCategory = "Discover";
+let songPools = {};
+
 
 const SEEN_LIMIT = 20;
 const SEEN_KEY = "imagifhub-seen-history";
