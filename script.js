@@ -263,22 +263,24 @@ async function shareBot() {
 
 let adIndex = Number(localStorage.getItem("adIndex") || 0);
 
+// Change NATIVE_ADS to nativeAds to match your import at the top
 function getNextAd() {
-    const ad = NATIVE_ADS[adIndex % NATIVE_ADS.length];
+    const ad = nativeAds[adIndex % nativeAds.length];
     adIndex++;
     localStorage.setItem("adIndex", adIndex);
     return ad;
 }
 
-// --- 1. NEW CLICK HANDLER (Support for X button) ---
-let currentAdLink = null; // Store the link temporarily
+let currentAdLink = null;
 
 function showAd() {
     const isPremium = localStorage.getItem("isPremium") === "true";
     if (isPremium) return;
 
     const ad = getNextAd();
-    currentAdLink = ad.action; // Save the action for later
+    if (!ad) return; // Safety check
+
+    currentAdLink = ad.action; 
 
     const adBox = document.getElementById("nativeAd");
     document.getElementById("adImage").src = ad.image;
@@ -289,23 +291,22 @@ function showAd() {
 }
 
 function hideAd(event) {
-    // Stop the click from triggering the ad link if X is clicked
     if (event) event.stopPropagation(); 
     document.getElementById("nativeAd").classList.add("hidden");
 }
 
-function handleAdClick(event) {
-    // Only run if the click was NOT on the close button
+// Make these functions global so index.html can see them
+window.hideAd = hideAd;
+window.handleAdClick = (event) => {
     if (!event.target.classList.contains('close-ad-btn')) {
         if (typeof currentAdLink === 'function') {
             currentAdLink();
         } else if (typeof currentAdLink === 'string') {
             window.open(currentAdLink, '_blank');
         }
-        hideAd(); // Close ad after clicking
+        hideAd();
     }
-}
-
+};
 
 let actionCount = Number(localStorage.getItem("actionCount") || 0);
 
@@ -316,15 +317,12 @@ function maybeShowAd() {
     actionCount++;
     localStorage.setItem("actionCount", actionCount);
 
-    // Only trigger the show function; let the User close it manually
     if (actionCount % 5 === 0) {
         showAd();
-    }
-     else {
+    } else {
         hideAd();
     }
 }
-
 
 window.onload = () => {
     document.getElementById('catBar').innerHTML = categories.map(c => 
@@ -342,3 +340,12 @@ window.onload = () => {
     applyTheme(saved);
     loadFeed("Discover");
 };
+
+// REMOVE the extra } that was here
+// Expose functions to the HTML buttons
+window.loadFeed = loadFeed;
+window.toggleMenu = toggleMenu;
+window.toggleMute = toggleMute;
+window.triggerSearch = triggerSearch;
+window.applyTheme = applyTheme;
+window.shareBot = shareBot;
