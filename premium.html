@@ -1,137 +1,133 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<title>ImagifHub Premium</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <title>ImagifHub Premium</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
-<style>
-body {
-    margin: 0;
-    font-family: Inter, Arial, sans-serif;
-    background: linear-gradient(180deg, #0f172a, #020617);
-    color: #fff;
-    text-align: center;
-}
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: linear-gradient(135deg, #0f2027, #203a43, #2c5364);
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+    }
 
-.container {
-    padding: 40px 20px;
-    max-width: 480px;
-    margin: auto;
-}
+    .card {
+      background: rgba(0,0,0,0.6);
+      border-radius: 16px;
+      padding: 24px;
+      max-width: 380px;
+      width: 100%;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+      text-align: center;
+    }
 
-h1 {
-    font-size: 28px;
-    margin-bottom: 10px;
-}
+    h1 {
+      margin-top: 0;
+      font-size: 26px;
+    }
 
-.subtitle {
-    color: #cbd5f5;
-    font-size: 15px;
-    margin-bottom: 30px;
-}
+    .price {
+      margin: 20px 0;
+      font-size: 18px;
+    }
 
-.card {
-    background: rgba(255,255,255,0.06);
-    border-radius: 20px;
-    padding: 25px;
-    box-shadow: 0 20px 40px rgba(0,0,0,0.4);
-}
+    .old-price {
+      text-decoration: line-through;
+      opacity: 0.6;
+      margin-right: 8px;
+    }
 
-.price {
-    font-size: 36px;
-    font-weight: 700;
-    margin: 15px 0;
-}
+    .new-price {
+      font-size: 28px;
+      font-weight: bold;
+      color: #ffd700;
+    }
 
-.old-price {
-    color: #94a3b8;
-    text-decoration: line-through;
-    font-size: 18px;
-}
+    ul {
+      text-align: left;
+      padding-left: 20px;
+      margin: 20px 0;
+    }
 
-.features {
-    text-align: left;
-    margin: 20px 0;
-}
+    li {
+      margin-bottom: 10px;
+    }
 
-.features li {
-    list-style: none;
-    margin: 12px 0;
-    font-size: 15px;
-}
+    button {
+      width: 100%;
+      padding: 14px;
+      margin-top: 12px;
+      border-radius: 10px;
+      border: none;
+      font-size: 16px;
+      cursor: pointer;
+    }
 
-.features li::before {
-    content: "✔";
-    color: #22c55e;
-    margin-right: 10px;
-}
+    .premium-btn {
+      background: #ffd700;
+      color: #000;
+      font-weight: bold;
+    }
 
-button {
-    width: 100%;
-    padding: 14px;
-    border-radius: 14px;
-    border: none;
-    font-size: 16px;
-    font-weight: 600;
-    cursor: pointer;
-}
+    .back-btn {
+      background: transparent;
+      color: #ccc;
+      border: 1px solid #444;
+    }
 
-.primary {
-    background: #6366f1;
-    color: white;
-}
-
-.primary:disabled {
-    background: #475569;
-    cursor: not-allowed;
-}
-
-.status {
-    margin-top: 20px;
-    font-size: 14px;
-    color: #a5b4fc;
-}
- 
-</style>
+    .note {
+      font-size: 12px;
+      opacity: 0.7;
+      margin-top: 12px;
+    }
+  </style>
 </head>
-
 <body>
 
-<div class="container">
-    <h1>ImagifHub Premium</h1>
-    <div class="subtitle">Pure images. Zero distractions.</div>
+  <div class="card">
+    <h1>✨ ImagifHub Premium</h1>
 
-    <div class="card">
-        <div class="old-price">200 ⭐ / month</div>
-        <div class="price">149 ⭐ / 30 days</div>
-
-        <ul class="features">
-            <li>Remove all ads</li>
-            <li>Faster browsing</li>
-            <li>Clean premium experience</li>
-            <li>Support ImagifHub</li>
-        </ul>
-
-        
-
-        <button id="subscribeBtn" class="primary" disabled>
-            Coming Soon
-        </button>
-
-        <button id="cancelBtn" class="secondary hidden" style="background:none; color:#ff4d4d; margin-top:10px;">
-    Cancel Subscription
-</button>
-
-<style>
-    .hidden { display: none; }
-    .secondary { border: 1px solid #ff4d4d; }
-</style>
-
-        <div class="status" id="statusText"></div>
+    <div class="price">
+      <span class="old-price">200 Stars</span>
+      <span class="new-price">149 Stars / 30 days</span>
     </div>
-</div>
 
-<script src="premium.js"></script>
+    <ul>
+      <li>🚫 No ads</li>
+      <li>✅ Supports imagifhub</li>
+    </ul>
+
+    <button class="premium-btn" onclick="goPremium()">
+      Go Premium
+    </button>
+
+    <button class="back-btn" onclick="goBack()">
+      ← Back
+    </button>
+
+    <div class="note">
+      Subscription renews every 30 days.<br />
+      Cancel anytime.
+    </div>
+  </div>
+
+  <script>
+    function goPremium() {
+      alert("Premium is coming soon 🚀");
+      // Later:
+      // window.location.href = "/api/create-stars-invoice";
+    }
+
+    function goBack() {
+      window.location.href = "index.html";
+    }
+  </script>
+
 </body>
 </html>
