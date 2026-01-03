@@ -129,10 +129,10 @@ async def get_media(category: str = "all", search: str = ""):
 
 @dp.message(F.text == "/start")
 async def cmd_start(message: Message):
+    # REMOVED PREMIUM BUTTON FROM START
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="🚀 Let's Go!", web_app={"url": "https://imagifhub.vercel.app/"})],
-        [InlineKeyboardButton(text="📢 Official channel", url="https://t.me/imagifhub")],
-        [InlineKeyboardButton(text="⭐ Check Premium", callback_data="check_premium")]
+        [InlineKeyboardButton(text="📢 Official Channel", url="https://t.me/imagifhub")]
     ])
     await message.answer(
         "IMAGIFHUB isn't just an app—it's your personal portal to a world of endless, breathtaking beauty.\n\n"
@@ -179,34 +179,38 @@ async def cmd_premium(message: Message):
                         reply_markup=keyboard
                     )
             else:
-                # Not premium
+                # Not premium - show premium purchase options
                 keyboard = InlineKeyboardMarkup(inline_keyboard=[
-                    [InlineKeyboardButton(text="⭐ Get Premium", callback_data="get_premium")]
+                    [InlineKeyboardButton(text="⭐ Get Premium", callback_data="get_premium")],
+                    [InlineKeyboardButton(text="🚀 Open IMAGIFHUB", web_app={"url": "https://imagifhub.vercel.app/"})]
                 ])
                 await message.answer(
                     "✨ <b>IMAGIFHUB Premium</b>\n\n"
-                    "🔓 You are currently on the free plan.\n"
-                    "✨ Upgrade to Premium for:\n"
+                    "🔓 You are currently on the free plan.\n\n"
+                    "✨ <b>Upgrade to Premium for:</b>\n"
                     "• 🚫 No ads\n"
                     "• ⚡ Faster downloads\n"
                     "• ❤️ Support the project\n\n"
-                    "Only 149 Stars for 30 days!",
+                    "💫 <b>Price:</b> 149 Stars (30 days)\n\n"
+                    "Click 'Get Premium' to upgrade!",
                     parse_mode="HTML",
                     reply_markup=keyboard
                 )
         else:
             # User not in database - not premium
             keyboard = InlineKeyboardMarkup(inline_keyboard=[
-                [InlineKeyboardButton(text="⭐ Get Premium", callback_data="get_premium")]
+                [InlineKeyboardButton(text="⭐ Get Premium", callback_data="get_premium")],
+                [InlineKeyboardButton(text="🚀 Open IMAGIFHUB", web_app={"url": "https://imagifhub.vercel.app/"})]
             ])
             await message.answer(
                 "✨ <b>IMAGIFHUB Premium</b>\n\n"
-                "🔓 You are currently on the free plan.\n"
-                "✨ Upgrade to Premium for:\n"
+                "🔓 You are currently on the free plan.\n\n"
+                "✨ <b>Upgrade to Premium for:</b>\n"
                 "• 🚫 No ads\n"
                 "• ⚡ Faster downloads\n"
                 "• ❤️ Support the project\n\n"
-                "Only 149 Stars for 30 days!",
+                "💫 <b>Price:</b> 149 Stars (30 days)\n\n"
+                "Click 'Get Premium' to upgrade!",
                 parse_mode="HTML",
                 reply_markup=keyboard
             )
@@ -214,12 +218,6 @@ async def cmd_premium(message: Message):
     except Exception as e:
         logging.error(f"Premium check error: {e}")
         await message.answer("❌ Error checking premium status. Please try again.")
-
-@dp.callback_query(F.data == "check_premium")
-async def check_premium_callback(call: CallbackQuery):
-    """Handle check premium callback"""
-    await call.answer()
-    await cmd_premium(call.message)
 
 @dp.callback_query(F.data == "get_premium")
 async def get_premium_callback(call: CallbackQuery):
@@ -237,12 +235,12 @@ async def get_premium_callback(call: CallbackQuery):
     
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="💳 Pay Now", url=invoice_link)],
-        [InlineKeyboardButton(text="🔙 Back", callback_data="check_premium")]
+        [InlineKeyboardButton(text="🔙 Back", callback_data="back_to_premium")]
     ])
     
     await call.message.edit_text(
         "✨ <b>Upgrade to IMAGIFHUB Premium</b>\n\n"
-        "Price: <b>149 Stars</b> (30 days)\n\n"
+        "💫 <b>Price:</b> 149 Stars (30 days)\n\n"
         "<b>Benefits:</b>\n"
         "• 🚫 No ads\n"
         "• ⚡ Faster downloads\n"
@@ -252,10 +250,22 @@ async def get_premium_callback(call: CallbackQuery):
         reply_markup=keyboard
     )
 
+@dp.callback_query(F.data == "back_to_premium")
+async def back_to_premium_callback(call: CallbackQuery):
+    """Go back to premium status screen"""
+    await call.answer()
+    await cmd_premium(call.message)
+
 @dp.callback_query(F.data == "renew_premium")
 async def renew_premium_callback(call: CallbackQuery):
     """Renew premium subscription"""
     await get_premium_callback(call)
+
+# Handle deep linking for /start premium
+@dp.message(F.text.startswith("/start premium"))
+async def start_premium(message: Message):
+    """Handle deep link from mini app"""
+    await cmd_premium(message)
 
 @dp.message(F.from_user.id == ADMIN_ID, F.text == "/admin")
 async def admin_cmd(message: Message, state: FSMContext):
@@ -310,24 +320,3 @@ async def up_final(message: Message, state: FSMContext):
     }).execute()
     await message.answer(f"✅ Successfully added to {user_data['category']}!")
     await state.clear()
-
-# Run payment status check periodically
-async def check_expired_premium():
-    """Check and update expired premium users"""
-    try:
-        now = datetime.utcnow().isoformat()
-        # Find users whose premium has expired
-        expired_users = supabase.table("users").select("*").lt("premium_expires_at", now).eq("is_premium", True).execute()
-        
-        if expired_users.data:
-            for user in expired_users.data:
-                # Update their status
-                supabase.table("users").update({"is_premium": False}).eq("id", user["id"]).execute()
-                logging.info(f"Updated expired premium for user {user['telegram_id']}")
-    except Exception as e:
-        logging.error(f"Error checking expired premium: {e}")
-
-# Initialize the bot with periodic task
-async def on_startup():
-    # Schedule premium status check
-    asyncio.create_task(check_expired_premium())
