@@ -212,26 +212,51 @@ function closePremium() {
 }
 
 function goPremium() {
+    console.log("Opening bot chat...");
     const tg = window.Telegram.WebApp;
+    const btn = document.getElementById('btnBuy');
+    const statusEl = document.getElementById('paymentStatus');
     
-    // Send /premium command to bot via deeplink FIRST
-    const botLink = "tg://resolve?domain=IMAGIFHUB_bot&start=premium";
+    btn.innerText = "Opening...";
+    btn.disabled = true;
+    statusEl.textContent = "Opening Telegram...";
+    statusEl.style.color = "#ffd700";
     
-    // Try to open the link using Telegram's method
-    if (tg && tg.openLink) {
-        tg.openLink(botLink);
-    } else {
-        // Fallback: Open in new tab
+    // This method works on most Telegram clients
+    const botLink = "https://t.me/IMAGIFHUB_bot?start=premium";
+    
+    // Try to open in Telegram app
+    const tgLink = "tg://resolve?domain=IMAGIFHUB_bot&start=premium";
+    
+    // Create a hidden iframe to trigger the tg:// link
+    const iframe = document.createElement('iframe');
+    iframe.style.display = 'none';
+    iframe.src = tgLink;
+    document.body.appendChild(iframe);
+    
+    // Fallback to web after a delay
+    setTimeout(() => {
         window.open(botLink, '_blank');
-    }
-    
-    // Then minimize the mini app
-    if (tg && tg.close) {
-        // Small delay to ensure the link opens first
+        
+        // Close mini app after a short delay
         setTimeout(() => {
-            tg.close();
-        }, 300);
-    }
+            if (tg.close) {
+                tg.close();
+            }
+        }, 500);
+    }, 100);
+    
+    // Remove iframe
+    setTimeout(() => {
+        document.body.removeChild(iframe);
+    }, 1000);
+    
+    // Reset button after a delay
+    setTimeout(() => {
+        btn.innerText = "Go Premium";
+        btn.disabled = false;
+        statusEl.textContent = "";
+    }, 3000);
 }
 
 // --- TELEGRAM WEBAPP INIT ---
@@ -240,10 +265,13 @@ function initTelegramWebApp() {
     if (tg && tg.expand) {
         tg.expand();
         
-        // Log for debugging
-        console.log("Telegram WebApp initialized");
-        if (tg.initDataUnsafe && tg.initDataUnsafe.user) {
-            console.log("User ID:", tg.initDataUnsafe.user.id);
+        // Debug
+        console.log("Telegram WebApp version:", tg.version);
+        console.log("Available methods:", Object.keys(tg));
+        
+        const user = tg.initDataUnsafe?.user;
+        if (user) {
+            console.log("User ID:", user.id);
         }
     }
 }
@@ -304,7 +332,7 @@ window.goPremium = goPremium;
 window.handleAdClick = (event) => {
     if (!event.target.classList.contains('close-ad-btn')) {
         if (typeof currentAdLink === 'function') currentAdLink();
-        else if (typeof currentAdLink === 'string') window.open(currentAdLink, '_blank');
+        else if (typeof currentAdLink === "string") window.open(currentAdLink, '_blank');
         hideAd();
     }
 };
