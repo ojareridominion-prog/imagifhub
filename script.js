@@ -265,3 +265,72 @@ async function simplePayment(userId) {
 
 // Make it globally available
 window.simplePayment = simplePayment;
+
+// --- PREMIUM STATUS CHECK ---
+async function checkUserPremiumStatus() {
+    try {
+        const user = window.Telegram.WebApp?.initDataUnsafe?.user;
+        if (!user || !user.id) return false;
+        
+        // Check local storage first
+        if (localStorage.getItem("isPremium") === "true") {
+            return true;
+        }
+        
+        // You could also check with your backend API
+        // const response = await fetch(`/api/check-premium?user_id=${user.id}`);
+        // const data = await response.json();
+        // return data.is_premium || false;
+        
+        return false;
+    } catch (error) {
+        console.error("Premium check error:", error);
+        return false;
+    }
+}
+
+// Update UI based on premium status
+async function updatePremiumUI() {
+    const isPremium = await checkUserPremiumStatus();
+    
+    // Update menu button
+    const premiumBtn = document.querySelector('.premium-btn-menu');
+    if (premiumBtn) {
+        if (isPremium) {
+            premiumBtn.innerText = "PREMIUM ACTIVE";
+            premiumBtn.style.background = "#4CAF50";
+            premiumBtn.disabled = true;
+            premiumBtn.onclick = null;
+        } else {
+            premiumBtn.innerText = "UPGRADE NOW";
+            premiumBtn.style.background = "";
+            premiumBtn.disabled = false;
+            premiumBtn.onclick = openPremium;
+        }
+    }
+    
+    // Update modal button if modal is open
+    const modalBuyBtn = document.getElementById('btnBuy');
+    if (modalBuyBtn) {
+        if (isPremium) {
+            modalBuyBtn.innerText = "PREMIUM ACTIVE";
+            modalBuyBtn.style.background = "#4CAF50";
+            modalBuyBtn.disabled = true;
+            modalBuyBtn.onclick = null;
+        } else {
+            modalBuyBtn.innerText = "Go Premium";
+            modalBuyBtn.style.background = "#ffd700";
+            modalBuyBtn.disabled = false;
+            modalBuyBtn.onclick = goPremium;
+        }
+    }
+}
+
+// Call this on initialization
+document.addEventListener('DOMContentLoaded', async function() {
+    await updatePremiumUI();
+});
+
+// Make functions available globally
+window.checkUserPremiumStatus = checkUserPremiumStatus;
+window.updatePremiumUI = updatePremiumUI;
