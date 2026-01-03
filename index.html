@@ -140,25 +140,39 @@
     </div>
 
     <div id="premiumModal" class="modal-overlay">
-        <div class="premium-card">
-            <h1>✨ ImagifHub Premium</h1>
-            <div class="price-tag">
-                <span class="old-price">200 Stars</span>
-                <span class="new-price">149 Stars / 30 days</span>
-            </div>
-            <ul class="premium-list">
-                <li>🚫 No ads</li>
-                <li>✅ Support ImagifHub</li>
-                <li>⚡ Faster Downloads</li>
-            </ul>
-            <button id="btnBuy" class="btn-buy" onclick="goPremium()">
-                Go Premium
-            </button>
-            <button class="btn-close" onclick="closePremium()">
-                Close
-            </button>
-            <p id="paymentStatus" style="font-size:12px; margin-top:10px; opacity:0.7;"></p>
+    <div class="premium-card">
+        <h1>✨ ImagifHub Premium</h1>
+        <div class="price-tag">
+            <span class="old-price">200 Stars</span>
+            <span class="new-price">149 Stars / 30 days</span>
         </div>
+        <ul class="premium-list">
+            <li>🚫 No ads</li>
+            <li>✅ Support ImagifHub</li>
+            <li>⚡ Faster Downloads</li>
+        </ul>
+        
+        <div style="background: rgba(255, 215, 0, 0.1); padding: 15px; border-radius: 10px; margin: 20px 0; text-align: center;">
+            <p style="margin: 0; font-size: 14px; opacity: 0.9;">
+                ⚡ <b>Quick Purchase:</b><br>
+                Clicking "Go Premium" will open Telegram chat<br>
+                where you can complete your purchase securely.
+            </p>
+        </div>
+        
+        <button id="btnBuy" class="btn-buy" onclick="goPremium()">
+            Go Premium
+        </button>
+        
+        <div style="margin: 15px 0; font-size: 12px; opacity: 0.7; text-align: center;">
+            💫 100% Secure • Telegram Stars • 30-Day Access
+        </div>
+        
+        <button class="btn-close" onclick="closePremium()">
+            Close
+        </button>
+        <p id="paymentStatus" style="font-size:12px; margin-top:10px; opacity:0.7;"></p>
+    </div>
     </div>
 
     <script type="module" src="script.js"></script>
