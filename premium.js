@@ -1,8 +1,15 @@
 //
 
-const tg = window.Telegram?.WebApp;
-const user = tg?.initDataUnsafe?.user;
+// Initialize Telegram WebApp
+const tg = window.Telegram.WebApp;
+tg.ready(); // Tells Telegram the app is ready
+tg.expand(); // Expands to full height
+
+// Get User Data
+const user = tg.initDataUnsafe?.user;
 const telegramId = user?.id || null;
+
+console.log("User ID detected:", telegramId); // Helpful for debugging
 
 // --- ADMIN WHITELIST ---
 const ADMIN_IDS = [
