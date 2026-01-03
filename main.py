@@ -1,9 +1,10 @@
 import os
 import logging
 import random
+import asyncio
 import requests
 from datetime import datetime, timedelta
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from aiogram import Bot, Dispatcher, F
 from aiogram.types import Message, Update, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton, PreCheckoutQuery, ContentType
@@ -12,15 +13,14 @@ from aiogram.fsm.state import State, StatesGroup
 from aiogram.fsm.storage.memory import MemoryStorage
 from supabase import create_client, Client
 from aiogram.types import LabeledPrice
-
-#
+from aiogram.utils.token import TokenValidationError
 
 # ==================== CONFIG ====================
-BOT_TOKEN = os.environ["BOT_TOKEN"]
-ADMIN_ID = int(os.environ["ADMIN_ID"])
-IMGBB_API_KEY = os.environ["IMGBB_API_KEY"]
-SUPABASE_URL = os.environ["SUPABASE_URL"]
-SUPABASE_KEY = os.environ["SUPABASE_KEY"]
+BOT_TOKEN = os.environ.get("BOT_TOKEN", "")
+ADMIN_ID = int(os.environ.get("ADMIN_ID", 0))
+IMGBB_API_KEY = os.environ.get("IMGBB_API_KEY", "")
+SUPABASE_URL = os.environ.get("SUPABASE_URL", "")
+SUPABASE_KEY = os.environ.get("SUPABASE_KEY", "")
 
 # Initialize Clients
 app = FastAPI()
@@ -69,36 +69,29 @@ async def set_webhook(request: Request):
 
 # ==================== PAYMENT HANDLERS (STARS) ====================
 
-# 1. Pre-Checkout: Telegram checks if the bot is ready to accept the payment
-# 1. Answer Pre-checkout (Mandatory)
+# Pre-checkout handler
 @dp.pre_checkout_query()
 async def on_pre_checkout_query(pre_checkout_query: PreCheckoutQuery):
     await bot.answer_pre_checkout_query(pre_checkout_query.id, ok=True)
 
-# 2. Handle Successful Payment
+# Successful payment handler
 @dp.message(F.content_type == ContentType.SUCCESSFUL_PAYMENT)
 async def on_successful_payment(message: Message):
-    # Update user status in Supabase
-    user_id = message.from_user.id
-    supabase.table("users").update({"is_premium": True}).eq("id", user_id).execute()
-    await message.answer("🎉 Thank you! Your premium access is now active.")
-    
-    
-    
-    # Calculate expiry (30 days from now)
-    expires_at = datetime.utcnow() + timedelta(days=30)
-    
-    # Update Supabase
     try:
+        payment = message.successful_payment
+        telegram_id = message.from_user.id
+        
+        # Calculate expiry (30 days from now)
+        expires_at = datetime.utcnow() + timedelta(days=30)
+        
         # Record the payment
         supabase.table("payments").insert({
             "telegram_id": telegram_id,
             "provider": "telegram_stars",
-            "provider_token": "",
-            "amount": payment.total_amount, # amount in stars
-            "currency": payment.currency,   # "XTR"
+            "amount": payment.total_amount,
+            "currency": payment.currency,
             "payload": payment.invoice_payload,
-            "transaction_id": payment.provider_payment_charge_id
+            "transaction_id": payment.telegram_payment_charge_id
         }).execute()
 
         # Update User Premium Status
@@ -128,36 +121,64 @@ async def get_media(category: str = "all", search: str = ""):
     random.shuffle(data)
     return data[:50]
 
-# ==================== INVOICE ====================================
-
+# ==================== INVOICE ENDPOINT ====================
 
 @app.post("/api/create-invoice")
 async def create_invoice(request: Request):
-    data = await request.json()
-    user_id = data.get("user_id")
-    
-    # Create the invoice link
-    invoice_link = await bot.create_invoice_link(
-        title="Premium Access",
-        description="Unlock all premium features",
-        payload=f"premium_access_{user_id}",
-        provider_token="",  # Keep empty for Telegram Stars
-        currency="XTR",     # Must be XTR for Stars
-        prices=[LabeledPrice(label="Stars", amount=149)]  # Amount in Stars
-    )
-    
-    return {"invoice_url": invoice_link}
-    
+    try:
+        data = await request.json()
+        user_id = data.get("user_id")
         
+        if not user_id:
+            raise HTTPException(status_code=400, detail="User ID required")
+        
+        # Create the invoice link
+        invoice_link = await bot.create_invoice_link(
+            title="IMAGIFHUB Premium",
+            description="30 days of ad-free experience",
+            payload=f"premium_{user_id}",
+            provider_token="",  # Empty for Telegram Stars
+            currency="XTR",     # Telegram Stars currency
+            prices=[LabeledPrice(label="Premium Access", amount=149)]
+        )
+        
+        return {"invoice_url": invoice_link}
+        
+    except Exception as e:
+        logging.error(f"Create invoice error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 # ==================== BOT LOGIC (ADMIN PANEL) ====================
 
 @dp.message(F.text == "/start")
 async def cmd_start(message: Message):
-    await message.answer("IMAGIFHUB isn't just an app—it’s your personal portal to a world of endless, breathtaking beauty. Don't wait, click let's go 🚀🚀 to continue")
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="🚀 Let's Go!", web_app={"url": "https://imagifhub.vercel.app"})],
+        [InlineKeyboardButton(text="⭐ Go Premium", callback_data="premium")]
+    ])
+    await message.answer(
+        "IMAGIFHUB isn't just an app—it's your personal portal to a world of endless, breathtaking beauty.\n\nDon't wait, click let's go 🚀🚀 to continue",
+        reply_markup=keyboard
+    )
 
-# ... (Keep your existing admin handlers here) ...
-# Ensure you include the admin handlers from your original main.py below:
+@dp.callback_query(F.data == "premium")
+async def premium_callback(call: CallbackQuery):
+    # Create invoice for this user
+    invoice_link = await bot.create_invoice_link(
+        title="IMAGIFHUB Premium",
+        description="30 days of ad-free experience",
+        payload=f"premium_{call.from_user.id}",
+        provider_token="",
+        currency="XTR",
+        prices=[LabeledPrice(label="Premium Access", amount=149)]
+    )
+    
+    await call.message.answer(
+        "✨ Upgrade to Premium for an ad-free experience!\n\n"
+        f"Click here to pay: {invoice_link}",
+        parse_mode="HTML"
+    )
+    await call.answer()
 
 @dp.message(F.from_user.id == ADMIN_ID, F.text == "/admin")
 async def admin_cmd(message: Message, state: FSMContext):
@@ -212,4 +233,3 @@ async def up_final(message: Message, state: FSMContext):
     }).execute()
     await message.answer(f"✅ Successfully added to {user_data['category']}!")
     await state.clear()
-    
