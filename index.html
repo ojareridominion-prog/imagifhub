@@ -182,65 +182,40 @@
 
         // 3. Process Payment (Calls your main.py)
         async function goPremium() {
-            const user = tg.initDataUnsafe?.user;
-            const btn = document.getElementById("btnBuy");
-            const status = document.getElementById("paymentStatus");
+    const btn = document.querySelector('.premium-btn');
+    const user = window.Telegram.WebApp.initDataUnsafe.user;
 
-            if (!user || !user.id) {
-                if(status) status.innerText = "Error: Please open from Telegram.";
-                return;
-            }
+    if (!user) return alert("Please open this in Telegram");
 
-            // UI Loading State
-            btn.innerText = "Creating Invoice...";
-            btn.disabled = true;
-            if(status) status.innerText = "";
+    btn.innerText = "Loading...";
+    btn.disabled = true;
 
-            try {
-                // Call your Python Backend
-                const response = await fetch('/api/create-invoice', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ telegram_id: user.id })
-                });
+    try {
+        const response = await fetch('/api/create-invoice', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ user_id: user.id })
+        });
 
-                const data = await response.json();
+        const data = await response.json();
 
-                if (data.error || !data.invoice_url) {
-                    throw new Error(data.error || "No invoice link returned");
+        if (data.invoice_url) {
+            // This opens the native Telegram payment sheet
+            window.Telegram.WebApp.openInvoice(data.invoice_url, function(status) {
+                if (status === 'paid') {
+                    window.Telegram.WebApp.showPopup({ message: "Payment Successful!" });
+                    localStorage.setItem("isPremium", "true");
                 }
-
-                // Open Telegram Invoice
-                tg.openInvoice(data.invoice_url, function(statusVal) {
-                    if (statusVal === "paid") {
-                        tg.showPopup({
-                            title: "Upgrade Successful!",
-                            message: "Welcome to ImagifHub Premium! 🌟",
-                            buttons: [{type: "ok"}]
-                        });
-                        
-                        // Hide Ads Immediately
-                        localStorage.setItem("isPremium", "true");
-                        closePremium();
-                        
-                    } else if (statusVal === "cancelled") {
-                        // User closed payment window
-                    } else {
-                        if(status) status.innerText = "Payment failed.";
-                    }
-                    
-                    // Reset Button
-                    btn.innerText = "Go Premium";
-                    btn.disabled = false;
-                });
-
-            } catch (error) {
-                console.error("Payment Error:", error);
-                if(status) status.innerText = "Connection error. Try again.";
-                btn.innerText = "Go Premium";
-                btn.disabled = false;
-            }
+            });
         }
+    } catch (error) {
+        console.error("Payment Error:", error);
+    } finally {
+        btn.innerText = "Go Premium";
+        btn.disabled = false;
+    }
+                }
+        
 
         // Expose functions to window so HTML buttons can find them
         window.openPremium = openPremium;
