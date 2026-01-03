@@ -33,7 +33,7 @@ window.goPremium = async function() {
 
     try {
         // 1. Get the invoice URL from your API
-        const res = await fetch('/api/create-stars-invoice', {
+        const res = await fetch('/api/create-invoice', {                                              
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ telegram_id: telegramId })
