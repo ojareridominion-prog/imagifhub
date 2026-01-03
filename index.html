@@ -177,7 +177,7 @@
 
     <script type="module" src="script.js"></script>
 
-                <script>
+     <script>
     const tg = window.Telegram.WebApp;
     tg.expand();
     
@@ -200,9 +200,9 @@
         document.getElementById('premiumModal').classList.remove('active');
     }
 
-    // 3. NEW: Process Payment by opening Telegram chat
+    // 3. NEW: Process Payment by opening Telegram chat with /premium
     async function goPremium() {
-        console.log("goPremium called - opening Telegram chat");
+        console.log("goPremium called - opening Telegram chat with /premium");
         const btn = document.getElementById('btnBuy');
         const statusEl = document.getElementById('paymentStatus');
         
@@ -212,56 +212,38 @@
         statusEl.style.color = "#ffd700";
         
         try {
-            // Close the mini app first
+            // Close the mini app
             tg.close();
             
-            // After a short delay, open the bot chat with /premium command
+            // Open the bot chat with /premium command
             setTimeout(() => {
-                // This will open the bot chat in Telegram
                 const botUsername = "IMAGIFHUB_bot"; // Your bot's username without @
+                
+                // Use Telegram deep linking to send /premium command
                 const deeplink = `https://t.me/${botUsername}?start=premium`;
                 
-                // For mobile devices, we need to open the deeplink
+                // For mobile devices
                 if (/Android|iPhone|iPad|iPod/i.test(navigator.userAgent)) {
                     window.location.href = deeplink;
                 } else {
                     // Fallback for desktop
                     window.open(deeplink, '_blank');
                 }
-            }, 500);
+            }, 300);
             
         } catch (error) {
             console.error("Error opening Telegram:", error);
             statusEl.textContent = "Error: Could not open Telegram";
             statusEl.style.color = "#ff6b6b";
             
+            // Try alternative method
+            setTimeout(() => {
+                const botUsername = "IMAGIFHUB_bot";
+                window.open(`https://t.me/${botUsername}`, '_blank');
+            }, 1000);
+            
             btn.innerText = "Try Again";
             btn.disabled = false;
-        }
-    }
-
-    // 4. Alternative method using Telegram WebApp.sendData
-    function goPremiumDirect() {
-        // Send data to bot that user wants premium
-        tg.sendData(JSON.stringify({
-            action: "get_premium",
-            user_id: tg.initDataUnsafe?.user?.id
-        }));
-        tg.close();
-    }
-
-    // 5. Check if user is already premium
-    async function checkPremiumStatus() {
-        const user = tg.initDataUnsafe?.user;
-        if (!user || !user.id) return false;
-        
-        try {
-            // You could implement an API endpoint to check premium status
-            // For now, we'll check localStorage
-            return localStorage.getItem("isPremium") === "true";
-        } catch (error) {
-            console.error("Error checking premium:", error);
-            return false;
         }
     }
 
@@ -269,7 +251,6 @@
     window.openPremium = openPremium;
     window.closePremium = closePremium;
     window.goPremium = goPremium;
-    window.goPremiumDirect = goPremiumDirect;
 
     // Initialize on load
     document.addEventListener('DOMContentLoaded', async function() {
@@ -278,15 +259,17 @@
             console.log("Telegram User ID:", user.id);
             localStorage.setItem("telegramUserId", user.id);
             
-            // Check premium status and update UI
-            const isPremium = await checkPremiumStatus();
+            // Check if user is premium (optional - you can query your backend)
+            // For now, we'll just check localStorage
+            const isPremium = localStorage.getItem("isPremium") === "true";
+            
             if (isPremium) {
                 const premiumBtn = document.querySelector('.premium-btn-menu');
                 if (premiumBtn) {
                     premiumBtn.innerText = "PREMIUM ACTIVE";
                     premiumBtn.style.background = "#4CAF50";
                     premiumBtn.disabled = true;
-                    premiumBtn.onclick = null; // Remove click handler
+                    premiumBtn.onclick = null;
                 }
                 
                 // Also update the modal button
@@ -299,52 +282,15 @@
                 }
             }
         }
-        
-        // Check if we came back from a payment
-        const urlParams = new URLSearchParams(window.location.search);
-        if (urlParams.has('payment_success')) {
-            tg.showPopup({
-                title: "Success! 🎉",
-                message: "Payment completed! You are now a Premium member.",
-                buttons: [{ type: "ok" }]
-            });
-            localStorage.setItem("isPremium", "true");
-            
-            // Update UI
-            const premiumBtn = document.querySelector('.premium-btn-menu');
-            if (premiumBtn) {
-                premiumBtn.innerText = "PREMIUM ACTIVE";
-                premiumBtn.style.background = "#4CAF50";
-                premiumBtn.disabled = true;
-            }
-            
-            // Clean URL
-            window.history.replaceState({}, document.title, window.location.pathname);
-        }
     });
     
-    // Handle data received from bot
+    // Listen for when the mini app is reopened
     tg.onEvent('viewportChanged', function(e) {
-        console.log('Viewport changed:', e);
+        console.log('Viewport changed, user might have returned from payment:', e);
+        // Check if premium status changed
+        // You could call an API here to check real premium status
     });
-    
-    // Listen for messages from bot
-    window.addEventListener('message', function(event) {
-        if (event.data && event.data.type === 'payment_status') {
-            if (event.data.status === 'success') {
-                localStorage.setItem("isPremium", "true");
-                // Update UI
-                const premiumBtn = document.querySelector('.premium-btn-menu');
-                if (premiumBtn) {
-                    premiumBtn.innerText = "PREMIUM ACTIVE";
-                    premiumBtn.style.background = "#4CAF50";
-                    premiumBtn.disabled = true;
-                }
-            }
-        }
-    });
-            </script>
-
+     </script>               
     
 </body>
 </html>
