@@ -3,6 +3,7 @@ import logging
 import random
 import asyncio
 import requests
+import json
 from datetime import datetime, timedelta
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -13,7 +14,6 @@ from aiogram.fsm.state import State, StatesGroup
 from aiogram.fsm.storage.memory import MemoryStorage
 from supabase import create_client, Client
 from aiogram.types import LabeledPrice
-from aiogram.utils.token import TokenValidationError
 
 # ==================== CONFIG ====================
 BOT_TOKEN = os.environ.get("BOT_TOKEN", "")
@@ -146,7 +146,49 @@ async def create_invoice(request: Request):
         
     except Exception as e:
         logging.error(f"Create invoice error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        return {"error": str(e), "status": "failed"}
+
+# Add a GET endpoint for testing
+@app.get("/api/create-invoice")
+async def create_invoice_get(user_id: int = None):
+    if not user_id:
+        return {"error": "user_id parameter required"}
+    
+    try:
+        invoice_link = await bot.create_invoice_link(
+            title="IMAGIFHUB Premium",
+            description="30 days of ad-free experience",
+            payload=f"premium_{user_id}",
+            provider_token="",
+            currency="XTR",
+            prices=[LabeledPrice(label="Premium Access", amount=149)]
+        )
+        return {"invoice_url": invoice_link}
+    except Exception as e:
+        return {"error": str(e), "status": "failed"}
+
+# ==================== SIMPLIFIED PAYMENT FOR MINI APP ====================
+
+@app.get("/api/get-payment-link")
+async def get_payment_link(user_id: int):
+    """Simple endpoint for mini app to get payment link"""
+    try:
+        invoice_link = await bot.create_invoice_link(
+            title="IMAGIFHUB Premium",
+            description="30 days of ad-free experience",
+            payload=f"premium_{user_id}",
+            provider_token="",
+            currency="XTR",
+            prices=[LabeledPrice(label="Premium Access", amount=149)]
+        )
+        return {
+            "success": True,
+            "invoice_url": invoice_link,
+            "user_id": user_id
+        }
+    except Exception as e:
+        logging.error(f"Payment link error: {e}")
+        return {"success": False, "error": str(e)}
 
 # ==================== BOT LOGIC (ADMIN PANEL) ====================
 
