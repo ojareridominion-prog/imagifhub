@@ -70,15 +70,19 @@ async def set_webhook(request: Request):
 # ==================== PAYMENT HANDLERS (STARS) ====================
 
 # 1. Pre-Checkout: Telegram checks if the bot is ready to accept the payment
+# 1. Answer Pre-checkout (Mandatory)
 @dp.pre_checkout_query()
-async def process_pre_checkout_query(pre_checkout_query: PreCheckoutQuery):
+async def on_pre_checkout_query(pre_checkout_query: PreCheckoutQuery):
     await bot.answer_pre_checkout_query(pre_checkout_query.id, ok=True)
 
-# Also handle the successful payment to give the user their items
+# 2. Handle Successful Payment
 @dp.message(F.content_type == ContentType.SUCCESSFUL_PAYMENT)
-async def successful_payment(message: Message):
-    # Update your Supabase database here
-    await message.answer("Success! You are now a Premium member.")
+async def on_successful_payment(message: Message):
+    # Update user status in Supabase
+    user_id = message.from_user.id
+    supabase.table("users").update({"is_premium": True}).eq("id", user_id).execute()
+    await message.answer("🎉 Thank you! Your premium access is now active.")
+    
     
     
     # Calculate expiry (30 days from now)
