@@ -164,64 +164,113 @@
     <script type="module" src="script.js"></script>
 
     <script>
-        const tg = window.Telegram.WebApp;
-        tg.expand(); // Make sure it uses full height
-        
-        // 1. Open Premium Popup
-        function openPremium() {
-            // Close menu if open
-            document.getElementById('menuPanel').classList.remove('open');
-            // Show modal
-            document.getElementById('premiumModal').classList.add('active');
-        }
-
-        // 2. Close Premium Popup
-        function closePremium() {
-            document.getElementById('premiumModal').classList.remove('active');
-        }
-
-        // 3. Process Payment (Calls your main.py)
-        async function goPremium() {
-    const btn = document.querySelector('.premium-btn');
-    const user = window.Telegram.WebApp.initDataUnsafe.user;
-
-    if (!user) return alert("Please open this in Telegram");
-
-    btn.innerText = "Loading...";
-    btn.disabled = true;
-
-    try {
-        const response = await fetch('/api/create-invoice', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ user_id: user.id })
-        });
-
-        const data = await response.json();
-
-        if (data.invoice_url) {
-            // This opens the native Telegram payment sheet
-            window.Telegram.WebApp.openInvoice(data.invoice_url, function(status) {
-                if (status === 'paid') {
-                    window.Telegram.WebApp.showPopup({ message: "Payment Successful!" });
-                    localStorage.setItem("isPremium", "true");
-                }
-            });
-        }
-    } catch (error) {
-        console.error("Payment Error:", error);
-    } finally {
-        btn.innerText = "Go Premium";
-        btn.disabled = false;
+    const tg = window.Telegram.WebApp;
+    tg.expand();
+    tg.BackButton.hide(); // Hide back button if not needed
+    
+    // 1. Open Premium Popup
+    function openPremium() {
+        document.getElementById('menuPanel').classList.remove('open');
+        document.getElementById('premiumModal').classList.add('active');
     }
-                }
-        
 
-        // Expose functions to window so HTML buttons can find them
-        window.openPremium = openPremium;
-        window.closePremium = closePremium;
-        window.goPremium = goPremium;
-    </script>
+    // 2. Close Premium Popup
+    function closePremium() {
+        document.getElementById('premiumModal').classList.remove('active');
+    }
+
+    // 3. Process Payment
+    async function goPremium() {
+        const btn = document.getElementById('btnBuy');
+        const statusEl = document.getElementById('paymentStatus');
+        
+        // Get user from Telegram Web App
+        const user = tg.initDataUnsafe?.user;
+        
+        if (!user || !user.id) {
+            statusEl.textContent = "Error: Please open in Telegram app";
+            statusEl.style.color = "#ff6b6b";
+            return;
+        }
+        
+        btn.innerText = "Creating invoice...";
+        btn.disabled = true;
+        statusEl.textContent = "";
+        
+        try {
+            const response = await fetch('/api/create-invoice', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ user_id: user.id })
+            });
+            
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
+            }
+            
+            const data = await response.json();
+            
+            if (data.invoice_url) {
+                statusEl.textContent = "Opening payment...";
+                statusEl.style.color = "#ffd700";
+                
+                // Open invoice in Telegram
+                tg.openInvoice(data.invoice_url, function(status) {
+                    if (status === 'paid') {
+                        tg.showPopup({
+                            title: "Success! 🎉",
+                            message: "Thank you for upgrading to Premium!",
+                            buttons: [{ type: "ok" }]
+                        });
+                        localStorage.setItem("isPremium", "true");
+                        closePremium();
+                        statusEl.textContent = "Payment successful!";
+                        statusEl.style.color = "#66ffb2";
+                    } else if (status === 'cancelled') {
+                        statusEl.textContent = "Payment cancelled";
+                        statusEl.style.color = "#ffa500";
+                    } else if (status === 'failed') {
+                        statusEl.textContent = "Payment failed";
+                        statusEl.style.color = "#ff6b6b";
+                    }
+                });
+            } else {
+                throw new Error("No invoice URL received");
+            }
+        } catch (error) {
+            console.error("Payment Error:", error);
+            statusEl.textContent = `Error: ${error.message}`;
+            statusEl.style.color = "#ff6b6b";
+            
+            tg.showPopup({
+                title: "Error",
+                message: "Failed to create payment. Please try again.",
+                buttons: [{ type: "ok" }]
+            });
+        } finally {
+            btn.innerText = "Go Premium";
+            btn.disabled = false;
+            setTimeout(() => {
+                statusEl.textContent = "";
+            }, 5000);
+        }
+    }
+
+    // Expose functions globally
+    window.openPremium = openPremium;
+    window.closePremium = closePremium;
+    window.goPremium = goPremium;
+
+    // Initialize user on load
+    document.addEventListener('DOMContentLoaded', function() {
+        const user = tg.initDataUnsafe?.user;
+        if (user) {
+            console.log("Telegram User ID:", user.id);
+            // You can store this in localStorage for later use
+            localStorage.setItem("telegramUserId", user.id);
+        }
+    });
+        </script>
     
 </body>
 </html>
