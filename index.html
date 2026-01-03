@@ -166,11 +166,10 @@
     <script>
     const tg = window.Telegram.WebApp;
     tg.expand();
-    tg.BackButton.hide();
     
+    // Debug info
     console.log("Telegram WebApp initialized:", {
-        initData: tg.initData,
-        initDataUnsafe: tg.initDataUnsafe,
+        user: tg.initDataUnsafe?.user,
         platform: tg.platform,
         version: tg.version
     });
@@ -187,7 +186,7 @@
         document.getElementById('premiumModal').classList.remove('active');
     }
 
-    // 3. Process Payment - DEBUG VERSION
+    // 3. Process Payment - ULTRA SIMPLE VERSION
     async function goPremium() {
         console.log("goPremium called");
         const btn = document.getElementById('btnBuy');
@@ -195,7 +194,6 @@
         
         // Get user from Telegram Web App
         const user = tg.initDataUnsafe?.user;
-        console.log("Telegram user:", user);
         
         if (!user || !user.id) {
             statusEl.textContent = "Error: Please open in Telegram app";
@@ -206,47 +204,31 @@
         
         btn.innerText = "Creating invoice...";
         btn.disabled = true;
-        statusEl.textContent = "Creating payment link...";
-        statusEl.style.color = "#ffd700";
+        statusEl.textContent = "";
         
         try {
-            console.log("Calling API with user_id:", user.id);
-            // Use absolute URL to avoid any routing issues
-            const apiUrl = `https://imagifhub.vercel.app/api/get-payment-link?user_id=${user.id}`;
-            console.log("API URL:", apiUrl);
+            console.log("Getting payment link for user:", user.id);
             
-            const response = await fetch(apiUrl);
-            console.log("Response status:", response.status);
+            // Direct API call - no complex routing
+            const response = await fetch(`https://imagifhub.vercel.app/api/get-payment-link?user_id=${user.id}`);
             
-            const responseText = await response.text();
-            console.log("Response text:", responseText);
-            
-            let data;
-            try {
-                data = JSON.parse(responseText);
-                console.log("Parsed data:", data);
-            } catch (e) {
-                console.error("Failed to parse JSON:", e);
-                throw new Error(`Invalid JSON response: ${responseText.substring(0, 100)}`);
+            if (!response.ok) {
+                throw new Error(`API error: ${response.status}`);
             }
             
+            const data = await response.json();
+            console.log("API response:", data);
+            
             if (data.success && data.invoice_url) {
+                console.log("Opening invoice:", data.invoice_url);
                 statusEl.textContent = "Opening payment...";
-                console.log("Invoice URL received:", data.invoice_url);
                 
                 // Open the invoice in Telegram
                 tg.openInvoice(data.invoice_url, function(status) {
-                    console.log("Payment status:", status);
+                    console.log("Payment status from Telegram:", status);
                     
                     if (status === 'paid') {
                         // Success!
-                        tg.showPopup({
-                            title: "Success! 🎉",
-                            message: "You are now a Premium member!",
-                            buttons: [{ type: "ok" }]
-                        });
-                        
-                        // Update local storage
                         localStorage.setItem("isPremium", "true");
                         
                         // Update UI
@@ -257,28 +239,27 @@
                             premiumBtn.disabled = true;
                         }
                         
+                        // Show success message
+                        tg.showPopup({
+                            title: "Success! 🎉",
+                            message: "You are now a Premium member!",
+                            buttons: [{ type: "ok" }]
+                        });
+                        
                         // Close modal
                         closePremium();
-                        
-                        // Clear status
-                        statusEl.textContent = "Payment successful! Premium activated.";
-                        statusEl.style.color = "#66ffb2";
                         
                     } else if (status === 'cancelled') {
                         statusEl.textContent = "Payment cancelled";
                         statusEl.style.color = "#ffa500";
                     } else if (status === 'failed') {
-                        statusEl.textContent = "Payment failed. Please try again.";
+                        statusEl.textContent = "Payment failed";
                         statusEl.style.color = "#ff6b6b";
-                    } else {
-                        statusEl.textContent = `Status: ${status}`;
-                        statusEl.style.color = "#aaa";
                     }
                 });
                 
             } else {
-                console.error("API returned error:", data.error);
-                throw new Error(data.error || "Failed to create payment");
+                throw new Error(data.error || "Failed to create payment link");
             }
             
         } catch (error) {
@@ -286,16 +267,16 @@
             statusEl.textContent = `Error: ${error.message}`;
             statusEl.style.color = "#ff6b6b";
             
+            // Show error popup
             tg.showPopup({
                 title: "Error",
-                message: "Could not create payment. Please try again later.",
+                message: "Could not create payment. Please try again.",
                 buttons: [{ type: "ok" }]
             });
         } finally {
             btn.innerText = "Go Premium";
             btn.disabled = false;
             setTimeout(() => {
-                if (statusEl.textContent.includes("successful")) return;
                 statusEl.textContent = "";
             }, 5000);
         }
@@ -306,12 +287,12 @@
     window.closePremium = closePremium;
     window.goPremium = goPremium;
 
-    // Initialize user on load
+    // Initialize on load
     document.addEventListener('DOMContentLoaded', function() {
         const user = tg.initDataUnsafe?.user;
         if (user) {
             console.log("Telegram User ID:", user.id);
-            localStorage.setItem("telegramUserId", user.id.toString());
+            localStorage.setItem("telegramUserId", user.id);
             
             // Update premium button if already premium
             if (localStorage.getItem("isPremium") === "true") {
@@ -325,6 +306,7 @@
         }
     });
     </script>
+
 
     
 </body>
