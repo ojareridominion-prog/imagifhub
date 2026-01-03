@@ -35,7 +35,7 @@ const themesList = [
     {id: "theme-violet", top: "#16001f", bottom: "#f0b3ff"}
 ];
 
-// --- MUSIC LOGIC (SHUFFLE POOL) ---
+// --- MUSIC LOGIC ---
 function playRandomMusic(cat) {
     const audio = document.getElementById('bgMusic');
     const allSongs = musicLibrary[cat] || musicLibrary["Default"];
@@ -133,7 +133,7 @@ async function loadFeed(cat, search="") {
     }
 }
 
-// --- UI FUNCTIONS ---
+// --- UI & THEME FUNCTIONS ---
 function toggleMenu() { 
     document.getElementById('menuPanel').classList.toggle('open'); 
 }
@@ -201,17 +201,7 @@ function maybeShowAd() {
     else hideAd();
 }
 
-function handleAdClick(event) {
-    if (!event.target.classList.contains('close-ad-btn')) {
-        if (typeof currentAdLink === 'function') currentAdLink();
-        else if (typeof currentAdLink === 'string') window.open(currentAdLink, '_blank');
-        hideAd();
-    }
-}
-
-// --- PREMIUM FUNCTIONS ---
-const tg = window.Telegram.WebApp;
-
+// --- PREMIUM MODAL FUNCTIONS ---
 function openPremium() {
     document.getElementById('menuPanel').classList.remove('open');
     document.getElementById('premiumModal').classList.add('active');
@@ -222,122 +212,44 @@ function closePremium() {
 }
 
 function goPremium() {
-    console.log("Opening bot chat...");
-    const btn = document.getElementById('btnBuy');
-    const statusEl = document.getElementById('paymentStatus');
+    const tg = window.Telegram.WebApp;
     
-    btn.innerText = "Opening...";
-    btn.disabled = true;
-    statusEl.textContent = "Opening Telegram...";
-    statusEl.style.color = "#ffd700";
-    
-    try {
-        const botLink = "tg://resolve?domain=IMAGIFHUB_bot&start=premium";
-        
-        if (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.openLink) {
-            window.Telegram.WebApp.openLink(botLink);
-        } else {
-            window.location.href = botLink;
-        }
-        
-        setTimeout(() => {
-            if (tg.close) tg.close();
-        }, 300);
-        
-    } catch (error) {
-        console.error("Error:", error);
-        window.open("https://t.me/IMAGIFHUB_bot", '_blank');
-        
-        setTimeout(() => {
-            if (tg.close) tg.close();
-        }, 500);
+    // Minimize the mini app
+    if (tg.close) {
+        tg.close();
     }
     
-    setTimeout(() => {
-        btn.innerText = "Go Premium";
-        btn.disabled = false;
-        statusEl.textContent = "";
-    }, 3000);
-}
-
-function goPremiumSimple() {
-    const botLink = "https://t.me/IMAGIFHUB_bot?start=premium";
-    const tgLink = "tg://resolve?domain=IMAGIFHUB_bot&start=premium";
+    // Send /premium command to bot via deeplink
+    const botLink = "tg://resolve?domain=IMAGIFHUB_bot&start=premium";
     
-    const iframe = document.createElement('iframe');
-    iframe.style.display = 'none';
-    iframe.src = tgLink;
-    document.body.appendChild(iframe);
-    
-    setTimeout(() => {
+    // Try to open the link using Telegram's method
+    if (tg.openLink) {
+        tg.openLink(botLink);
+    } else {
+        // Fallback
         window.open(botLink, '_blank');
-        setTimeout(() => { if (tg.close) tg.close(); }, 500);
-    }, 100);
-    
-    setTimeout(() => {
-        document.body.removeChild(iframe);
-    }, 1000);
-}
-
-// --- PREMIUM STATUS CHECK ---
-async function checkUserPremiumStatus() {
-    try {
-        const user = window.Telegram.WebApp?.initDataUnsafe?.user;
-        if (!user || !user.id) return false;
-        
-        if (localStorage.getItem("isPremium") === "true") {
-            return true;
-        }
-        
-        return false;
-    } catch (error) {
-        console.error("Premium check error:", error);
-        return false;
     }
 }
 
-async function updatePremiumUI() {
-    const isPremium = await checkUserPremiumStatus();
-    
-    const premiumBtn = document.querySelector('.premium-btn-menu');
-    if (premiumBtn) {
-        if (isPremium) {
-            premiumBtn.innerText = "PREMIUM ACTIVE";
-            premiumBtn.style.background = "#4CAF50";
-            premiumBtn.disabled = true;
-            premiumBtn.onclick = null;
-        } else {
-            premiumBtn.innerText = "UPGRADE NOW";
-            premiumBtn.style.background = "";
-            premiumBtn.disabled = false;
-            premiumBtn.onclick = openPremium;
-        }
-    }
-    
-    const modalBuyBtn = document.getElementById('btnBuy');
-    if (modalBuyBtn) {
-        if (isPremium) {
-            modalBuyBtn.innerText = "PREMIUM ACTIVE";
-            modalBuyBtn.style.background = "#4CAF50";
-            modalBuyBtn.disabled = true;
-            modalBuyBtn.onclick = null;
-        } else {
-            modalBuyBtn.innerText = "Go Premium";
-            modalBuyBtn.style.background = "#ffd700";
-            modalBuyBtn.disabled = false;
-            modalBuyBtn.onclick = goPremium;
-        }
+// --- TELEGRAM WEBAPP INIT ---
+function initTelegramWebApp() {
+    const tg = window.Telegram.WebApp;
+    if (tg && tg.expand) {
+        tg.expand();
     }
 }
 
 // --- INITIALIZATION ---
 window.onload = () => {
-    // Setup Categories
+    // 1. Initialize Telegram WebApp
+    initTelegramWebApp();
+    
+    // 2. Setup Categories
     document.getElementById('catBar').innerHTML = categories.map(c => 
         `<button class="cat-btn" onclick="loadFeed('${c}')">${c}</button>`
     ).join('');
     
-    // Setup Themes
+    // 3. Setup Themes
     document.getElementById('themeGrid').innerHTML = themesList.map(t => `
         <div class="theme-circle" onclick="applyTheme('${t.id}')">
             <div style="background:${t.top}"></div>
@@ -345,32 +257,28 @@ window.onload = () => {
         </div>
     `).join('');
 
-    // Audio Ended Listener
+    // 4. Audio Ended Listener
     const audioElem = document.getElementById('bgMusic');
     audioElem.addEventListener('ended', () => {
-        console.log("Song ended, picking next track...");
         playRandomMusic(currentCategory); 
     });
 
-    // Load Saved Theme & Initial Feed
+    // 5. Load Saved Theme & Initial Feed
     const savedTheme = localStorage.getItem("imagifhub-theme") || "theme-black";
     applyTheme(savedTheme);
     loadFeed("Discover");
-};
-
-document.addEventListener('DOMContentLoaded', async function() {
-    // Telegram WebApp Setup
-    tg.expand();
-    console.log("Telegram WebApp version:", tg.version);
     
-    const user = tg.initDataUnsafe?.user;
-    if (user) {
-        console.log("User ID:", user.id);
+    // 6. Update premium UI if user is already premium
+    if (localStorage.getItem("isPremium") === "true") {
+        const premiumBtn = document.querySelector('.premium-btn-menu');
+        if (premiumBtn) {
+            premiumBtn.innerText = "PREMIUM ACTIVE";
+            premiumBtn.style.background = "#4CAF50";
+            premiumBtn.disabled = true;
+            premiumBtn.onclick = null;
+        }
     }
-    
-    // Update Premium Status
-    await updatePremiumUI();
-});
+};
 
 // --- GLOBAL EXPOSURE ---
 window.loadFeed = loadFeed;
@@ -380,26 +288,14 @@ window.triggerSearch = triggerSearch;
 window.applyTheme = applyTheme;
 window.shareBot = shareBot;
 window.hideAd = hideAd;
-window.handleAdClick = handleAdClick;
-window.simplePayment = simplePayment;
-window.checkUserPremiumStatus = checkUserPremiumStatus;
-window.updatePremiumUI = updatePremiumUI;
 window.openPremium = openPremium;
 window.closePremium = closePremium;
-window.goPremium = goPremiumSimple;
+window.goPremium = goPremium;
 
-// Simple Payment Fallback
-async function simplePayment(userId) {
-    try {
-        const response = await fetch(`https://imagifhub.vercel.app/api/get-payment-link?user_id=${userId}`);
-        const data = await response.json();
-        
-        if (data.success && data.invoice_url) {
-            return data.invoice_url;
-        }
-        return null;
-    } catch (e) {
-        console.error("Simple payment error:", e);
-        return null;
+window.handleAdClick = (event) => {
+    if (!event.target.classList.contains('close-ad-btn')) {
+        if (typeof currentAdLink === 'function') currentAdLink();
+        else if (typeof currentAdLink === 'string') window.open(currentAdLink, '_blank');
+        hideAd();
     }
-                                          }
+};
