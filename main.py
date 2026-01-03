@@ -13,7 +13,6 @@ from aiogram.fsm.state import State, StatesGroup
 from aiogram.fsm.storage.memory import MemoryStorage
 from supabase import create_client, Client
 from aiogram.types import LabeledPrice
-from aiogram.utils.token import TokenValidationError
 
 # ==================== CONFIG ====================
 BOT_TOKEN = os.environ.get("BOT_TOKEN", "")
@@ -101,7 +100,12 @@ async def on_successful_payment(message: Message):
             "premium_expires_at": expires_at.isoformat()
         }).execute()
 
-        await message.answer("🎉 Payment successful! You are now an IMAGIFHUB Premium member.")
+        # Send congratulatory message with premium status
+        await message.answer(
+            "🎉 Payment successful! You are now an IMAGIFHUB Premium member!\n\n"
+            "Your premium access is active for 30 days. "
+            "Use /premium to check your status anytime."
+        )
         
     except Exception as e:
         logging.error(f"Payment DB Error: {e}")
@@ -121,50 +125,107 @@ async def get_media(category: str = "all", search: str = ""):
     random.shuffle(data)
     return data[:50]
 
-# ==================== INVOICE ENDPOINT ====================
-
-@app.post("/api/create-invoice")
-async def create_invoice(request: Request):
-    try:
-        data = await request.json()
-        user_id = data.get("user_id")
-        
-        if not user_id:
-            raise HTTPException(status_code=400, detail="User ID required")
-        
-        # Create the invoice link
-        invoice_link = await bot.create_invoice_link(
-            title="IMAGIFHUB Premium",
-            description="30 days of ad-free experience",
-            payload=f"premium_{user_id}",
-            provider_token="",  # Empty for Telegram Stars
-            currency="XTR",     # Telegram Stars currency
-            prices=[LabeledPrice(label="Premium Access", amount=149)]
-        )
-        
-        return {"invoice_url": invoice_link}
-        
-    except Exception as e:
-        logging.error(f"Create invoice error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-# ==================== BOT LOGIC (ADMIN PANEL) ====================
+# ==================== BOT LOGIC ====================
 
 @dp.message(F.text == "/start")
 async def cmd_start(message: Message):
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="🚀 Let's Go!", web_app={"url": "https://ojareridominion-prog.github.io/imagifhub/"})],
+        [InlineKeyboardButton(text="🚀 Let's Go!", web_app={"url": "https://imagifhub.vercel.app/"})],
         [InlineKeyboardButton(text="📢 Official channel", url="https://t.me/imagifhub")],
-        [InlineKeyboardButton(text="⭐ Go Premium", callback_data="premium")]
+        [InlineKeyboardButton(text="⭐ Check Premium", callback_data="check_premium")]
     ])
     await message.answer(
-        "IMAGIFHUB isn't just an app—it's your personal portal to a world of endless, breathtaking beauty.\n\nDon't wait, click let's go 🚀🚀 to continue",
+        "IMAGIFHUB isn't just an app—it's your personal portal to a world of endless, breathtaking beauty.\n\n"
+        "Don't wait, click let's go 🚀🚀 to continue",
         reply_markup=keyboard
     )
 
-@dp.callback_query(F.data == "premium")
-async def premium_callback(call: CallbackQuery):
-    # Create invoice for this user
+@dp.message(F.text == "/premium")
+async def cmd_premium(message: Message):
+    """Check premium status or purchase premium"""
+    telegram_id = message.from_user.id
+    
+    try:
+        # Check user's premium status
+        user_result = supabase.table("users").select("*").eq("telegram_id", telegram_id).execute()
+        
+        if user_result.data and len(user_result.data) > 0:
+            user_data = user_result.data[0]
+            
+            if user_data.get("is_premium") and user_data.get("premium_expires_at"):
+                # User is premium - calculate remaining days
+                expires_at = datetime.fromisoformat(user_data["premium_expires_at"].replace("Z", "+00:00"))
+                now = datetime.utcnow()
+                
+                if expires_at > now:
+                    # Still active
+                    days_left = (expires_at - now).days
+                    await message.answer(
+                        f"✨ <b>Premium Status</b>\n\n"
+                        f"✅ You are a <b>Premium Member</b>!\n"
+                        f"⏳ Days remaining: <b>{days_left}</b> day(s)\n"
+                        f"📅 Expires on: {expires_at.strftime('%Y-%m-%d')}\n\n"
+                        f"Enjoy your ad-free experience! 🎉",
+                        parse_mode="HTML"
+                    )
+                else:
+                    # Premium expired
+                    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+                        [InlineKeyboardButton(text="🔄 Renew Premium", callback_data="renew_premium")]
+                    ])
+                    await message.answer(
+                        "⚠️ Your premium subscription has expired.\n\n"
+                        "Renew now to continue enjoying ad-free experience!",
+                        reply_markup=keyboard
+                    )
+            else:
+                # Not premium
+                keyboard = InlineKeyboardMarkup(inline_keyboard=[
+                    [InlineKeyboardButton(text="⭐ Get Premium", callback_data="get_premium")]
+                ])
+                await message.answer(
+                    "✨ <b>IMAGIFHUB Premium</b>\n\n"
+                    "🔓 You are currently on the free plan.\n"
+                    "✨ Upgrade to Premium for:\n"
+                    "• 🚫 No ads\n"
+                    "• ⚡ Faster downloads\n"
+                    "• ❤️ Support the project\n\n"
+                    "Only 149 Stars for 30 days!",
+                    parse_mode="HTML",
+                    reply_markup=keyboard
+                )
+        else:
+            # User not in database - not premium
+            keyboard = InlineKeyboardMarkup(inline_keyboard=[
+                [InlineKeyboardButton(text="⭐ Get Premium", callback_data="get_premium")]
+            ])
+            await message.answer(
+                "✨ <b>IMAGIFHUB Premium</b>\n\n"
+                "🔓 You are currently on the free plan.\n"
+                "✨ Upgrade to Premium for:\n"
+                "• 🚫 No ads\n"
+                "• ⚡ Faster downloads\n"
+                "• ❤️ Support the project\n\n"
+                "Only 149 Stars for 30 days!",
+                parse_mode="HTML",
+                reply_markup=keyboard
+            )
+            
+    except Exception as e:
+        logging.error(f"Premium check error: {e}")
+        await message.answer("❌ Error checking premium status. Please try again.")
+
+@dp.callback_query(F.data == "check_premium")
+async def check_premium_callback(call: CallbackQuery):
+    """Handle check premium callback"""
+    await call.answer()
+    await cmd_premium(call.message)
+
+@dp.callback_query(F.data == "get_premium")
+async def get_premium_callback(call: CallbackQuery):
+    """Create invoice for premium purchase"""
+    await call.answer()
+    
     invoice_link = await bot.create_invoice_link(
         title="IMAGIFHUB Premium",
         description="30 days of ad-free experience",
@@ -174,12 +235,27 @@ async def premium_callback(call: CallbackQuery):
         prices=[LabeledPrice(label="Premium Access", amount=149)]
     )
     
-    await call.message.answer(
-        "✨ Upgrade to Premium for an ad-free experience!\n\n"
-        f"Click here to pay: {invoice_link}",
-        parse_mode="HTML"
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="💳 Pay Now", url=invoice_link)],
+        [InlineKeyboardButton(text="🔙 Back", callback_data="check_premium")]
+    ])
+    
+    await call.message.edit_text(
+        "✨ <b>Upgrade to IMAGIFHUB Premium</b>\n\n"
+        "Price: <b>149 Stars</b> (30 days)\n\n"
+        "<b>Benefits:</b>\n"
+        "• 🚫 No ads\n"
+        "• ⚡ Faster downloads\n"
+        "• ❤️ Support the project\n\n"
+        "Click 'Pay Now' to complete your purchase.",
+        parse_mode="HTML",
+        reply_markup=keyboard
     )
-    await call.answer()
+
+@dp.callback_query(F.data == "renew_premium")
+async def renew_premium_callback(call: CallbackQuery):
+    """Renew premium subscription"""
+    await get_premium_callback(call)
 
 @dp.message(F.from_user.id == ADMIN_ID, F.text == "/admin")
 async def admin_cmd(message: Message, state: FSMContext):
@@ -234,3 +310,24 @@ async def up_final(message: Message, state: FSMContext):
     }).execute()
     await message.answer(f"✅ Successfully added to {user_data['category']}!")
     await state.clear()
+
+# Run payment status check periodically
+async def check_expired_premium():
+    """Check and update expired premium users"""
+    try:
+        now = datetime.utcnow().isoformat()
+        # Find users whose premium has expired
+        expired_users = supabase.table("users").select("*").lt("premium_expires_at", now).eq("is_premium", True).execute()
+        
+        if expired_users.data:
+            for user in expired_users.data:
+                # Update their status
+                supabase.table("users").update({"is_premium": False}).eq("id", user["id"]).execute()
+                logging.info(f"Updated expired premium for user {user['telegram_id']}")
+    except Exception as e:
+        logging.error(f"Error checking expired premium: {e}")
+
+# Initialize the bot with periodic task
+async def on_startup():
+    # Schedule premium status check
+    asyncio.create_task(check_expired_premium())
