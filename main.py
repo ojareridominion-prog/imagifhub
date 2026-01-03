@@ -131,7 +131,7 @@ async def get_media(category: str = "all", search: str = ""):
 async def cmd_start(message: Message):
     # REMOVED PREMIUM BUTTON FROM START
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="🚀 Let's Go!", web_app={"url": "https://imagifhub.vercel.app/"})],
+        [InlineKeyboardButton(text="🚀 Let's Go!", web_app={"url": "https://ojareridominion-prog.github.io/imagifhub/"})],
         [InlineKeyboardButton(text="📢 Official Channel", url="https://t.me/imagifhub")]
     ])
     await message.answer(
