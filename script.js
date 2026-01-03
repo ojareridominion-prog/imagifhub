@@ -244,3 +244,24 @@ window.handleAdClick = (event) => {
         hideAd();
     }
 };
+
+
+// --- SIMPLE PAYMENT FALLBACK ---
+async function simplePayment(userId) {
+    try {
+        // Try the simpler GET endpoint
+        const response = await fetch(`https://imagifhub.vercel.app/api/get-payment-link?user_id=${userId}`);
+        const data = await response.json();
+        
+        if (data.success && data.invoice_url) {
+            return data.invoice_url;
+        }
+        return null;
+    } catch (e) {
+        console.error("Simple payment error:", e);
+        return null;
+    }
+}
+
+// Make it globally available
+window.simplePayment = simplePayment;
