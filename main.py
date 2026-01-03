@@ -71,15 +71,15 @@ async def set_webhook(request: Request):
 
 # 1. Pre-Checkout: Telegram checks if the bot is ready to accept the payment
 @dp.pre_checkout_query()
-async def on_pre_checkout(pre_checkout_query: PreCheckoutQuery):
-    # Always answer with ok=True for Stars, unless you have specific stock checks
+async def process_pre_checkout_query(pre_checkout_query: PreCheckoutQuery):
     await bot.answer_pre_checkout_query(pre_checkout_query.id, ok=True)
 
-# 2. Successful Payment: User paid, now give them premium
-@dp.message(F.successful_payment)
-async def on_successful_payment(message: Message):
-    payment = message.successful_payment
-    telegram_id = message.from_user.id
+# Also handle the successful payment to give the user their items
+@dp.message(F.content_type == ContentType.SUCCESSFUL_PAYMENT)
+async def successful_payment(message: Message):
+    # Update your Supabase database here
+    await message.answer("Success! You are now a Premium member.")
+    
     
     # Calculate expiry (30 days from now)
     expires_at = datetime.utcnow() + timedelta(days=30)
