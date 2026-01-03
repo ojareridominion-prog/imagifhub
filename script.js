@@ -215,9 +215,36 @@ function goPremium() {
     const tg = window.Telegram.WebApp;
     
     // Minimize the mini app
-    if (tg.close) {
-        tg.close();
-    }
+    console.log("goPremium called");
+‎        
+‎        // Create a direct Telegram link
+‎        const botLink = "tg://resolve?domain=IMAGIFHUB_bot";
+‎        
+‎        // Try to open the bot in Telegram
+‎        if (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.openLink) {
+‎            // Use Telegram's method
+‎            window.Telegram.WebApp.openLink(botLink);
+‎        } else {
+‎            // Fallback
+‎            window.location.href = botLink;
+‎        }
+‎        
+‎        // Show a message telling user to type /premium
+‎        setTimeout(() => {
+‎            tg.showPopup({
+‎                title: "Upgrade Instructions",
+‎                message: "Please type /premium in the bot chat to check your status and upgrade",
+‎                buttons: [{ type: "ok" }]
+‎            });
+‎        }, 500);
+‎        
+‎        // Close mini app
+‎        setTimeout(() => {
+‎            tg.close();
+‎        }, 1000);
+‎        
+‎        return false;
+‎    }
     
     // Send /premium command to bot via deeplink
     const botLink = "tg://resolve?domain=IMAGIFHUB_bot&start=premium";
