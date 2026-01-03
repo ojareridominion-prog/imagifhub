@@ -11,6 +11,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.fsm.storage.memory import MemoryStorage
 from supabase import create_client, Client
+from aiogram.types import LabeledPrice
 
 #
 
@@ -121,6 +122,34 @@ async def get_media(category: str = "all", search: str = ""):
     data = res.data
     random.shuffle(data)
     return data[:50]
+
+# ==================== INVOICE ====================================
+
+
+@app.post("/api/create-invoice")
+async def create_invoice_api(request: Request):
+    """Generates a Star Invoice Link for the frontend"""
+    try:
+        body = await request.json()
+        telegram_id = body.get("telegram_id")
+
+        if not telegram_id:
+            return {"error": "Missing telegram_id"}
+
+        # Generate the link using the Bot API
+        link = await bot.create_invoice_link(
+            title="ImagifHub Premium",
+            description="Premium access for 30 days",
+            payload=f"premium_{telegram_id}",
+            currency="XTR", # Telegram Stars
+            prices=[LabeledPrice(label="30 Days Premium", amount=149)] 
+        )
+        
+        return {"invoice_url": link}
+    except Exception as e:
+        logging.error(f"Invoice Error: {e}")
+        return {"error": str(e)}
+        
 
 # ==================== BOT LOGIC (ADMIN PANEL) ====================
 
