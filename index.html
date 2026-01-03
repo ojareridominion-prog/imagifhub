@@ -166,7 +166,7 @@
     <script>
     const tg = window.Telegram.WebApp;
     tg.expand();
-    tg.BackButton.hide(); // Hide back button if not needed
+    tg.BackButton.hide();
     
     // 1. Open Premium Popup
     function openPremium() {
@@ -179,7 +179,7 @@
         document.getElementById('premiumModal').classList.remove('active');
     }
 
-    // 3. Process Payment
+    // 3. Process Payment - SIMPLIFIED VERSION
     async function goPremium() {
         const btn = document.getElementById('btnBuy');
         const statusEl = document.getElementById('paymentStatus');
@@ -190,53 +190,70 @@
         if (!user || !user.id) {
             statusEl.textContent = "Error: Please open in Telegram app";
             statusEl.style.color = "#ff6b6b";
+            tg.showPopup({
+                title: "Error",
+                message: "Please open this in Telegram app",
+                buttons: [{ type: "ok" }]
+            });
             return;
         }
         
         btn.innerText = "Creating invoice...";
         btn.disabled = true;
-        statusEl.textContent = "";
+        statusEl.textContent = "Creating payment link...";
+        statusEl.style.color = "#ffd700";
         
         try {
-            const response = await fetch('/api/create-invoice', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ user_id: user.id })
-            });
-            
-            if (!response.ok) {
-                throw new Error(`HTTP ${response.status}`);
-            }
-            
+            // Use a simpler GET request
+            const response = await fetch(`/api/get-payment-link?user_id=${user.id}`);
             const data = await response.json();
             
-            if (data.invoice_url) {
+            if (data.success && data.invoice_url) {
                 statusEl.textContent = "Opening payment...";
-                statusEl.style.color = "#ffd700";
                 
-                // Open invoice in Telegram
+                // Open the invoice in Telegram
                 tg.openInvoice(data.invoice_url, function(status) {
+                    console.log("Payment status:", status);
+                    
                     if (status === 'paid') {
+                        // Success!
                         tg.showPopup({
                             title: "Success! 🎉",
-                            message: "Thank you for upgrading to Premium!",
+                            message: "You are now a Premium member!",
                             buttons: [{ type: "ok" }]
                         });
+                        
+                        // Update local storage
                         localStorage.setItem("isPremium", "true");
+                        
+                        // Update UI
+                        document.querySelector('.premium-btn-menu').innerText = "PREMIUM ACTIVE";
+                        document.querySelector('.premium-btn-menu').style.background = "#4CAF50";
+                        document.querySelector('.premium-btn-menu').disabled = true;
+                        
+                        // Close modal
                         closePremium();
-                        statusEl.textContent = "Payment successful!";
+                        
+                        // Clear status
+                        statusEl.textContent = "Payment successful! Premium activated.";
                         statusEl.style.color = "#66ffb2";
+                        
                     } else if (status === 'cancelled') {
                         statusEl.textContent = "Payment cancelled";
                         statusEl.style.color = "#ffa500";
                     } else if (status === 'failed') {
-                        statusEl.textContent = "Payment failed";
+                        statusEl.textContent = "Payment failed. Please try again.";
                         statusEl.style.color = "#ff6b6b";
+                    } else {
+                        statusEl.textContent = `Status: ${status}`;
+                        statusEl.style.color = "#aaa";
                     }
                 });
+                
             } else {
-                throw new Error("No invoice URL received");
+                throw new Error(data.error || "Failed to create payment");
             }
+            
         } catch (error) {
             console.error("Payment Error:", error);
             statusEl.textContent = `Error: ${error.message}`;
@@ -244,13 +261,14 @@
             
             tg.showPopup({
                 title: "Error",
-                message: "Failed to create payment. Please try again.",
+                message: "Could not create payment. Please try again later.",
                 buttons: [{ type: "ok" }]
             });
         } finally {
             btn.innerText = "Go Premium";
             btn.disabled = false;
             setTimeout(() => {
+                if (statusEl.textContent.includes("successful")) return;
                 statusEl.textContent = "";
             }, 5000);
         }
@@ -266,11 +284,30 @@
         const user = tg.initDataUnsafe?.user;
         if (user) {
             console.log("Telegram User ID:", user.id);
-            // You can store this in localStorage for later use
             localStorage.setItem("telegramUserId", user.id);
+            
+            // Update premium button if already premium
+            if (localStorage.getItem("isPremium") === "true") {
+                const premiumBtn = document.querySelector('.premium-btn-menu');
+                if (premiumBtn) {
+                    premiumBtn.innerText = "PREMIUM ACTIVE";
+                    premiumBtn.style.background = "#4CAF50";
+                    premiumBtn.disabled = true;
+                }
+            }
+        }
+        
+        // Check if there's a payment result in URL
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('payment') === 'success') {
+            tg.showPopup({
+                title: "Success!",
+                message: "Payment completed successfully!",
+                buttons: [{ type: "ok" }]
+            });
         }
     });
-        </script>
+                </script>
     
 </body>
 </html>
