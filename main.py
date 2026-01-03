@@ -90,6 +90,7 @@ async def on_successful_payment(message: Message):
         supabase.table("payments").insert({
             "telegram_id": telegram_id,
             "provider": "telegram_stars",
+            "provider_token": "",
             "amount": payment.total_amount, # amount in stars
             "currency": payment.currency,   # "XTR"
             "payload": payment.invoice_payload,
