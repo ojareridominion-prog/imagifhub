@@ -154,7 +154,7 @@ async def create_invoice(request: Request):
 async def cmd_start(message: Message):
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="🚀 Let's Go!", web_app={"url": "https://ojareridominion-prog.github.io/imagifhub/"})],
-        [InlineKeyboardButton(text="📢 Official channel", url="https://t.me/YourChannelUsername")],
+        [InlineKeyboardButton(text="📢 Official channel", url="https://t.me/imagifhub")],
         [InlineKeyboardButton(text="⭐ Go Premium", callback_data="premium")]
     ])
     await message.answer(
