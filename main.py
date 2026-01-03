@@ -13,7 +13,6 @@ from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.fsm.storage.memory import MemoryStorage
 from supabase import create_client, Client
-from aiogram.types import LabeledPrice
 
 # ==================== CONFIG ====================
 BOT_TOKEN = os.environ.get("BOT_TOKEN", "")
@@ -23,17 +22,9 @@ SUPABASE_URL = os.environ.get("SUPABASE_URL", "")
 SUPABASE_KEY = os.environ.get("SUPABASE_KEY", "")
 
 # Initialize Clients
-app = FastAPI()
 bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher(storage=MemoryStorage())
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
-
-app.add_middleware(
-    CORSMiddleware, 
-    allow_origins=["*"], 
-    allow_methods=["*"], 
-    allow_headers=["*"]
-)
 
 class AdminUpload(StatesGroup):
     waiting_media = State()
@@ -48,7 +39,6 @@ CATEGORIES = [
 
 # ==================== WEBHOOK HELPERS ====================
 
-@app.post("/api/telegram-webhook")
 async def handle_webhook(request: Request):
     """Handles incoming messages from Telegram"""
     try:
@@ -60,7 +50,6 @@ async def handle_webhook(request: Request):
         logging.error(f"Webhook Error: {e}")
         return {"ok": False, "error": str(e)}
 
-@app.get("/api/set-webhook")
 async def set_webhook(request: Request):
     host = request.headers.get("host")
     url = f"https://{host}/api/telegram-webhook"
@@ -107,90 +96,7 @@ async def on_successful_payment(message: Message):
         logging.error(f"Payment DB Error: {e}")
         await message.answer("Payment received, but there was an error activating premium. Please contact support.")
 
-# ==================== FRONTEND API ====================
-
-@app.get("/media")
-async def get_media(category: str = "all", search: str = ""):
-    query = supabase.table('media_content').select('*')
-    if category.lower() not in ["all", "discover"]:
-        query = query.eq('category', category.title())
-    if search:
-        query = query.ilike('Keyword', f'%{search}%')
-    res = query.execute()
-    data = res.data
-    random.shuffle(data)
-    return data[:50]
-
-# ==================== INVOICE ENDPOINT ====================
-
-@app.post("/api/create-invoice")
-async def create_invoice(request: Request):
-    try:
-        data = await request.json()
-        user_id = data.get("user_id")
-        
-        if not user_id:
-            raise HTTPException(status_code=400, detail="User ID required")
-        
-        # Create the invoice link
-        invoice_link = await bot.create_invoice_link(
-            title="IMAGIFHUB Premium",
-            description="30 days of ad-free experience",
-            payload=f"premium_{user_id}",
-            provider_token="",  # Empty for Telegram Stars
-            currency="XTR",     # Telegram Stars currency
-            prices=[LabeledPrice(label="Premium Access", amount=149)]
-        )
-        
-        return {"invoice_url": invoice_link}
-        
-    except Exception as e:
-        logging.error(f"Create invoice error: {e}")
-        return {"error": str(e), "status": "failed"}
-
-# Add a GET endpoint for testing
-@app.get("/api/create-invoice")
-async def create_invoice_get(user_id: int = None):
-    if not user_id:
-        return {"error": "user_id parameter required"}
-    
-    try:
-        invoice_link = await bot.create_invoice_link(
-            title="IMAGIFHUB Premium",
-            description="30 days of ad-free experience",
-            payload=f"premium_{user_id}",
-            provider_token="",
-            currency="XTR",
-            prices=[LabeledPrice(label="Premium Access", amount=149)]
-        )
-        return {"invoice_url": invoice_link}
-    except Exception as e:
-        return {"error": str(e), "status": "failed"}
-
-# ==================== SIMPLIFIED PAYMENT FOR MINI APP ====================
-
-@app.get("/api/get-payment-link")
-async def get_payment_link(user_id: int):
-    """Simple endpoint for mini app to get payment link"""
-    try:
-        invoice_link = await bot.create_invoice_link(
-            title="IMAGIFHUB Premium",
-            description="30 days of ad-free experience",
-            payload=f"premium_{user_id}",
-            provider_token="",
-            currency="XTR",
-            prices=[LabeledPrice(label="Premium Access", amount=149)]
-        )
-        return {
-            "success": True,
-            "invoice_url": invoice_link,
-            "user_id": user_id
-        }
-    except Exception as e:
-        logging.error(f"Payment link error: {e}")
-        return {"success": False, "error": str(e)}
-
-# ==================== BOT LOGIC (ADMIN PANEL) ====================
+# ==================== BOT LOGIC ====================
 
 @dp.message(F.text == "/start")
 async def cmd_start(message: Message):
@@ -276,3 +182,15 @@ async def up_final(message: Message, state: FSMContext):
     }).execute()
     await message.answer(f"✅ Successfully added to {user_data['category']}!")
     await state.clear()
+
+# Media endpoint
+async def get_media(category: str = "all", search: str = ""):
+    query = supabase.table('media_content').select('*')
+    if category.lower() not in ["all", "discover"]:
+        query = query.eq('category', category.title())
+    if search:
+        query = query.ilike('Keyword', f'%{search}%')
+    res = query.execute()
+    data = res.data
+    random.shuffle(data)
+    return data[:50]
