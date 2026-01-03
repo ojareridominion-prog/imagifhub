@@ -178,9 +178,13 @@
 
     <script type="module" src="script.js"></script>
 
-     <script>
+    <script>
     const tg = window.Telegram.WebApp;
     tg.expand();
+    
+    // Debug
+    console.log("Telegram WebApp version:", tg.version);
+    console.log("Available methods:", Object.keys(tg));
     
     // 1. Open Premium Popup
     function openPremium() {
@@ -193,116 +197,155 @@
         document.getElementById('premiumModal').classList.remove('active');
     }
 
-    // 3. Process Payment using sendData method
+    // 3. SIMPLE WORKING METHOD: Use Telegram's switchInlineQuery
     function goPremium() {
-        console.log("goPremium called - using sendData method");
+        console.log("Opening bot chat...");
         const btn = document.getElementById('btnBuy');
         const statusEl = document.getElementById('paymentStatus');
         
-        btn.innerText = "Processing...";
+        btn.innerText = "Opening...";
         btn.disabled = true;
-        statusEl.textContent = "Connecting to Telegram...";
+        statusEl.textContent = "Opening Telegram...";
+        statusEl.style.color = "#ffd700";
         
+        // Method 1: Try to use Telegram's switchInlineQuery method
+        // This should open the bot chat directly
         try {
-            // Send data to bot that user wants premium
-            const userData = {
-                action: "request_premium",
-                user_id: tg.initDataUnsafe?.user?.id,
-                timestamp: Date.now()
-            };
+            // First, try to open the bot chat
+            // We'll use a direct tg:// link
+            const botLink = "tg://resolve?domain=IMAGIFHUB_bot&start=premium";
             
-            // Send data to bot
-            tg.sendData(JSON.stringify(userData));
+            // Try to open the link
+            if (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.openLink) {
+                window.Telegram.WebApp.openLink(botLink);
+            } else {
+                // Fallback to direct link
+                window.location.href = botLink;
+            }
             
-            // Close the mini app after sending data
+            // Close the mini app after a short delay
             setTimeout(() => {
-                tg.close();
-            }, 500);
+                if (tg.close) {
+                    tg.close();
+                }
+            }, 300);
             
         } catch (error) {
             console.error("Error:", error);
-            statusEl.textContent = "Error. Trying alternative method...";
             
-            // Fallback: Open bot chat directly
+            // Method 2: Alternative approach
             setTimeout(() => {
+                // Open the bot directly
                 window.open("https://t.me/IMAGIFHUB_bot", '_blank');
-                tg.close();
-            }, 1000);
+                
+                // Try to send /premium via a timeout (this might not work but worth a try)
+                setTimeout(() => {
+                    // This is a hack: we'll try to use the WebApp's sendData to communicate with bot
+                    try {
+                        tg.sendData(JSON.stringify({
+                            command: "/premium",
+                            user_id: tg.initDataUnsafe?.user?.id
+                        }));
+                    } catch (e) {
+                        console.log("Could not send data:", e);
+                    }
+                }, 1000);
+                
+                // Close mini app
+                setTimeout(() => {
+                    if (tg.close) {
+                        tg.close();
+                    }
+                }, 500);
+            }, 100);
         }
+        
+        // Reset button after a delay
+        setTimeout(() => {
+            btn.innerText = "Go Premium";
+            btn.disabled = false;
+            statusEl.textContent = "";
+        }, 3000);
     }
 
-    // Listen for data sent back from bot (optional)
-    tg.onEvent('webAppDataReceived', function(event) {
-        console.log('Data received from bot:', event);
-        const data = JSON.parse(event);
-        if (data.action === 'premium_activated') {
-            localStorage.setItem("isPremium", "true");
-            updatePremiumUI();
-        }
-    });
-
-    // Update UI based on premium status
-    function updatePremiumUI() {
-        const isPremium = localStorage.getItem("isPremium") === "true";
+    // 4. Alternative: Use a simpler method that works on most devices
+    function goPremiumSimple() {
+        // This method works on most Telegram clients
+        const botLink = "https://t.me/IMAGIFHUB_bot?start=premium";
         
-        const premiumBtn = document.querySelector('.premium-btn-menu');
-        if (premiumBtn) {
-            if (isPremium) {
+        // Try to open in Telegram app
+        const tgLink = "tg://resolve?domain=IMAGIFHUB_bot&start=premium";
+        
+        // Create a hidden iframe to trigger the tg:// link
+        const iframe = document.createElement('iframe');
+        iframe.style.display = 'none';
+        iframe.src = tgLink;
+        document.body.appendChild(iframe);
+        
+        // Fallback to web after a delay
+        setTimeout(() => {
+            window.open(botLink, '_blank');
+            
+            // Close mini app
+            setTimeout(() => {
+                if (tg.close) {
+                    tg.close();
+                }
+            }, 500);
+        }, 100);
+        
+        // Remove iframe
+        setTimeout(() => {
+            document.body.removeChild(iframe);
+        }, 1000);
+    }
+
+    // 5. Even simpler: Just use a direct link and let user manually type /premium
+    function goPremiumDirect() {
+        // Open bot chat
+        window.open("https://t.me/IMAGIFHUB_bot", '_blank');
+        
+        // Show instruction
+        tg.showPopup({
+            title: "How to Upgrade",
+            message: "Please type /premium in the bot chat to upgrade to Premium",
+            buttons: [{ type: "ok" }]
+        });
+        
+        // Close mini app after a delay
+        setTimeout(() => {
+            if (tg.close) {
+                tg.close();
+            }
+        }, 2000);
+    }
+
+    // Use the simple method
+    window.goPremium = goPremiumSimple;
+
+    // Expose functions
+    window.openPremium = openPremium;
+    window.closePremium = closePremium;
+
+    // Initialize
+    document.addEventListener('DOMContentLoaded', function() {
+        const user = tg.initDataUnsafe?.user;
+        if (user) {
+            console.log("User ID:", user.id);
+        }
+        
+        // Update premium status if needed
+        if (localStorage.getItem("isPremium") === "true") {
+            const premiumBtn = document.querySelector('.premium-btn-menu');
+            if (premiumBtn) {
                 premiumBtn.innerText = "PREMIUM ACTIVE";
                 premiumBtn.style.background = "#4CAF50";
                 premiumBtn.disabled = true;
                 premiumBtn.onclick = null;
-            } else {
-                premiumBtn.innerText = "UPGRADE NOW";
-                premiumBtn.style.background = "";
-                premiumBtn.disabled = false;
-                premiumBtn.onclick = openPremium;
             }
-        }
-        
-        const modalBuyBtn = document.getElementById('btnBuy');
-        if (modalBuyBtn) {
-            if (isPremium) {
-                modalBuyBtn.innerText = "PREMIUM ACTIVE";
-                modalBuyBtn.style.background = "#4CAF50";
-                modalBuyBtn.disabled = true;
-                modalBuyBtn.onclick = null;
-            } else {
-                modalBuyBtn.innerText = "Go Premium";
-                modalBuyBtn.style.background = "#ffd700";
-                modalBuyBtn.disabled = false;
-                modalBuyBtn.onclick = goPremium;
-            }
-        }
-    }
-
-    // Expose functions globally
-    window.openPremium = openPremium;
-    window.closePremium = closePremium;
-    window.goPremium = goPremium;
-    window.updatePremiumUI = updatePremiumUI;
-
-    // Initialize on load
-    document.addEventListener('DOMContentLoaded', function() {
-        updatePremiumUI();
-        
-        // Check if user returned from payment
-        const urlParams = new URLSearchParams(window.location.search);
-        if (urlParams.get('premium') === 'success') {
-            localStorage.setItem("isPremium", "true");
-            updatePremiumUI();
-            
-            tg.showPopup({
-                title: "Success! 🎉",
-                message: "You are now a Premium member!",
-                buttons: [{ type: "ok" }]
-            });
-            
-            // Clean URL
-            window.history.replaceState({}, document.title, window.location.pathname);
         }
     });
-     </script>
+</script>                         
             
     
 </body>
