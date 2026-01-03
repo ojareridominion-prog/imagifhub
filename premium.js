@@ -29,9 +29,15 @@ if (telegramId && ADMIN_IDS.includes(telegramId)) {
 // --- GO PREMIUM FUNCTION ---
 // Attach this to the window so the HTML 'onclick' can find it
 window.goPremium = async function() {
+    tg.initData contains
+    console.log("Full Init Data:", tg.initData); 
+    
     if (!telegramId) {
-        alert("Please open this app from Telegram to subscribe.");
+        alert("Debug: ID is " + telegramId + ". InitData length: " + (tg.initData?.length || 0));
         return;
+    //if (!telegramId) {
+        //alert("Please open this app from Telegram to subscribe.");
+        //return;
     }
 
     // Disable button to prevent double clicks
