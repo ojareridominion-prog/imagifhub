@@ -182,15 +182,14 @@ async def cmd_premium(message: Message):
                 # Not premium - show premium purchase options
                 keyboard = InlineKeyboardMarkup(inline_keyboard=[
                     [InlineKeyboardButton(text="⭐ Get Premium", callback_data="get_premium")],
-                    [InlineKeyboardButton(text="🚀 Open IMAGIFHUB", web_app={"url": "https://imagifhub.vercel.app/"})]
+                    [InlineKeyboardButton(text="🚀 Open IMAGIFHUB", web_app={"url": "https://ojareridominion-prog.github.io/imagifhub/"})]
                 ])
                 await message.answer(
                     "✨ <b>IMAGIFHUB Premium</b>\n\n"
                     "🔓 You are currently on the free plan.\n\n"
                     "✨ <b>Upgrade to Premium for:</b>\n"
                     "• 🚫 No ads\n"
-                    "• ⚡ Faster downloads\n"
-                    "• ❤️ Support the project\n\n"
+                    "• 😁 Support the project\n\n"
                     "💫 <b>Price:</b> 149 Stars (30 days)\n\n"
                     "Click 'Get Premium' to upgrade!",
                     parse_mode="HTML",
@@ -200,15 +199,14 @@ async def cmd_premium(message: Message):
             # User not in database - not premium
             keyboard = InlineKeyboardMarkup(inline_keyboard=[
                 [InlineKeyboardButton(text="⭐ Get Premium", callback_data="get_premium")],
-                [InlineKeyboardButton(text="🚀 Open IMAGIFHUB", web_app={"url": "https://imagifhub.vercel.app/"})]
+                [InlineKeyboardButton(text="🚀 Open IMAGIFHUB", web_app={"url": "https://ojareridominion-prog.github.io/imagifhub/"})]
             ])
             await message.answer(
                 "✨ <b>IMAGIFHUB Premium</b>\n\n"
                 "🔓 You are currently on the free plan.\n\n"
                 "✨ <b>Upgrade to Premium for:</b>\n"
                 "• 🚫 No ads\n"
-                "• ⚡ Faster downloads\n"
-                "• ❤️ Support the project\n\n"
+                "• 😁 Support the project\n\n"
                 "💫 <b>Price:</b> 149 Stars (30 days)\n\n"
                 "Click 'Get Premium' to upgrade!",
                 parse_mode="HTML",
@@ -243,8 +241,7 @@ async def get_premium_callback(call: CallbackQuery):
         "💫 <b>Price:</b> 149 Stars (30 days)\n\n"
         "<b>Benefits:</b>\n"
         "• 🚫 No ads\n"
-        "• ⚡ Faster downloads\n"
-        "• ❤️ Support the project\n\n"
+        "• 😁 Support the project\n\n"
         "Click 'Pay Now' to complete your purchase.",
         parse_mode="HTML",
         reply_markup=keyboard
