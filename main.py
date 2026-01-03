@@ -132,18 +132,18 @@ async def create_invoice(request: Request):
     data = await request.json()
     user_id = data.get("user_id")
     
-    # Generate the invoice link
-    # For Telegram Stars (XTR), provider_token is empty
+    # Create the invoice link
     invoice_link = await bot.create_invoice_link(
-        title="Premium Subscription",
-        description="Unlock all features in ImagifHub",
-        payload=f"premium_{user_id}",
-        provider_token="", # Empty for Stars
-        currency="XTR",
-        prices=[LabeledPrice(label="Premium", amount=149)] # 50 Stars
+        title="Premium Access",
+        description="Unlock all premium features",
+        payload=f"premium_access_{user_id}",
+        provider_token="",  # Keep empty for Telegram Stars
+        currency="XTR",     # Must be XTR for Stars
+        prices=[LabeledPrice(label="Stars", amount=149)]  # Amount in Stars
     )
     
     return {"invoice_url": invoice_link}
+    
         
 
 # ==================== BOT LOGIC (ADMIN PANEL) ====================
