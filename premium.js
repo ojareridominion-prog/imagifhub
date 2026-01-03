@@ -28,10 +28,7 @@ if (telegramId && ADMIN_IDS.includes(telegramId)) {
 
 // --- GO PREMIUM FUNCTION ---
 // Attach this to the window so the HTML 'onclick' can find it
-window.goPremium = async function() {
-    tg.initData contains
-    console.log("Full Init Data:", tg.initData); 
-    
+window.goPremium = async function() { 
     if (!telegramId) {
         alert("Debug: ID is " + telegramId + ". InitData length: " + (tg.initData?.length || 0));
         return;
