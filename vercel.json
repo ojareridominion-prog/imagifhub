@@ -1,22 +1,13 @@
 {
   "builds": [
     {
-      "src": "main.py",
+      "src": "server.py",
       "use": "@vercel/python"
     }
   ],
-  "rewrites": [
-    { "source": "/", "destination": "/index.html" },
-    { "source": "/api/(.*)", "destination": "/main.py" },
-    { "source": "/media", "destination": "/main.py" },
-    { "source": "/(.*)", "destination": "/index.html" }
-  ],
-  "headers": [
-    {
-      "source": "/api/(.*)",
-      "headers": [
-        { "key": "Content-Type", "value": "application/json" }
-      ]
-    }
+  "routes": [
+    { "src": "/api/(.*)", "dest": "/server.py" },
+    { "src": "/media", "dest": "/server.py" },
+    { "src": "/(.*)", "dest": "/index.html", "headers": { "Cache-Control": "public, max-age=3600" } }
   ]
 }
