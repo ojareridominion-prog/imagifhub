@@ -182,16 +182,8 @@
     const tg = window.Telegram.WebApp;
     tg.expand();
     
-    // Debug info
-    console.log("Telegram WebApp initialized:", {
-        user: tg.initDataUnsafe?.user,
-        platform: tg.platform,
-        version: tg.version
-    });
-    
     // 1. Open Premium Popup
     function openPremium() {
-        console.log("Opening premium modal");
         document.getElementById('menuPanel').classList.remove('open');
         document.getElementById('premiumModal').classList.add('active');
     }
@@ -201,50 +193,86 @@
         document.getElementById('premiumModal').classList.remove('active');
     }
 
-    // 3. NEW: Process Payment by opening Telegram chat with /premium
-    async function goPremium() {
-        console.log("goPremium called - opening Telegram chat with /premium");
+    // 3. Process Payment using sendData method
+    function goPremium() {
+        console.log("goPremium called - using sendData method");
         const btn = document.getElementById('btnBuy');
         const statusEl = document.getElementById('paymentStatus');
         
-        btn.innerText = "Opening Telegram...";
+        btn.innerText = "Processing...";
         btn.disabled = true;
-        statusEl.textContent = "Redirecting to Telegram...";
-        statusEl.style.color = "#ffd700";
+        statusEl.textContent = "Connecting to Telegram...";
         
         try {
-            // Close the mini app
-            tg.close();
+            // Send data to bot that user wants premium
+            const userData = {
+                action: "request_premium",
+                user_id: tg.initDataUnsafe?.user?.id,
+                timestamp: Date.now()
+            };
             
-            // Open the bot chat with /premium command
+            // Send data to bot
+            tg.sendData(JSON.stringify(userData));
+            
+            // Close the mini app after sending data
             setTimeout(() => {
-                const botUsername = "IMAGIFHUB_bot"; // Your bot's username without @
-                
-                // Use Telegram deep linking to send /premium command
-                const deeplink = `https://t.me/${botUsername}?start=premium`;
-                
-                // For mobile devices
-                if (/Android|iPhone|iPad|iPod/i.test(navigator.userAgent)) {
-                    window.location.href = deeplink;
-                } else {
-                    // Fallback for desktop
-                    window.open(deeplink, '_blank');
-                }
-            }, 300);
+                tg.close();
+            }, 500);
             
         } catch (error) {
-            console.error("Error opening Telegram:", error);
-            statusEl.textContent = "Error: Could not open Telegram";
-            statusEl.style.color = "#ff6b6b";
+            console.error("Error:", error);
+            statusEl.textContent = "Error. Trying alternative method...";
             
-            // Try alternative method
+            // Fallback: Open bot chat directly
             setTimeout(() => {
-                const botUsername = "IMAGIFHUB_bot";
-                window.open(`https://t.me/${botUsername}`, '_blank');
+                window.open("https://t.me/IMAGIFHUB_bot", '_blank');
+                tg.close();
             }, 1000);
-            
-            btn.innerText = "Try Again";
-            btn.disabled = false;
+        }
+    }
+
+    // Listen for data sent back from bot (optional)
+    tg.onEvent('webAppDataReceived', function(event) {
+        console.log('Data received from bot:', event);
+        const data = JSON.parse(event);
+        if (data.action === 'premium_activated') {
+            localStorage.setItem("isPremium", "true");
+            updatePremiumUI();
+        }
+    });
+
+    // Update UI based on premium status
+    function updatePremiumUI() {
+        const isPremium = localStorage.getItem("isPremium") === "true";
+        
+        const premiumBtn = document.querySelector('.premium-btn-menu');
+        if (premiumBtn) {
+            if (isPremium) {
+                premiumBtn.innerText = "PREMIUM ACTIVE";
+                premiumBtn.style.background = "#4CAF50";
+                premiumBtn.disabled = true;
+                premiumBtn.onclick = null;
+            } else {
+                premiumBtn.innerText = "UPGRADE NOW";
+                premiumBtn.style.background = "";
+                premiumBtn.disabled = false;
+                premiumBtn.onclick = openPremium;
+            }
+        }
+        
+        const modalBuyBtn = document.getElementById('btnBuy');
+        if (modalBuyBtn) {
+            if (isPremium) {
+                modalBuyBtn.innerText = "PREMIUM ACTIVE";
+                modalBuyBtn.style.background = "#4CAF50";
+                modalBuyBtn.disabled = true;
+                modalBuyBtn.onclick = null;
+            } else {
+                modalBuyBtn.innerText = "Go Premium";
+                modalBuyBtn.style.background = "#ffd700";
+                modalBuyBtn.disabled = false;
+                modalBuyBtn.onclick = goPremium;
+            }
         }
     }
 
@@ -252,46 +280,30 @@
     window.openPremium = openPremium;
     window.closePremium = closePremium;
     window.goPremium = goPremium;
+    window.updatePremiumUI = updatePremiumUI;
 
     // Initialize on load
-    document.addEventListener('DOMContentLoaded', async function() {
-        const user = tg.initDataUnsafe?.user;
-        if (user) {
-            console.log("Telegram User ID:", user.id);
-            localStorage.setItem("telegramUserId", user.id);
+    document.addEventListener('DOMContentLoaded', function() {
+        updatePremiumUI();
+        
+        // Check if user returned from payment
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('premium') === 'success') {
+            localStorage.setItem("isPremium", "true");
+            updatePremiumUI();
             
-            // Check if user is premium (optional - you can query your backend)
-            // For now, we'll just check localStorage
-            const isPremium = localStorage.getItem("isPremium") === "true";
+            tg.showPopup({
+                title: "Success! 🎉",
+                message: "You are now a Premium member!",
+                buttons: [{ type: "ok" }]
+            });
             
-            if (isPremium) {
-                const premiumBtn = document.querySelector('.premium-btn-menu');
-                if (premiumBtn) {
-                    premiumBtn.innerText = "PREMIUM ACTIVE";
-                    premiumBtn.style.background = "#4CAF50";
-                    premiumBtn.disabled = true;
-                    premiumBtn.onclick = null;
-                }
-                
-                // Also update the modal button
-                const modalBuyBtn = document.getElementById('btnBuy');
-                if (modalBuyBtn) {
-                    modalBuyBtn.innerText = "PREMIUM ACTIVE";
-                    modalBuyBtn.style.background = "#4CAF50";
-                    modalBuyBtn.disabled = true;
-                    modalBuyBtn.onclick = null;
-                }
-            }
+            // Clean URL
+            window.history.replaceState({}, document.title, window.location.pathname);
         }
     });
-    
-    // Listen for when the mini app is reopened
-    tg.onEvent('viewportChanged', function(e) {
-        console.log('Viewport changed, user might have returned from payment:', e);
-        // Check if premium status changed
-        // You could call an API here to check real premium status
-    });
-     </script>               
+     </script>
+            
     
 </body>
 </html>
