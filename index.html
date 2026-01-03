@@ -168,8 +168,16 @@
     tg.expand();
     tg.BackButton.hide();
     
+    console.log("Telegram WebApp initialized:", {
+        initData: tg.initData,
+        initDataUnsafe: tg.initDataUnsafe,
+        platform: tg.platform,
+        version: tg.version
+    });
+    
     // 1. Open Premium Popup
     function openPremium() {
+        console.log("Opening premium modal");
         document.getElementById('menuPanel').classList.remove('open');
         document.getElementById('premiumModal').classList.add('active');
     }
@@ -179,22 +187,20 @@
         document.getElementById('premiumModal').classList.remove('active');
     }
 
-    // 3. Process Payment - SIMPLIFIED VERSION
+    // 3. Process Payment - DEBUG VERSION
     async function goPremium() {
+        console.log("goPremium called");
         const btn = document.getElementById('btnBuy');
         const statusEl = document.getElementById('paymentStatus');
         
         // Get user from Telegram Web App
         const user = tg.initDataUnsafe?.user;
+        console.log("Telegram user:", user);
         
         if (!user || !user.id) {
             statusEl.textContent = "Error: Please open in Telegram app";
             statusEl.style.color = "#ff6b6b";
-            tg.showPopup({
-                title: "Error",
-                message: "Please open this in Telegram app",
-                buttons: [{ type: "ok" }]
-            });
+            console.error("No Telegram user found");
             return;
         }
         
@@ -204,12 +210,29 @@
         statusEl.style.color = "#ffd700";
         
         try {
-            // Use a simpler GET request
-            const response = await fetch(`/api/get-payment-link?user_id=${user.id}`);
-            const data = await response.json();
+            console.log("Calling API with user_id:", user.id);
+            // Use absolute URL to avoid any routing issues
+            const apiUrl = `https://imagifhub.vercel.app/api/get-payment-link?user_id=${user.id}`;
+            console.log("API URL:", apiUrl);
+            
+            const response = await fetch(apiUrl);
+            console.log("Response status:", response.status);
+            
+            const responseText = await response.text();
+            console.log("Response text:", responseText);
+            
+            let data;
+            try {
+                data = JSON.parse(responseText);
+                console.log("Parsed data:", data);
+            } catch (e) {
+                console.error("Failed to parse JSON:", e);
+                throw new Error(`Invalid JSON response: ${responseText.substring(0, 100)}`);
+            }
             
             if (data.success && data.invoice_url) {
                 statusEl.textContent = "Opening payment...";
+                console.log("Invoice URL received:", data.invoice_url);
                 
                 // Open the invoice in Telegram
                 tg.openInvoice(data.invoice_url, function(status) {
@@ -227,9 +250,12 @@
                         localStorage.setItem("isPremium", "true");
                         
                         // Update UI
-                        document.querySelector('.premium-btn-menu').innerText = "PREMIUM ACTIVE";
-                        document.querySelector('.premium-btn-menu').style.background = "#4CAF50";
-                        document.querySelector('.premium-btn-menu').disabled = true;
+                        const premiumBtn = document.querySelector('.premium-btn-menu');
+                        if (premiumBtn) {
+                            premiumBtn.innerText = "PREMIUM ACTIVE";
+                            premiumBtn.style.background = "#4CAF50";
+                            premiumBtn.disabled = true;
+                        }
                         
                         // Close modal
                         closePremium();
@@ -251,6 +277,7 @@
                 });
                 
             } else {
+                console.error("API returned error:", data.error);
                 throw new Error(data.error || "Failed to create payment");
             }
             
@@ -284,7 +311,7 @@
         const user = tg.initDataUnsafe?.user;
         if (user) {
             console.log("Telegram User ID:", user.id);
-            localStorage.setItem("telegramUserId", user.id);
+            localStorage.setItem("telegramUserId", user.id.toString());
             
             // Update premium button if already premium
             if (localStorage.getItem("isPremium") === "true") {
@@ -296,24 +323,9 @@
                 }
             }
         }
-        
-        // Check if there's a payment result in URL
-        const urlParams = new URLSearchParams(window.location.search);
-        if (urlParams.get('payment') === 'success') {
-            tg.showPopup({
-                title: "Success!",
-                message: "Payment completed successfully!",
-                buttons: [{ type: "ok" }]
-            });
-        }
     });
-        console.log("Telegram WebApp initialized:", {
-    initData: tg.initData,
-    initDataUnsafe: tg.initDataUnsafe,
-    platform: tg.platform,
-    version: tg.version
-});
-         </script>
+    </script>
+
     
 </body>
 </html>
