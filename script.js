@@ -133,7 +133,7 @@ async function loadFeed(cat, search="") {
     }
 }
 
-// --- UI & THEME FUNCTIONS ---
+// --- UI FUNCTIONS ---
 function toggleMenu() { 
     document.getElementById('menuPanel').classList.toggle('open'); 
 }
@@ -201,70 +201,83 @@ function maybeShowAd() {
     else hideAd();
 }
 
-// --- INITIALIZATION ---
-window.onload = () => {
-    // 1. Setup Categories
-    document.getElementById('catBar').innerHTML = categories.map(c => 
-        `<button class="cat-btn" onclick="loadFeed('${c}')">${c}</button>`
-    ).join('');
-    
-    // 2. Setup Themes
-    document.getElementById('themeGrid').innerHTML = themesList.map(t => `
-        <div class="theme-circle" onclick="applyTheme('${t.id}')">
-            <div style="background:${t.top}"></div>
-            <div style="background:${t.bottom}"></div>
-        </div>
-    `).join('');
-
-    // 3. Audio Ended Listener
-    const audioElem = document.getElementById('bgMusic');
-    audioElem.addEventListener('ended', () => {
-        console.log("Song ended, picking next track...");
-        playRandomMusic(currentCategory); 
-    });
-
-    // 4. Load Saved Theme & Initial Feed
-    const savedTheme = localStorage.getItem("imagifhub-theme") || "theme-black";
-    applyTheme(savedTheme);
-    loadFeed("Discover");
-};
-
-// --- GLOBAL EXPOSURE ---
-window.loadFeed = loadFeed;
-window.toggleMenu = toggleMenu;
-window.toggleMute = toggleMute;
-window.triggerSearch = triggerSearch;
-window.applyTheme = applyTheme;
-window.shareBot = shareBot;
-window.hideAd = hideAd;
-window.handleAdClick = (event) => {
+function handleAdClick(event) {
     if (!event.target.classList.contains('close-ad-btn')) {
         if (typeof currentAdLink === 'function') currentAdLink();
         else if (typeof currentAdLink === 'string') window.open(currentAdLink, '_blank');
         hideAd();
     }
-};
-
-
-// --- SIMPLE PAYMENT FALLBACK ---
-async function simplePayment(userId) {
-    try {
-        // Try the simpler GET endpoint
-        const response = await fetch(`https://imagifhub.vercel.app/api/get-payment-link?user_id=${userId}`);
-        const data = await response.json();
-        
-        if (data.success && data.invoice_url) {
-            return data.invoice_url;
-        }
-        return null;
-    } catch (e) {
-        console.error("Simple payment error:", e);
-        return null;
-    }
 }
 
-// Make it globally available
-window.simplePayment = simplePayment;
+// --- PREMIUM FUNCTIONS ---
+const tg = window.Telegram.WebApp;
+
+function openPremium() {
+    document.getElementById('menuPanel').classList.remove('open');
+    document.getElementById('premiumModal').classList.add('active');
+}
+
+function closePremium() {
+    document.getElementById('premiumModal').classList.remove('active');
+}
+
+function goPremium() {
+    console.log("Opening bot chat...");
+    const btn = document.getElementById('btnBuy');
+    const statusEl = document.getElementById('paymentStatus');
+    
+    btn.innerText = "Opening...";
+    btn.disabled = true;
+    statusEl.textContent = "Opening Telegram...";
+    statusEl.style.color = "#ffd700";
+    
+    try {
+        const botLink = "tg://resolve?domain=IMAGIFHUB_bot&start=premium";
+        
+        if (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.openLink) {
+            window.Telegram.WebApp.openLink(botLink);
+        } else {
+            window.location.href = botLink;
+        }
+        
+        setTimeout(() => {
+            if (tg.close) tg.close();
+        }, 300);
+        
+    } catch (error) {
+        console.error("Error:", error);
+        window.open("https://t.me/IMAGIFHUB_bot", '_blank');
+        
+        setTimeout(() => {
+            if (tg.close) tg.close();
+        }, 500);
+    }
+    
+    setTimeout(() => {
+        btn.innerText = "Go Premium";
+        btn.disabled = false;
+        statusEl.textContent = "";
+    }, 3000);
+}
+
+function goPremiumSimple() {
+    const botLink = "https://t.me/IMAGIFHUB_bot?start=premium";
+    const tgLink = "tg://resolve?domain=IMAGIFHUB_bot&start=premium";
+    
+    const iframe = document.createElement('iframe');
+    iframe.style.display = 'none';
+    iframe.src = tgLink;
+    document.body.appendChild(iframe);
+    
+    setTimeout(() => {
+        window.open(botLink, '_blank');
+        setTimeout(() => { if (tg.close) tg.close(); }, 500);
+    }, 100);
+    
+    setTimeout(() => {
+        document.body.removeChild(iframe);
+    }, 1000);
+}
 
 // --- PREMIUM STATUS CHECK ---
 async function checkUserPremiumStatus() {
@@ -272,15 +285,9 @@ async function checkUserPremiumStatus() {
         const user = window.Telegram.WebApp?.initDataUnsafe?.user;
         if (!user || !user.id) return false;
         
-        // Check local storage first
         if (localStorage.getItem("isPremium") === "true") {
             return true;
         }
-        
-        // You could also check with your backend API
-        // const response = await fetch(`/api/check-premium?user_id=${user.id}`);
-        // const data = await response.json();
-        // return data.is_premium || false;
         
         return false;
     } catch (error) {
@@ -289,11 +296,9 @@ async function checkUserPremiumStatus() {
     }
 }
 
-// Update UI based on premium status
 async function updatePremiumUI() {
     const isPremium = await checkUserPremiumStatus();
     
-    // Update menu button
     const premiumBtn = document.querySelector('.premium-btn-menu');
     if (premiumBtn) {
         if (isPremium) {
@@ -309,7 +314,6 @@ async function updatePremiumUI() {
         }
     }
     
-    // Update modal button if modal is open
     const modalBuyBtn = document.getElementById('btnBuy');
     if (modalBuyBtn) {
         if (isPremium) {
@@ -326,11 +330,76 @@ async function updatePremiumUI() {
     }
 }
 
-// Call this on initialization
+// --- INITIALIZATION ---
+window.onload = () => {
+    // Setup Categories
+    document.getElementById('catBar').innerHTML = categories.map(c => 
+        `<button class="cat-btn" onclick="loadFeed('${c}')">${c}</button>`
+    ).join('');
+    
+    // Setup Themes
+    document.getElementById('themeGrid').innerHTML = themesList.map(t => `
+        <div class="theme-circle" onclick="applyTheme('${t.id}')">
+            <div style="background:${t.top}"></div>
+            <div style="background:${t.bottom}"></div>
+        </div>
+    `).join('');
+
+    // Audio Ended Listener
+    const audioElem = document.getElementById('bgMusic');
+    audioElem.addEventListener('ended', () => {
+        console.log("Song ended, picking next track...");
+        playRandomMusic(currentCategory); 
+    });
+
+    // Load Saved Theme & Initial Feed
+    const savedTheme = localStorage.getItem("imagifhub-theme") || "theme-black";
+    applyTheme(savedTheme);
+    loadFeed("Discover");
+};
+
 document.addEventListener('DOMContentLoaded', async function() {
+    // Telegram WebApp Setup
+    tg.expand();
+    console.log("Telegram WebApp version:", tg.version);
+    
+    const user = tg.initDataUnsafe?.user;
+    if (user) {
+        console.log("User ID:", user.id);
+    }
+    
+    // Update Premium Status
     await updatePremiumUI();
 });
 
-// Make functions available globally
+// --- GLOBAL EXPOSURE ---
+window.loadFeed = loadFeed;
+window.toggleMenu = toggleMenu;
+window.toggleMute = toggleMute;
+window.triggerSearch = triggerSearch;
+window.applyTheme = applyTheme;
+window.shareBot = shareBot;
+window.hideAd = hideAd;
+window.handleAdClick = handleAdClick;
+window.simplePayment = simplePayment;
 window.checkUserPremiumStatus = checkUserPremiumStatus;
 window.updatePremiumUI = updatePremiumUI;
+window.openPremium = openPremium;
+window.closePremium = closePremium;
+window.goPremium = goPremiumSimple;
+
+// Simple Payment Fallback
+async function simplePayment(userId) {
+    try {
+        const response = await fetch(`https://imagifhub.vercel.app/api/get-payment-link?user_id=${userId}`);
+        const data = await response.json();
+        
+        if (data.success && data.invoice_url) {
+            return data.invoice_url;
+        }
+        return null;
+    } catch (e) {
+        console.error("Simple payment error:", e);
+        return null;
+    }
+                                          }
