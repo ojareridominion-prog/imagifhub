@@ -6,13 +6,14 @@ import requests
 from datetime import datetime, timedelta
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse, FileResponse
 from aiogram import Bot, Dispatcher, F
-from aiogram.types import Message, Update, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton, PreCheckoutQuery, ContentType, LabeledPrice
+from aiogram.types import Message, Update, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton, PreCheckoutQuery, ContentType
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.fsm.storage.memory import MemoryStorage
 from supabase import create_client, Client
+from aiogram.types import LabeledPrice
+from aiogram.utils.token import TokenValidationError
 
 # ==================== CONFIG ====================
 BOT_TOKEN = os.environ.get("BOT_TOKEN", "")
@@ -110,53 +111,17 @@ async def on_successful_payment(message: Message):
 
 @app.get("/media")
 async def get_media(category: str = "all", search: str = ""):
-    try:
-        query = supabase.table('media_content').select('*')
-        if category.lower() not in ["all", "discover"]:
-            query = query.eq('category', category.title())
-        if search:
-            query = query.ilike('Keyword', f'%{search}%')
-        res = query.execute()
-        data = res.data
-        random.shuffle(data)
-        return data[:50]
-    except Exception as e:
-        logging.error(f"Media error: {e}")
-        return []
+    query = supabase.table('media_content').select('*')
+    if category.lower() not in ["all", "discover"]:
+        query = query.eq('category', category.title())
+    if search:
+        query = query.ilike('Keyword', f'%{search}%')
+    res = query.execute()
+    data = res.data
+    random.shuffle(data)
+    return data[:50]
 
-# ==================== PAYMENT API FOR MINI APP ====================
-
-@app.get("/api/get-payment-link")
-async def get_payment_link(user_id: int):
-    """Simple endpoint for mini app to get payment link"""
-    try:
-        if not user_id:
-            return JSONResponse(
-                status_code=400,
-                content={"success": False, "error": "User ID required"}
-            )
-        
-        invoice_link = await bot.create_invoice_link(
-            title="IMAGIFHUB Premium",
-            description="30 days of ad-free experience",
-            payload=f"premium_{user_id}",
-            provider_token="",  # Empty for Telegram Stars
-            currency="XTR",     # Telegram Stars currency
-            prices=[LabeledPrice(label="Premium Access", amount=149)]
-        )
-        
-        return {
-            "success": True,
-            "invoice_url": invoice_link,
-            "user_id": user_id
-        }
-        
-    except Exception as e:
-        logging.error(f"Payment link error: {e}")
-        return JSONResponse(
-            status_code=500,
-            content={"success": False, "error": str(e)}
-        )
+# ==================== INVOICE ENDPOINT ====================
 
 @app.post("/api/create-invoice")
 async def create_invoice(request: Request):
@@ -167,12 +132,13 @@ async def create_invoice(request: Request):
         if not user_id:
             raise HTTPException(status_code=400, detail="User ID required")
         
+        # Create the invoice link
         invoice_link = await bot.create_invoice_link(
             title="IMAGIFHUB Premium",
             description="30 days of ad-free experience",
             payload=f"premium_{user_id}",
-            provider_token="",
-            currency="XTR",
+            provider_token="",  # Empty for Telegram Stars
+            currency="XTR",     # Telegram Stars currency
             prices=[LabeledPrice(label="Premium Access", amount=149)]
         )
         
@@ -180,34 +146,14 @@ async def create_invoice(request: Request):
         
     except Exception as e:
         logging.error(f"Create invoice error: {e}")
-        return {"error": str(e), "status": "failed"}
+        raise HTTPException(status_code=500, detail=str(e))
 
-# ==================== STATIC FILE SERVING ====================
-
-@app.get("/")
-async def serve_index():
-    return FileResponse("index.html")
-
-@app.get("/script.js")
-async def serve_script():
-    return FileResponse("script.js")
-
-@app.get("/{filename:path}")
-async def serve_static(filename: str):
-    if filename.endswith(('.js', '.css', '.html', '.png', '.jpg', '.jpeg')):
-        try:
-            return FileResponse(filename)
-        except:
-            pass
-    # Fallback to index.html for SPA routing
-    return FileResponse("index.html")
-
-# ==================== BOT LOGIC ====================
+# ==================== BOT LOGIC (ADMIN PANEL) ====================
 
 @dp.message(F.text == "/start")
 async def cmd_start(message: Message):
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="🚀 Let's Go!", web_app={"url": "https://imagifhub.vercel.app/"})],
+        [InlineKeyboardButton(text="🚀 Let's Go!", web_app={"url": "https://ojareridominion-prog.github.io/imagifhub/"})],
         [InlineKeyboardButton(text="📢 Official channel", url="https://t.me/imagifhub")],
         [InlineKeyboardButton(text="⭐ Go Premium", callback_data="premium")]
     ])
@@ -288,15 +234,3 @@ async def up_final(message: Message, state: FSMContext):
     }).execute()
     await message.answer(f"✅ Successfully added to {user_data['category']}!")
     await state.clear()
-
-# ==================== STARTUP ====================
-
-@app.on_event("startup")
-async def on_startup():
-    # You can add startup tasks here if needed
-    logging.info("IMAGIFHUB API started")
-
-# Health check endpoint
-@app.get("/api/health")
-async def health_check():
-    return {"status": "ok", "service": "imagifhub-api"}
