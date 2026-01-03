@@ -1,7 +1,7 @@
 import { musicLibrary, categories } from './music.js';
 import { nativeAds } from './ads.js';
 
-const API_URL = "https://imagifhub.vercel.app";
+const API_URL = "";
 let activeSwiper = null;
 let currentCategory = "Discover";
 let songPools = {}; // Tracks unplayed songs for each category
