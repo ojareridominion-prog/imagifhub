@@ -5,12 +5,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>IMAGIFHUB</title>
     
+    <!-- Telegram SDK -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <script src="https://unpkg.com/@telegram-apps/sdk@7.2.0/dist/core.min.js"></script>
     
+    <!-- Swiper for vertical scrolling -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.css"/>
     <script src="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.js"></script>
     
+    <!-- Main Styles -->
     <style>
         :root { --bg: #000; --text: #fff; --bar: #1a1a1a; --accent: #9c4dff; }
         body { margin:0; background:var(--bg); color:var(--text); font-family:system-ui; overflow:hidden; transition: 0.3s; }
@@ -27,13 +30,14 @@
         .menu-panel.open { left:0; }
         .menu-link { padding:15px 25px; border-bottom:1px solid rgba(255,255,255,0.05); display:block; text-decoration:none; color:var(--text); font-weight:500; }
         
+        /* Swiper Container */
         #swiper { position:absolute; top:104px; bottom:0; width:100%; z-index:10; }
         .swiper-slide { position: relative; width: 100%; height: 100%; }
         .swiper-slide img { width:100%; height:100%; object-fit:cover; }
         
         .meta-overlay { position:absolute; bottom:50px; left:15px; text-shadow: 2px 2px 5px #000; pointer-events: none; z-index: 15; }
 
-        /* --- Themes --- */
+        /* --- Theme Variations --- */
         .theme-white { --bg: #fff; --text: #000; --bar: #f0f0f0; --accent: #9c4dff; }
         .theme-blood { --bg: #1b0000; --text: #ffd6d6; --bar: #290000; --accent: #ff4d4d; }
         .theme-cyan { --bg: #001616; --text: #00ffff; --bar: #002222; --accent: #00ffff; }
@@ -42,10 +46,12 @@
         .theme-green { --bg: #051f13; --text: #66ffb2; --bar: #08301e; --accent: #66ffb2; }
         .theme-violet { --bg: #16001f; --text: #f0b3ff; --bar: #220033; --accent: #f0b3ff; }
 
+        /* Theme Selector */
         .theme-grid { display: flex; overflow-x: auto; gap: 15px; padding: 10px 25px; scrollbar-width: none; }
         .theme-circle { flex: 0 0 48px; width: 48px; height: 48px; border-radius: 50%; overflow: hidden; border: 2px solid rgba(255,255,255,.15); cursor: pointer; display: flex; flex-direction: column; }
         .theme-circle div { height: 50%; }
 
+        /* Premium Box in Menu */
         .premium-box { margin: 15px; padding: 15px; background: linear-gradient(45deg, #9c4dff, #ff4d4d); border-radius: 12px; color: white; text-align: center; }
         .premium-btn-menu { background: white; color: #9c4dff; border: none; padding: 8px 15px; border-radius: 20px; font-weight: bold; margin-top: 10px; cursor: pointer; }
 
@@ -60,7 +66,7 @@
         .native-ad img { width: 100%; height: 180px; object-fit: cover; border-radius: 12px; }
         .close-ad-btn { position: absolute; top: 10px; right: 10px; background: rgba(255, 255, 255, 0.2); border: none; color: white; width: 30px; height: 30px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; z-index: 3001; }
         
-        /* --- NEW: Premium Modal Styles --- */
+        /* --- Premium Modal --- */
         .modal-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(0,0,0,0.85); z-index: 9999;
@@ -97,11 +103,11 @@
             margin-top: 15px; cursor: pointer; text-decoration: underline;
         }
         .hidden { display: none !important; }
-
     </style>
 </head>
 <body>
 
+    <!-- Top Navigation Bar -->
     <div class="top-bar">
         <button onclick="toggleMenu()" style="background:none; border:none; color:#fff; font-size:24px; padding:15px; cursor:pointer;">☰</button>
         <h2 style="flex:1; text-align:center; font-size:16px; margin:0;">IMAGIFHUB</h2>
@@ -109,8 +115,10 @@
         <button onclick="triggerSearch()" style="background:none; border:none; color:#fff; font-size:22px; padding:15px; cursor:pointer;">🔍</button>
     </div>
 
+    <!-- Category Bar -->
     <div class="cat-bar" id="catBar"></div>
 
+    <!-- Side Menu -->
     <div id="menuPanel" class="menu-panel">
         <a href="#" class="menu-link" onclick="toggleMenu()" style="color:var(--accent)">✕ Close Menu</a>
         
@@ -126,10 +134,13 @@
         <div class="theme-grid" id="themeGrid"></div>
     </div>
 
+    <!-- Main Image Feed (Swiper) -->
     <div id="swiper" class="swiper"><div class="swiper-wrapper" id="feed"></div></div>
     
+    <!-- Background Music -->
     <audio id="bgMusic"></audio>
 
+    <!-- Native Ad Overlay -->
     <div id="nativeAd" class="native-ad hidden" onclick="handleAdClick(event)">
         <button class="close-ad-btn" onclick="hideAd(event)">✕</button>
         <img id="adImage" src="" alt="Ad">
@@ -139,214 +150,44 @@
         </div>
     </div>
 
+    <!-- Premium Modal -->
     <div id="premiumModal" class="modal-overlay">
-    <div class="premium-card">
-        <h1>✨ ImagifHub Premium</h1>
-        <div class="price-tag">
-            <span class="old-price">200 Stars</span>
-            <span class="new-price">149 Stars / 30 days</span>
+        <div class="premium-card">
+            <h1>✨ ImagifHub Premium</h1>
+            <div class="price-tag">
+                <span class="old-price">200 Stars</span>
+                <span class="new-price">149 Stars / 30 days</span>
+            </div>
+            <ul class="premium-list">
+                <li>🚫 No ads</li>
+                <li>✅ Support ImagifHub</li>
+                <li>⚡ Faster Downloads</li>
+            </ul>
+            
+            <div style="background: rgba(255, 215, 0, 0.1); padding: 15px; border-radius: 10px; margin: 20px 0; text-align: center;">
+                <p style="margin: 0; font-size: 14px; opacity: 0.9;">
+                    🔒 <b>Secure Payment via Telegram</b><br>
+                    Clicking "Go Premium" will open Telegram chat<br>
+                    where you can check your status and upgrade.
+                </p>
+            </div>
+            
+            <button id="btnBuy" class="btn-buy" onclick="goPremium()">
+                Go Premium
+            </button>
+            
+            <div style="margin: 15px 0; font-size: 12px; opacity: 0.7; text-align: center;">
+                💫 100% Secure • Telegram Stars • 30-Day Access
+            </div>
+            
+            <button class="btn-close" onclick="closePremium()">
+                Close
+            </button>
+            <p id="paymentStatus" style="font-size:12px; margin-top:10px; opacity:0.7;"></p>
         </div>
-        <ul class="premium-list">
-            <li>🚫 No ads</li>
-            <li>✅ Support ImagifHub</li>
-            <li>⚡ Faster Downloads</li>
-        </ul>
-        
-        <div style="background: rgba(255, 215, 0, 0.1); padding: 15px; border-radius: 10px; margin: 20px 0; text-align: center;">
-            <p style="margin: 0; font-size: 14px; opacity: 0.9;">
-                🔒 <b>Secure Payment via Telegram</b><br>
-                Clicking "Go Premium" will open Telegram chat<br>
-                where you can check your status and upgrade.
-            </p>
-        </div>
-        
-        <button id="btnBuy" class="btn-buy" onclick="goPremium()">
-            Go Premium
-        </button>
-        
-        <div style="margin: 15px 0; font-size: 12px; opacity: 0.7; text-align: center;">
-            💫 100% Secure • Telegram Stars • 30-Day Access
-        </div>
-        
-        <button class="btn-close" onclick="closePremium()">
-            Close
-        </button>
-        <p id="paymentStatus" style="font-size:12px; margin-top:10px; opacity:0.7;"></p>
     </div>
-    </div>
-    
 
+    <!-- Main JavaScript Module -->
     <script type="module" src="script.js"></script>
-
-    <script>
-    const tg = window.Telegram.WebApp;
-    tg.expand();
-    
-    // Debug
-    console.log("Telegram WebApp version:", tg.version);
-    console.log("Available methods:", Object.keys(tg));
-    
-    // 1. Open Premium Popup
-    function openPremium() {
-        document.getElementById('menuPanel').classList.remove('open');
-        document.getElementById('premiumModal').classList.add('active');
-    }
-
-    // 2. Close Premium Popup
-    function closePremium() {
-        document.getElementById('premiumModal').classList.remove('active');
-    }
-
-    // 3. SIMPLE WORKING METHOD: Use Telegram's switchInlineQuery
-    function goPremium() {
-        console.log("Opening bot chat...");
-        const btn = document.getElementById('btnBuy');
-        const statusEl = document.getElementById('paymentStatus');
-        
-        btn.innerText = "Opening...";
-        btn.disabled = true;
-        statusEl.textContent = "Opening Telegram...";
-        statusEl.style.color = "#ffd700";
-        
-        // Method 1: Try to use Telegram's switchInlineQuery method
-        // This should open the bot chat directly
-        try {
-            // First, try to open the bot chat
-            // We'll use a direct tg:// link
-            const botLink = "tg://resolve?domain=IMAGIFHUB_bot&start=premium";
-            
-            // Try to open the link
-            if (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.openLink) {
-                window.Telegram.WebApp.openLink(botLink);
-            } else {
-                // Fallback to direct link
-                window.location.href = botLink;
-            }
-            
-            // Close the mini app after a short delay
-            setTimeout(() => {
-                if (tg.close) {
-                    tg.close();
-                }
-            }, 300);
-            
-        } catch (error) {
-            console.error("Error:", error);
-            
-            // Method 2: Alternative approach
-            setTimeout(() => {
-                // Open the bot directly
-                window.open("https://t.me/IMAGIFHUB_bot", '_blank');
-                
-                // Try to send /premium via a timeout (this might not work but worth a try)
-                setTimeout(() => {
-                    // This is a hack: we'll try to use the WebApp's sendData to communicate with bot
-                    try {
-                        tg.sendData(JSON.stringify({
-                            command: "/premium",
-                            user_id: tg.initDataUnsafe?.user?.id
-                        }));
-                    } catch (e) {
-                        console.log("Could not send data:", e);
-                    }
-                }, 1000);
-                
-                // Close mini app
-                setTimeout(() => {
-                    if (tg.close) {
-                        tg.close();
-                    }
-                }, 500);
-            }, 100);
-        }
-        
-        // Reset button after a delay
-        setTimeout(() => {
-            btn.innerText = "Go Premium";
-            btn.disabled = false;
-            statusEl.textContent = "";
-        }, 3000);
-    }
-
-    // 4. Alternative: Use a simpler method that works on most devices
-    function goPremiumSimple() {
-        // This method works on most Telegram clients
-        const botLink = "https://t.me/IMAGIFHUB_bot?start=premium";
-        
-        // Try to open in Telegram app
-        const tgLink = "tg://resolve?domain=IMAGIFHUB_bot&start=premium";
-        
-        // Create a hidden iframe to trigger the tg:// link
-        const iframe = document.createElement('iframe');
-        iframe.style.display = 'none';
-        iframe.src = tgLink;
-        document.body.appendChild(iframe);
-        
-        // Fallback to web after a delay
-        setTimeout(() => {
-            window.open(botLink, '_blank');
-            
-            // Close mini app
-            setTimeout(() => {
-                if (tg.close) {
-                    tg.close();
-                }
-            }, 500);
-        }, 100);
-        
-        // Remove iframe
-        setTimeout(() => {
-            document.body.removeChild(iframe);
-        }, 1000);
-    }
-
-    // 5. Even simpler: Just use a direct link and let user manually type /premium
-    function goPremiumDirect() {
-        // Open bot chat
-        window.open("https://t.me/IMAGIFHUB_bot", '_blank');
-        
-        // Show instruction
-        tg.showPopup({
-            title: "How to Upgrade",
-            message: "Please type /premium in the bot chat to upgrade to Premium",
-            buttons: [{ type: "ok" }]
-        });
-        
-        // Close mini app after a delay
-        setTimeout(() => {
-            if (tg.close) {
-                tg.close();
-            }
-        }, 2000);
-    }
-
-    // Use the simple method
-    window.goPremium = goPremiumSimple;
-
-    // Expose functions
-    window.openPremium = openPremium;
-    window.closePremium = closePremium;
-
-    // Initialize
-    document.addEventListener('DOMContentLoaded', function() {
-        const user = tg.initDataUnsafe?.user;
-        if (user) {
-            console.log("User ID:", user.id);
-        }
-        
-        // Update premium status if needed
-        if (localStorage.getItem("isPremium") === "true") {
-            const premiumBtn = document.querySelector('.premium-btn-menu');
-            if (premiumBtn) {
-                premiumBtn.innerText = "PREMIUM ACTIVE";
-                premiumBtn.style.background = "#4CAF50";
-                premiumBtn.disabled = true;
-                premiumBtn.onclick = null;
-            }
-        }
-    });
-</script>                         
-            
-    
 </body>
 </html>
