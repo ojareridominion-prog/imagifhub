@@ -303,15 +303,23 @@ async def cmd_start(message: Message):
 
 @dp.message(F.text == "/premium")
 async def cmd_premium(message: Message):
-    """Check premium status or purchase premium"""
+    """Check premium status or purchase premium - RELIES ONLY ON TELEGRAM ID"""
     telegram_id = message.from_user.id
+    logging.info(f"Checking premium for user ID: {telegram_id}")
     
     try:
-        # Check user's premium status with better error handling
-        user_result = supabase.table("users").select("*").eq("telegram_id", telegram_id).execute()
+        # Simple query - only check telegram_id, is_premium, and premium_expires_at
+        user_result = supabase.table("users") \
+            .select("is_premium, premium_expires_at") \
+            .eq("telegram_id", telegram_id) \
+            .execute()
         
-        if not user_result.data:
-            # User not in database - not premium
+        # Debug logging
+        logging.info(f"Query result: {user_result.data}")
+        
+        if not user_result.data or len(user_result.data) == 0:
+            # User not in database - offer premium
+            logging.info(f"User {telegram_id} not found in database")
             keyboard = InlineKeyboardMarkup(inline_keyboard=[
                 [InlineKeyboardButton(text="⭐ Get Premium", callback_data="get_premium")],
                 [InlineKeyboardButton(text="🚀 Open IMAGIFHUB", web_app={"url": "https://ojareridominion-prog.github.io/imagifhub/"})]
@@ -328,21 +336,19 @@ async def cmd_premium(message: Message):
                 reply_markup=keyboard
             )
             return
-            
-        user_data = user_result.data[0]
         
-        # Handle missing fields gracefully
+        user_data = user_result.data[0]
         is_premium = user_data.get("is_premium", False)
         premium_expires_at = user_data.get("premium_expires_at")
         
+        logging.info(f"User {telegram_id} - is_premium: {is_premium}, expires_at: {premium_expires_at}")
+        
         if is_premium and premium_expires_at:
             try:
-                # User is premium - calculate remaining days
                 expires_at = datetime.fromisoformat(premium_expires_at.replace("Z", "+00:00"))
                 now = datetime.utcnow()
                 
                 if expires_at > now:
-                    # Still active
                     days_left = (expires_at - now).days
                     await message.answer(
                         f"✨ <b>Premium Status</b>\n\n"
@@ -352,58 +358,34 @@ async def cmd_premium(message: Message):
                         f"Enjoy your ad-free experience! 🎉",
                         parse_mode="HTML"
                     )
-                else:
-                    # Premium expired
-                    keyboard = InlineKeyboardMarkup(inline_keyboard=[
-                        [InlineKeyboardButton(text="🔄 Renew Premium", callback_data="renew_premium")]
-                    ])
-                    await message.answer(
-                        "⚠️ Your premium subscription has expired.\n\n"
-                        "Renew now to continue enjoying ad-free experience!",
-                        reply_markup=keyboard
-                    )
+                    return
             except Exception as e:
-                logging.error(f"Error parsing date: {e}")
-                # Date parsing failed, treat as not premium
-                keyboard = InlineKeyboardMarkup(inline_keyboard=[
-                    [InlineKeyboardButton(text="⭐ Get Premium", callback_data="get_premium")],
-                    [InlineKeyboardButton(text="🚀 Open IMAGIFHUB", web_app={"url": "https://ojareridominion-prog.github.io/imagifhub/"})]
-                ])
-                await message.answer(
-                    "✨ <b>IMAGIFHUB Premium</b>\n\n"
-                    "🔓 You are currently on the free plan.\n\n"
-                    "✨ <b>Upgrade to Premium for:</b>\n"
-                    "• 🚫 No ads\n"
-                    "• 😁 Support the project\n\n"
-                    "💫 <b>Price:</b> 149 Stars (30 days)\n\n"
-                    "Click 'Get Premium' to upgrade!",
-                    parse_mode="HTML",
-                    reply_markup=keyboard
-                )
-        else:
-            # Not premium - show premium purchase options
-            keyboard = InlineKeyboardMarkup(inline_keyboard=[
-                [InlineKeyboardButton(text="⭐ Get Premium", callback_data="get_premium")],
-                [InlineKeyboardButton(text="🚀 Open IMAGIFHUB", web_app={"url": "https://ojareridominion-prog.github.io/imagifhub/"})]
-            ])
-            await message.answer(
-                "✨ <b>IMAGIFHUB Premium</b>\n\n"
-                "🔓 You are currently on the free plan.\n\n"
-                "✨ <b>Upgrade to Premium for:</b>\n"
-                "• 🚫 No ads\n"
-                "• 😁 Support the project\n\n"
-                "💫 <b>Price:</b> 149 Stars (30 days)\n\n"
-                "Click 'Get Premium' to upgrade!",
-                parse_mode="HTML",
-                reply_markup=keyboard
-            )
+                logging.error(f"Date parsing error for user {telegram_id}: {e}")
+                # Continue to show free plan if date is invalid
+        
+        # If we get here, user is not premium
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="⭐ Get Premium", callback_data="get_premium")],
+            [InlineKeyboardButton(text="🚀 Open IMAGIFHUB", web_app={"url": "https://ojareridominion-prog.github.io/imagifhub/"})]
+        ])
+        await message.answer(
+            "✨ <b>IMAGIFHUB Premium</b>\n\n"
+            "🔓 You are currently on the free plan.\n\n"
+            "✨ <b>Upgrade to Premium for:</b>\n"
+            "• 🚫 No ads\n"
+            "• 😁 Support the project\n\n"
+            "💫 <b>Price:</b> 149 Stars (30 days)\n\n"
+            "Click 'Get Premium' to upgrade!",
+            parse_mode="HTML",
+            reply_markup=keyboard
+        )
             
     except Exception as e:
-        logging.error(f"Premium check error: {e}", exc_info=True)
+        logging.error(f"Premium check error for user {telegram_id}: {e}", exc_info=True)
         await message.answer(
             "❌ There was an error checking your premium status.\n\n"
             "Please try again in a few moments."
-                )
+            )
         
 @dp.callback_query(F.data == "get_premium")
 async def get_premium_callback(call: CallbackQuery):
