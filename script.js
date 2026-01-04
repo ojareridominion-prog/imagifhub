@@ -8,6 +8,8 @@ let songPools = {}; // Tracks unplayed songs for each category
 
 const SEEN_LIMIT = 20;
 const SEEN_KEY = "imagifhub-seen-history";
+const PREMIUM_CHECK_INTERVAL = 30000; // 30 seconds
+let premiumCheckInterval = null;
 
 // --- HISTORY TRACKING ---
 function getSeenList() {
@@ -133,6 +135,146 @@ async function loadFeed(cat, search="") {
     }
 }
 
+// --- PREMIUM VERIFICATION FUNCTIONS ---
+async function verifyPremiumStatus() {
+    try {
+        const tg = window.Telegram.WebApp;
+        const initData = tg.initData;
+        
+        if (!initData) {
+            console.log("No initData available, using localStorage");
+            const isPremium = localStorage.getItem("isPremium") === "true";
+            updatePremiumUI(isPremium);
+            return isPremium;
+        }
+        
+        const response = await fetch(`${API_URL}/api/user-data`, {
+            headers: {
+                'X-Telegram-Init-Data': initData
+            }
+        });
+        
+        const data = await response.json();
+        
+        if (data.premium) {
+            localStorage.setItem("isPremium", "true");
+            localStorage.setItem("premiumExpires", data.expires_at);
+            updatePremiumUI(true);
+            stopPremiumChecking(); // Stop checking if premium is active
+            return true;
+        } else {
+            localStorage.removeItem("isPremium");
+            localStorage.removeItem("premiumExpires");
+            updatePremiumUI(false);
+            return false;
+        }
+    } catch (error) {
+        console.log("Error verifying premium:", error);
+        // Fall back to localStorage if server check fails
+        const isPremium = localStorage.getItem("isPremium") === "true";
+        updatePremiumUI(isPremium);
+        return isPremium;
+    }
+}
+
+function startPremiumChecking(userId) {
+    // Clear any existing interval
+    stopPremiumChecking();
+    
+    // Check immediately
+    checkPremiumStatus(userId);
+    
+    // Then check every 30 seconds
+    premiumCheckInterval = setInterval(() => {
+        checkPremiumStatus(userId);
+    }, PREMIUM_CHECK_INTERVAL);
+}
+
+function stopPremiumChecking() {
+    if (premiumCheckInterval) {
+        clearInterval(premiumCheckInterval);
+        premiumCheckInterval = null;
+    }
+}
+
+async function checkPremiumStatus(userId) {
+    try {
+        const response = await fetch(`${API_URL}/api/check-premium?user_id=${userId}`);
+        const data = await response.json();
+        
+        if (data.is_premium) {
+            localStorage.setItem("isPremium", "true");
+            localStorage.setItem("premiumExpires", data.expires_at);
+            updatePremiumUI(true);
+            stopPremiumChecking();
+            
+            // Show success message
+            const statusEl = document.getElementById('paymentStatus');
+            if (statusEl) {
+                statusEl.textContent = "✅ Premium activated! Refreshing...";
+                statusEl.style.color = "#4CAF50";
+                
+                // Refresh the feed to remove ads
+                setTimeout(() => {
+                    loadFeed(currentCategory);
+                    closePremium();
+                }, 2000);
+            }
+            
+            return true;
+        }
+        return false;
+    } catch (error) {
+        console.log("Error checking premium status:", error);
+        return false;
+    }
+}
+
+function updatePremiumUI(isPremium) {
+    // Update menu button
+    const premiumBtn = document.querySelector('.premium-btn-menu');
+    if (premiumBtn) {
+        if (isPremium) {
+            premiumBtn.innerText = "⭐ PREMIUM ACTIVE";
+            premiumBtn.style.background = "#4CAF50";
+            premiumBtn.style.color = "white";
+            premiumBtn.disabled = true;
+            premiumBtn.onclick = null;
+        } else {
+            premiumBtn.innerText = "UPGRADE NOW";
+            premiumBtn.style.background = "white";
+            premiumBtn.style.color = "#9c4dff";
+            premiumBtn.disabled = false;
+            premiumBtn.onclick = openPremium;
+        }
+    }
+    
+    // Update modal button
+    const buyBtn = document.getElementById('btnBuy');
+    if (buyBtn) {
+        if (isPremium) {
+            buyBtn.innerText = "⭐ PREMIUM ACTIVE";
+            buyBtn.style.background = "#4CAF50";
+            buyBtn.disabled = true;
+        } else {
+            buyBtn.innerText = "Go Premium";
+            buyBtn.style.background = "#ffd700";
+            buyBtn.disabled = false;
+        }
+    }
+    
+    // Update premium indicator
+    const indicator = document.getElementById('premiumIndicator');
+    if (indicator) {
+        indicator.style.display = isPremium ? 'block' : 'none';
+    }
+    
+    // Hide ad if premium
+    if (isPremium) {
+        hideAd();
+    }
+}
+
 // --- UI & THEME FUNCTIONS ---
 function toggleMenu() { 
     document.getElementById('menuPanel').classList.toggle('open'); 
@@ -178,7 +320,9 @@ function getNextAd() {
 }
 
 function showAd() {
-    if (localStorage.getItem("isPremium") === "true") return;
+    const isPremium = localStorage.getItem("isPremium") === "true";
+    if (isPremium) return;
+    
     const ad = getNextAd();
     if (!ad) return;
     currentAdLink = ad.action; 
@@ -194,11 +338,19 @@ function hideAd(event) {
 }
 
 function maybeShowAd() {
-    if (localStorage.getItem("isPremium") === "true") return;
+    const isPremium = localStorage.getItem("isPremium") === "true";
+    if (isPremium) {
+        hideAd();
+        return;
+    }
+    
     actionCount++;
     localStorage.setItem("actionCount", actionCount);
-    if (actionCount % 5 === 0) showAd();
-    else hideAd();
+    if (actionCount % 5 === 0) {
+        showAd();
+    } else {
+        hideAd();
+    }
 }
 
 // --- PREMIUM MODAL FUNCTIONS ---
@@ -211,52 +363,96 @@ function closePremium() {
     document.getElementById('premiumModal').classList.remove('active');
 }
 
-function goPremium() {
-    console.log("Opening bot chat...");
+async function goPremium() {
+    console.log("Starting premium purchase flow...");
     const tg = window.Telegram.WebApp;
     const btn = document.getElementById('btnBuy');
     const statusEl = document.getElementById('paymentStatus');
     
-    btn.innerText = "Opening...";
+    // Get user ID from Telegram
+    const userId = tg.initDataUnsafe?.user?.id;
+    
+    if (!userId) {
+        statusEl.textContent = "❌ Please open in Telegram app to purchase";
+        statusEl.style.color = "#ff4444";
+        return;
+    }
+    
+    btn.innerText = "Opening Telegram...";
     btn.disabled = true;
-    statusEl.textContent = "Opening Telegram...";
+    statusEl.textContent = "Opening Telegram for payment...";
     statusEl.style.color = "#ffd700";
     
-    // This method works on most Telegram clients
-    const botLink = "https://t.me/IMAGIFHUB_bot?start=premium";
-    
-    // Try to open in Telegram app
-    const tgLink = "tg://resolve?domain=IMAGIFHUB_bot&start=premium";
-    
-    // Create a hidden iframe to trigger the tg:// link
-    const iframe = document.createElement('iframe');
-    iframe.style.display = 'none';
-    iframe.src = tgLink;
-    document.body.appendChild(iframe);
-    
-    // Fallback to web after a delay
-    setTimeout(() => {
-        window.open(botLink, '_blank');
+    try {
+        // Method 1: Use Telegram's openLink method (most reliable)
+        if (tg.openLink) {
+            const botLink = `https://t.me/IMAGIFHUB_bot?start=premium_${userId}`;
+            tg.openLink(botLink);
+        }
+        // Method 2: Use window.open for web
+        else {
+            const botLink = `https://t.me/IMAGIFHUB_bot?start=premium_${userId}`;
+            window.open(botLink, '_blank');
+        }
         
-        // Close mini app after a short delay
+        // Start checking for premium status
+        statusEl.textContent = "✅ Opened Telegram. Complete purchase in chat, then return here...";
+        
+        // Start polling for premium activation
+        startPremiumChecking(userId);
+        
+        // Set timeout to stop checking after 10 minutes
         setTimeout(() => {
-            if (tg.close) {
-                tg.close();
+            stopPremiumChecking();
+            if (localStorage.getItem("isPremium") !== "true") {
+                statusEl.textContent = "❌ Purchase timeout. Please try again.";
+                btn.innerText = "Go Premium";
+                btn.disabled = false;
             }
-        }, 500);
-    }, 100);
-    
-    // Remove iframe
-    setTimeout(() => {
-        document.body.removeChild(iframe);
-    }, 1000);
-    
-    // Reset button after a delay
-    setTimeout(() => {
+        }, 600000); // 10 minutes
+        
+    } catch (error) {
+        console.error("Error opening Telegram:", error);
+        statusEl.textContent = "❌ Error opening Telegram. Please try again.";
         btn.innerText = "Go Premium";
         btn.disabled = false;
-        statusEl.textContent = "";
-    }, 3000);
+    }
+}
+
+function addManualPremiumCheck() {
+    // Add a manual check button to premium modal
+    const premiumCard = document.querySelector('.premium-card');
+    if (premiumCard) {
+        const checkBtn = document.createElement('button');
+        checkBtn.className = 'btn-check';
+        checkBtn.innerHTML = '🔄 Check Premium Status';
+        checkBtn.style.cssText = `
+            background: transparent;
+            color: #4CAF50;
+            border: 1px solid #4CAF50;
+            padding: 10px;
+            width: 100%;
+            border-radius: 8px;
+            margin-top: 10px;
+            cursor: pointer;
+        `;
+        checkBtn.onclick = async () => {
+            const statusEl = document.getElementById('paymentStatus');
+            statusEl.textContent = "Checking status...";
+            statusEl.style.color = "#ffd700";
+            
+            const verified = await verifyPremiumStatus();
+            if (verified) {
+                statusEl.textContent = "✅ Premium is active!";
+                statusEl.style.color = "#4CAF50";
+            } else {
+                statusEl.textContent = "❌ No active premium found";
+                statusEl.style.color = "#ff4444";
+            }
+        };
+        
+        premiumCard.appendChild(checkBtn);
+    }
 }
 
 // --- TELEGRAM WEBAPP INIT ---
@@ -277,16 +473,19 @@ function initTelegramWebApp() {
 }
 
 // --- INITIALIZATION ---
-window.onload = () => {
+window.onload = async () => {
     // 1. Initialize Telegram WebApp
     initTelegramWebApp();
     
-    // 2. Setup Categories
+    // 2. Check premium status on load
+    await verifyPremiumStatus();
+    
+    // 3. Setup Categories
     document.getElementById('catBar').innerHTML = categories.map(c => 
         `<button class="cat-btn" onclick="loadFeed('${c}')">${c}</button>`
     ).join('');
     
-    // 3. Setup Themes
+    // 4. Setup Themes
     document.getElementById('themeGrid').innerHTML = themesList.map(t => `
         <div class="theme-circle" onclick="applyTheme('${t.id}')">
             <div style="background:${t.top}"></div>
@@ -294,27 +493,19 @@ window.onload = () => {
         </div>
     `).join('');
 
-    // 4. Audio Ended Listener
+    // 5. Audio Ended Listener
     const audioElem = document.getElementById('bgMusic');
     audioElem.addEventListener('ended', () => {
         playRandomMusic(currentCategory); 
     });
 
-    // 5. Load Saved Theme & Initial Feed
+    // 6. Load Saved Theme & Initial Feed
     const savedTheme = localStorage.getItem("imagifhub-theme") || "theme-black";
     applyTheme(savedTheme);
     loadFeed("Discover");
     
-    // 6. Update premium UI if user is already premium
-    if (localStorage.getItem("isPremium") === "true") {
-        const premiumBtn = document.querySelector('.premium-btn-menu');
-        if (premiumBtn) {
-            premiumBtn.innerText = "PREMIUM ACTIVE";
-            premiumBtn.style.background = "#4CAF50";
-            premiumBtn.disabled = true;
-            premiumBtn.onclick = null;
-        }
-    }
+    // 7. Add manual premium check button
+    addManualPremiumCheck();
 };
 
 // --- GLOBAL EXPOSURE ---
@@ -328,6 +519,7 @@ window.hideAd = hideAd;
 window.openPremium = openPremium;
 window.closePremium = closePremium;
 window.goPremium = goPremium;
+window.verifyPremiumStatus = verifyPremiumStatus;
 
 window.handleAdClick = (event) => {
     if (!event.target.classList.contains('close-ad-btn')) {
