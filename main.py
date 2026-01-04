@@ -156,32 +156,40 @@ async def check_premium(user_id: int):
         
         user_data = user_result.data[0]
         
-        if not user_data.get("is_premium") or not user_data.get("premium_expires_at"):
+        # Use get() with defaults to handle missing fields
+        is_premium = user_data.get("is_premium", False)
+        premium_expires_at = user_data.get("premium_expires_at")
+        
+        if not is_premium or not premium_expires_at:
             return {"is_premium": False, "expires_at": None}
         
         # Check if premium is still valid
-        expires_at = datetime.fromisoformat(user_data["premium_expires_at"].replace("Z", "+00:00"))
-        now = datetime.utcnow()
-        
-        if expires_at > now:
-            return {
-                "is_premium": True,
-                "expires_at": expires_at.isoformat(),
-                "days_left": (expires_at - now).days
-            }
-        else:
-            # Premium expired, update status
-            supabase.table("users").update({
-                "is_premium": False,
-                "premium_expires_at": None
-            }).eq("telegram_id", user_id).execute()
+        try:
+            expires_at = datetime.fromisoformat(premium_expires_at.replace("Z", "+00:00"))
+            now = datetime.utcnow()
             
+            if expires_at > now:
+                return {
+                    "is_premium": True,
+                    "expires_at": expires_at.isoformat(),
+                    "days_left": (expires_at - now).days
+                }
+            else:
+                # Premium expired, update status
+                supabase.table("users").update({
+                    "is_premium": False,
+                    "premium_expires_at": None
+                }).eq("telegram_id", user_id).execute()
+                
+                return {"is_premium": False, "expires_at": None}
+        except Exception as e:
+            logging.error(f"Error parsing date in check-premium: {e}")
             return {"is_premium": False, "expires_at": None}
             
     except Exception as e:
         logging.error(f"Error checking premium: {e}")
         return {"is_premium": False, "expires_at": None}
-
+        
 @app.get("/api/user-data")
 async def get_user_data(request: Request):
     """Get user data for the current Telegram user"""
