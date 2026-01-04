@@ -295,9 +295,15 @@ async def debug_premium(user_id: int):
                 if expires_at_str.endswith('Z'):
                     expires_at_str_clean = expires_at_str.replace('Z', '+00:00')
                 expires_at = datetime.fromisoformat(expires_at_str_clean)
-                calculated_status = expires_at > datetime.utcnow()
-            except:
-                pass
+                now = datetime.utcnow().replace(tzinfo=None)
+                
+                # Make expires_at naive for comparison
+                if expires_at.tzinfo is not None:
+                    expires_at = expires_at.replace(tzinfo=None)
+                
+                calculated_status = expires_at > now
+            except Exception as e:
+                print(f"Date parsing error in debug: {e}")
         
         return {
             "database_record": user_data,
@@ -307,10 +313,13 @@ async def debug_premium(user_id: int):
             "is_premium_bool": is_premium_bool,
             "expires_at_field": user_data.get("premium_expires_at"),
             "calculated_premium": calculated_status,
-            "premium_active": calculated_status
+            "premium_active": calculated_status,
+            "expires_at_naive": expires_at.isoformat() if expires_at else None,
+            "current_time_naive": datetime.utcnow().replace(tzinfo=None).isoformat()
         }
     except Exception as e:
         return {"error": str(e)}
+        
 
 
 @app.get("/api/test-premium/{user_id}")
