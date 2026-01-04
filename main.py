@@ -430,6 +430,7 @@ async def cmd_start(message: Message):
         "Don't wait, click let's go 🚀🚀 to continue",
         reply_markup=keyboard
     )
+    
 
 @dp.message(F.text == "/premium")
 async def cmd_premium(message: Message):
@@ -473,10 +474,28 @@ async def cmd_premium(message: Message):
         
         logging.info(f"User {telegram_id} - is_premium: {is_premium}, expires_at: {premium_expires_at}")
         
-        if is_premium and premium_expires_at:
+        # Handle boolean value properly
+        is_premium_bool = False
+        if isinstance(is_premium, bool):
+            is_premium_bool = is_premium
+        elif isinstance(is_premium, str):
+            is_premium_bool = is_premium.lower() == 'true'
+        elif isinstance(is_premium, int):
+            is_premium_bool = bool(is_premium)
+        
+        if is_premium_bool and premium_expires_at:
             try:
-                expires_at = datetime.fromisoformat(premium_expires_at.replace("Z", "+00:00"))
-                now = datetime.utcnow()
+                # Parse date
+                expires_at_str = premium_expires_at
+                if expires_at_str.endswith('Z'):
+                    expires_at_str = expires_at_str.replace('Z', '+00:00')
+                
+                expires_at = datetime.fromisoformat(expires_at_str)
+                now = datetime.utcnow().replace(tzinfo=None)
+                
+                # Make expires_at naive for comparison
+                if expires_at.tzinfo is not None:
+                    expires_at = expires_at.replace(tzinfo=None)
                 
                 if expires_at > now:
                     days_left = (expires_at - now).days
@@ -515,7 +534,8 @@ async def cmd_premium(message: Message):
         await message.answer(
             "❌ There was an error checking your premium status.\n\n"
             "Please try again in a few moments."
-            )
+        )
+        
         
 @dp.callback_query(F.data == "get_premium")
 async def get_premium_callback(call: CallbackQuery):
