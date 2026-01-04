@@ -240,6 +240,29 @@ async def get_user_data(request: Request):
         logging.error(f"Error getting user data: {e}")
         return {"user": None, "premium": False}
 
+@app.get("/api/debug-premium/{user_id}")
+async def debug_premium(user_id: int):
+    """Debug endpoint to see raw database data"""
+    try:
+        user_result = supabase.table("users").select("*").eq("telegram_id", user_id).execute()
+        
+        if not user_result.data:
+            return {"error": "User not found", "user_id": user_id}
+        
+        user_data = user_result.data[0]
+        
+        return {
+            "database_record": user_data,
+            "current_time_utc": datetime.utcnow().isoformat(),
+            "is_premium_field": user_data.get("is_premium"),
+            "expires_at_field": user_data.get("premium_expires_at"),
+            "calculated_premium": user_data.get("is_premium") == True and 
+                                 datetime.fromisoformat(user_data.get("premium_expires_at").replace("Z", "+00:00")) > datetime.utcnow()
+        }
+    except Exception as e:
+        return {"error": str(e)}
+        
+
 # ==================== FRONTEND API ====================
 
 @app.get("/media")
