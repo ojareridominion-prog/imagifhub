@@ -103,6 +103,21 @@
             margin-top: 15px; cursor: pointer; text-decoration: underline;
         }
         .hidden { display: none !important; }
+        
+        /* Premium Indicator */
+        #premiumIndicator {
+            color: #ffd700;
+            font-size: 20px;
+            animation: pulse 2s infinite;
+            display: none;
+            margin-right: 10px;
+        }
+        
+        @keyframes pulse {
+            0% { opacity: 0.7; transform: scale(1); }
+            50% { opacity: 1; transform: scale(1.1); }
+            100% { opacity: 0.7; transform: scale(1); }
+        }
     </style>
 </head>
 <body>
@@ -111,6 +126,10 @@
     <div class="top-bar">
         <button onclick="toggleMenu()" style="background:none; border:none; color:#fff; font-size:24px; padding:15px; cursor:pointer;">☰</button>
         <h2 style="flex:1; text-align:center; font-size:16px; margin:0;">IMAGIFHUB</h2>
+        <!-- Add premium indicator -->
+        <div id="premiumIndicator" style="display:none;">
+            ⭐
+        </div>
         <button id="muteBtn" onclick="toggleMute()" style="background:none; border:none; color:#fff; font-size:22px; padding:15px; cursor:pointer;">🔊</button>
         <button onclick="triggerSearch()" style="background:none; border:none; color:#fff; font-size:22px; padding:15px; cursor:pointer;">🔍</button>
     </div>
@@ -179,14 +198,25 @@
                 💫 100% Secure • Telegram Stars • 30-Day Access
             </div>
             
+            <!-- Added instructions -->
+            <div style="margin-top: 15px; padding: 10px; background: rgba(255, 215, 0, 0.1); border-radius: 8px;">
+                <p style="margin: 0; font-size: 12px; opacity: 0.8;">
+                    <b>After purchasing:</b><br>
+                    1. Complete payment in Telegram chat<br>
+                    2. Return here and wait for confirmation<br>
+                    3. Or use "Check Premium Status" button
+                </p>
+            </div>
+            
             <button class="btn-close" onclick="closePremium()">
                 Close
             </button>
             <p id="paymentStatus" style="font-size:12px; margin-top:10px; opacity:0.7;"></p>
+            <!-- Manual check button will be added by JavaScript -->
         </div>
     </div>
 
     <!-- Main JavaScript Module -->
     <script type="module" src="script.js"></script>
 </body>
-</html>
+    </html>
