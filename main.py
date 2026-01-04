@@ -186,7 +186,12 @@ async def check_premium(user_id: int):
                     expires_at_str_clean = expires_at_str.replace('Z', '+00:00')
                 
                 expires_at = datetime.fromisoformat(expires_at_str_clean)
-                now = datetime.utcnow()
+                now = datetime.utcnow().replace(tzinfo=None)  # Make naive for comparison
+                
+                # If expires_at has timezone info, make it naive too
+                if expires_at.tzinfo is not None:
+                    expires_at = expires_at.replace(tzinfo=None)
+                
                 print(f"⏰ Now: {now}, Expires: {expires_at}")
                 
                 if expires_at > now:
@@ -202,6 +207,8 @@ async def check_premium(user_id: int):
             except Exception as e:
                 print(f"⚠️ Date parsing error: {e}")
                 print(f"⚠️ Raw expires_at string: {expires_at_str}")
+                import traceback
+                traceback.print_exc()
         
         print(f"❌ No active premium found. is_premium_bool={is_premium_bool}")
         return {"is_premium": False, "expires_at": None, "days_left": None}
@@ -211,6 +218,7 @@ async def check_premium(user_id: int):
         import traceback
         traceback.print_exc()
         return {"is_premium": False, "expires_at": None, "days_left": None}
+
 
 
 @app.get("/api/user-data")
