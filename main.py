@@ -254,6 +254,7 @@ async def get_user_data(request: Request):
         logging.error(f"Error getting user data: {e}")
         return {"user": None, "premium": False}
 
+
 @app.get("/api/debug-premium/{user_id}")
 async def debug_premium(user_id: int):
     """Debug endpoint to see raw database data"""
@@ -264,17 +265,45 @@ async def debug_premium(user_id: int):
             return {"error": "User not found", "user_id": user_id}
         
         user_data = user_result.data[0]
+        is_premium = user_data.get("is_premium")
+        expires_at_str = user_data.get("premium_expires_at")
+        
+        # Parse the boolean
+        is_premium_bool = False
+        if isinstance(is_premium, bool):
+            is_premium_bool = is_premium
+        elif isinstance(is_premium, str):
+            is_premium_bool = is_premium.lower() == 'true'
+        elif isinstance(is_premium, int):
+            is_premium_bool = bool(is_premium)
+        
+        # Calculate premium status
+        calculated_status = False
+        expires_at = None
+        
+        if is_premium_bool and expires_at_str:
+            try:
+                expires_at_str_clean = expires_at_str
+                if expires_at_str.endswith('Z'):
+                    expires_at_str_clean = expires_at_str.replace('Z', '+00:00')
+                expires_at = datetime.fromisoformat(expires_at_str_clean)
+                calculated_status = expires_at > datetime.utcnow()
+            except:
+                pass
         
         return {
             "database_record": user_data,
             "current_time_utc": datetime.utcnow().isoformat(),
-            "is_premium_field": user_data.get("is_premium"),
+            "is_premium_raw": user_data.get("is_premium"),
+            "is_premium_type": str(type(user_data.get("is_premium"))),
+            "is_premium_bool": is_premium_bool,
             "expires_at_field": user_data.get("premium_expires_at"),
-            "calculated_premium": user_data.get("is_premium") == True and 
-                                 datetime.fromisoformat(user_data.get("premium_expires_at").replace("Z", "+00:00")) > datetime.utcnow()
+            "calculated_premium": calculated_status,
+            "premium_active": calculated_status
         }
     except Exception as e:
         return {"error": str(e)}
+
 
 @app.get("/api/test-premium/{user_id}")
 async def test_premium(user_id: int):
