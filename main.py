@@ -150,9 +150,9 @@ async def check_premium(user_id: int):
     try:
         print(f"🔍 Checking premium for user: {user_id}")
         
-        # Simple direct query
+        # Direct query with specific field selection
         result = supabase.table("users") \
-            .select("is_premium, premium_expires_at") \
+            .select("*") \
             .eq("telegram_id", user_id) \
             .execute()
         
@@ -166,17 +166,26 @@ async def check_premium(user_id: int):
         is_premium = data.get("is_premium")
         expires_at_str = data.get("premium_expires_at")
         
-        print(f"📋 Data: is_premium={is_premium}, expires_at={expires_at_str}")
+        print(f"📋 Data: is_premium={is_premium} (type: {type(is_premium)}), expires_at={expires_at_str}")
+        
+        # Handle boolean value properly (might be string 'true' or boolean True)
+        is_premium_bool = False
+        if isinstance(is_premium, bool):
+            is_premium_bool = is_premium
+        elif isinstance(is_premium, str):
+            is_premium_bool = is_premium.lower() == 'true'
+        elif isinstance(is_premium, int):
+            is_premium_bool = bool(is_premium)
         
         # Check if premium is active
-        if is_premium and expires_at_str:
+        if is_premium_bool and expires_at_str:
             try:
-                # Parse date
+                # Parse date - handle different formats
+                expires_at_str_clean = expires_at_str
                 if expires_at_str.endswith('Z'):
-                    expires_at = datetime.fromisoformat(expires_at_str.replace('Z', '+00:00'))
-                else:
-                    expires_at = datetime.fromisoformat(expires_at_str)
+                    expires_at_str_clean = expires_at_str.replace('Z', '+00:00')
                 
+                expires_at = datetime.fromisoformat(expires_at_str_clean)
                 now = datetime.utcnow()
                 print(f"⏰ Now: {now}, Expires: {expires_at}")
                 
@@ -192,14 +201,18 @@ async def check_premium(user_id: int):
                     print(f"❌ Premium EXPIRED")
             except Exception as e:
                 print(f"⚠️ Date parsing error: {e}")
+                print(f"⚠️ Raw expires_at string: {expires_at_str}")
         
-        print(f"❌ No active premium found")
+        print(f"❌ No active premium found. is_premium_bool={is_premium_bool}")
         return {"is_premium": False, "expires_at": None, "days_left": None}
         
     except Exception as e:
         print(f"🔥 Error in check_premium: {e}")
+        import traceback
+        traceback.print_exc()
         return {"is_premium": False, "expires_at": None, "days_left": None}
-        
+
+
 @app.get("/api/user-data")
 async def get_user_data(request: Request):
     """Get user data for the current Telegram user"""
