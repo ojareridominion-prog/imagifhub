@@ -262,6 +262,44 @@ async def debug_premium(user_id: int):
         }
     except Exception as e:
         return {"error": str(e)}
+
+@app.get("/api/test-premium/{user_id}")
+async def test_premium(user_id: int):
+    """Direct test endpoint that shows everything"""
+    try:
+        # Get user from database
+        user_result = supabase.table("users").select("*").eq("telegram_id", user_id).execute()
+        
+        response = {
+            "user_id": user_id,
+            "current_time_utc": datetime.utcnow().isoformat(),
+            "database_record": user_result.data[0] if user_result.data else None,
+            "raw_sql_test": None
+        }
+        
+        # Also run a raw SQL test
+        from supabase import Client
+        import json
+        
+        # Raw query to see exactly what's in DB
+        sql_result = supabase.table("users").select("*").eq("telegram_id", user_id).execute()
+        
+        if sql_result.data:
+            record = sql_result.data[0]
+            response["raw_sql_test"] = {
+                "exists": True,
+                "telegram_id": record.get("telegram_id"),
+                "is_premium_raw": record.get("is_premium"),
+                "is_premium_type": type(record.get("is_premium")).__name__,
+                "expires_at_raw": record.get("premium_expires_at"),
+                "calculated_status": record.get("is_premium") == True and 
+                    datetime.fromisoformat(record.get("premium_expires_at").replace('Z', '+00:00')) > datetime.utcnow()
+            }
+        
+        return response
+        
+    except Exception as e:
+        return {"error": str(e), "user_id": user_id}
         
 
 # ==================== FRONTEND API ====================
