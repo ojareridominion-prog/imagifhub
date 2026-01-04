@@ -3,6 +3,8 @@ import logging
 import random
 import asyncio
 import requests
+import json
+import urllib.parse
 from datetime import datetime, timedelta
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -20,6 +22,7 @@ ADMIN_ID = int(os.environ.get("ADMIN_ID", 0))
 IMGBB_API_KEY = os.environ.get("IMGBB_API_KEY", "")
 SUPABASE_URL = os.environ.get("SUPABASE_URL", "")
 SUPABASE_KEY = os.environ.get("SUPABASE_KEY", "")
+ADMIN_TOKEN = os.environ.get("ADMIN_TOKEN", "")  # Separate from BOT_TOKEN
 
 # Initialize Clients
 app = FastAPI()
@@ -42,8 +45,21 @@ class AdminUpload(StatesGroup):
 CATEGORIES = [
     "Nature", "Places", "Aesthetic", "Cars", 
     "Luxury", "Anime", "Animals", "Ancient", 
-    "Marine", "Art", "Fictional", "Funny", "Featured"
+    "Marine", "Art", "Fictional", "Funny", "Featured", "Discover"
 ]
+
+# ==================== HELPER FUNCTIONS ====================
+
+def get_user_id_from_init_data(init_data: str):
+    """Extract user ID from Telegram WebApp initData"""
+    try:
+        parsed = urllib.parse.parse_qs(init_data)
+        if 'user' in parsed:
+            user_data = json.loads(parsed['user'][0])
+            return user_data.get('id')
+    except Exception as e:
+        logging.error(f"Error parsing initData: {e}")
+    return None
 
 # ==================== WEBHOOK HELPERS ====================
 
@@ -68,12 +84,10 @@ async def set_webhook(request: Request):
 
 # ==================== PAYMENT HANDLERS (STARS) ====================
 
-# Pre-checkout handler
 @dp.pre_checkout_query()
 async def on_pre_checkout_query(pre_checkout_query: PreCheckoutQuery):
     await bot.answer_pre_checkout_query(pre_checkout_query.id, ok=True)
 
-# Successful payment handler
 @dp.message(F.content_type == ContentType.SUCCESSFUL_PAYMENT)
 async def on_successful_payment(message: Message):
     try:
@@ -90,26 +104,124 @@ async def on_successful_payment(message: Message):
             "amount": payment.total_amount,
             "currency": payment.currency,
             "payload": payment.invoice_payload,
-            "transaction_id": payment.telegram_payment_charge_id
+            "transaction_id": payment.telegram_payment_charge_id,
+            "status": "completed"
         }).execute()
 
         # Update User Premium Status
         supabase.table("users").upsert({
             "telegram_id": telegram_id,
             "is_premium": True,
-            "premium_expires_at": expires_at.isoformat()
+            "premium_expires_at": expires_at.isoformat(),
+            "updated_at": datetime.utcnow().isoformat()
         }).execute()
 
-        # Send congratulatory message with premium status
+        # Send congratulatory message with instructions
         await message.answer(
             "🎉 Payment successful! You are now an IMAGIFHUB Premium member!\n\n"
-            "Your premium access is active for 30 days. "
-            "Use /premium to check your status anytime."
+            "✅ Your premium access is active for 30 days.\n"
+            "✅ Ads have been removed from your experience.\n\n"
+            "To refresh your premium status in the app:\n"
+            "1. Close and reopen the IMAGIFHUB Mini App\n"
+            "2. Or tap 'Check Premium Status' button\n\n"
+            "Use /premium anytime to check your status."
+        )
+        
+        # Also send a button to refresh the mini app
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="🔄 Refresh Mini App", web_app={"url": "https://ojareridominion-prog.github.io/imagifhub/"})],
+            [InlineKeyboardButton(text="🚀 Open IMAGIFHUB", web_app={"url": "https://ojareridominion-prog.github.io/imagifhub/"})]
+        ])
+        
+        await message.answer(
+            "Click below to open the refreshed app with premium activated:",
+            reply_markup=keyboard
         )
         
     except Exception as e:
         logging.error(f"Payment DB Error: {e}")
         await message.answer("Payment received, but there was an error activating premium. Please contact support.")
+
+# ==================== PREMIUM VERIFICATION ENDPOINTS ====================
+
+@app.get("/api/check-premium")
+async def check_premium(user_id: int):
+    """Check if a user has active premium"""
+    try:
+        # First check if user exists and is premium
+        user_result = supabase.table("users").select("*").eq("telegram_id", user_id).execute()
+        
+        if not user_result.data or len(user_result.data) == 0:
+            return {"is_premium": False, "expires_at": None}
+        
+        user_data = user_result.data[0]
+        
+        if not user_data.get("is_premium") or not user_data.get("premium_expires_at"):
+            return {"is_premium": False, "expires_at": None}
+        
+        # Check if premium is still valid
+        expires_at = datetime.fromisoformat(user_data["premium_expires_at"].replace("Z", "+00:00"))
+        now = datetime.utcnow()
+        
+        if expires_at > now:
+            return {
+                "is_premium": True,
+                "expires_at": expires_at.isoformat(),
+                "days_left": (expires_at - now).days
+            }
+        else:
+            # Premium expired, update status
+            supabase.table("users").update({
+                "is_premium": False,
+                "premium_expires_at": None
+            }).eq("telegram_id", user_id).execute()
+            
+            return {"is_premium": False, "expires_at": None}
+            
+    except Exception as e:
+        logging.error(f"Error checking premium: {e}")
+        return {"is_premium": False, "expires_at": None}
+
+@app.get("/api/user-data")
+async def get_user_data(request: Request):
+    """Get user data for the current Telegram user"""
+    try:
+        # Get user from Telegram WebApp initData
+        init_data = request.headers.get("X-Telegram-Init-Data", "")
+        
+        if not init_data:
+            return {"user": None, "premium": False}
+        
+        user_id = get_user_id_from_init_data(init_data)
+        
+        if not user_id:
+            return {"user": None, "premium": False}
+        
+        # Get user info from initData
+        try:
+            parsed = urllib.parse.parse_qs(init_data)
+            user_json = json.loads(parsed['user'][0])
+            user_info = {
+                "id": user_json.get('id'),
+                "username": user_json.get('username'),
+                "first_name": user_json.get('first_name'),
+                "last_name": user_json.get('last_name')
+            }
+        except:
+            user_info = {"id": user_id}
+        
+        # Check premium status
+        premium_result = await check_premium(user_id)
+        
+        return {
+            "user": user_info,
+            "premium": premium_result["is_premium"],
+            "expires_at": premium_result.get("expires_at")
+        }
+        
+    except Exception as e:
+        logging.error(f"Error getting user data: {e}")
+        return {"user": None, "premium": False}
 
 # ==================== FRONTEND API ====================
 
@@ -125,11 +237,52 @@ async def get_media(category: str = "all", search: str = ""):
     random.shuffle(data)
     return data[:50]
 
+# ==================== ADMIN ENDPOINTS ====================
+
+@app.get("/api/admin/stats")
+async def admin_stats(request: Request):
+    """Admin statistics endpoint"""
+    # Simple auth check
+    auth = request.headers.get("Authorization", "")
+    if not auth.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Unauthorized")
+    
+    token = auth.replace("Bearer ", "").strip()
+    if token != ADMIN_TOKEN:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+    
+    try:
+        # Get total users
+        users_res = supabase.table("users").select("count", count="exact").execute()
+        total_users = users_res.count or 0
+        
+        # Get premium users
+        premium_res = supabase.table("users").select("count", count="exact").eq("is_premium", True).execute()
+        premium_users = premium_res.count or 0
+        
+        # Get total payments
+        payments_res = supabase.table("payments").select("amount", "currency").eq("status", "completed").execute()
+        total_revenue = sum(p.get("amount", 0) for p in payments_res.data) if payments_res.data else 0
+        
+        # Recent payments
+        recent_payments = supabase.table("payments").select("*").order("created_at", desc=True).limit(10).execute()
+        
+        return {
+            "total_users": total_users,
+            "premium_users": premium_users,
+            "premium_percentage": (premium_users / total_users * 100) if total_users > 0 else 0,
+            "total_revenue": total_revenue,
+            "recent_payments": recent_payments.data if recent_payments.data else []
+        }
+        
+    except Exception as e:
+        logging.error(f"Admin stats error: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
 # ==================== BOT LOGIC ====================
 
 @dp.message(F.text == "/start")
 async def cmd_start(message: Message):
-    # REMOVED PREMIUM BUTTON FROM START
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="🚀 Let's Go!", web_app={"url": "https://ojareridominion-prog.github.io/imagifhub/"})],
         [InlineKeyboardButton(text="📢 Official Channel", url="https://t.me/imagifhub")]
@@ -262,7 +415,13 @@ async def renew_premium_callback(call: CallbackQuery):
 @dp.message(F.text.startswith("/start premium"))
 async def start_premium(message: Message):
     """Handle deep link from mini app"""
-    await cmd_premium(message)
+    # Extract user ID from the command if present
+    parts = message.text.split()
+    if len(parts) > 2:
+        # Format: /start premium_123456
+        await cmd_premium(message)
+    else:
+        await cmd_premium(message)
 
 @dp.message(F.from_user.id == ADMIN_ID, F.text == "/admin")
 async def admin_cmd(message: Message, state: FSMContext):
