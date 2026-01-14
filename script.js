@@ -388,6 +388,7 @@ async function goPremium() {
         if (tg.openLink) {
             const botLink = `https://t.me/IMAGIFHUB_bot?start=premium_${userId}`;
             tg.openLink(botLink);
+            tg.close();
         }
         // Method 2: Use window.open for web
         else {
