@@ -45,7 +45,7 @@ class AdminUpload(StatesGroup):
 CATEGORIES = [
     "Nature", "Places", "Aesthetic", "Cars", 
     "Luxury", "Anime", "Animals", "Ancient", 
-    "Marine", "Art", "Fictional", "Funny", "Featured", "Discover"
+    "Marine", "Art", "Fictional", "Funny", "Featured"
 ]
 
 # ==================== HELPER FUNCTIONS ====================
@@ -461,7 +461,7 @@ async def cmd_premium(message: Message):
                 "✨ <b>Upgrade to Premium for:</b>\n"
                 "• 🚫 No ads\n"
                 "• 😁 Support the project\n\n"
-                "💫 <b>Price:</b> 149 Stars (30 days)\n\n"
+                "💫 <b>Price:</b> 99 Stars (30 days)\n\n"
                 "Click 'Get Premium' to upgrade!",
                 parse_mode="HTML",
                 reply_markup=keyboard
@@ -523,7 +523,7 @@ async def cmd_premium(message: Message):
             "✨ <b>Upgrade to Premium for:</b>\n"
             "• 🚫 No ads\n"
             "• 😁 Support the project\n\n"
-            "💫 <b>Price:</b> 149 Stars (30 days)\n\n"
+            "💫 <b>Price:</b> 99 Stars (30 days)\n\n"
             "Click 'Get Premium' to upgrade!",
             parse_mode="HTML",
             reply_markup=keyboard
@@ -548,7 +548,7 @@ async def get_premium_callback(call: CallbackQuery):
         payload=f"premium_{call.from_user.id}",
         provider_token="",
         currency="XTR",
-        prices=[LabeledPrice(label="Premium Access", amount=149)]
+        prices=[LabeledPrice(label="Premium Access", amount=99)]
     )
     
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
@@ -558,7 +558,7 @@ async def get_premium_callback(call: CallbackQuery):
     
     await call.message.edit_text(
         "✨ <b>Upgrade to IMAGIFHUB Premium</b>\n\n"
-        "💫 <b>Price:</b> 149 Stars (30 days)\n\n"
+        "💫 <b>Price:</b> 99 Stars (30 days)\n\n"
         "<b>Benefits:</b>\n"
         "• 🚫 No ads\n"
         "• 😁 Support the project\n\n"
