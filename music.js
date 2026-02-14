@@ -192,4 +192,4 @@ export const musicLibrary = {
     ]
 };
 
-export const categories = ["Discover", "Nature", "Places", "Aesthetic", "Cars", "Luxury", "Anime", "Animals", "Ancient"];
+export const categories = ["Discover", "Nature", "Places", "Aesthetic", "Cars", "Luxury", "Art", "Animals", "Ancient"];
