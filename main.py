@@ -44,8 +44,8 @@ class AdminUpload(StatesGroup):
 
 CATEGORIES = [
     "Nature", "Places", "Aesthetic", "Cars", 
-    "Luxury", "Anime", "Animals", "Ancient", 
-    "Marine", "Art", "Fictional", "Funny", "Featured"
+    "Luxury", "Art", "Animals", "Ancient", 
+    "Marine", "Featured"
 ]
 
 # ==================== HELPER FUNCTIONS ====================
