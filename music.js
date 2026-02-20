@@ -164,6 +164,23 @@ export const musicLibrary = {
                     "https://cdn.pixabay.com/download/audio/2025/07/02/audio_a94fac3b19.mp3?filename=bounce-to-the-beat-ii-368772.mp3",
                     "https://cdn.pixabay.com/download/audio/2023/08/09/audio_f3b6314859.mp3?filename=rap-beats-music-161432.mp3"
     ],
+      "Marine": [
+                    "https://cdn.pixabay.com/download/audio/2025/09/23/audio_cbb893b235.mp3?filename=uplfting-rock-music-409355.mp3",
+                    "https://cdn.pixabay.com/download/audio/2025/06/25/audio_e8f60a3cf5.mp3?filename=sad-documentary-background-music-365827.mp3",
+                    "https://cdn.pixabay.com/download/audio/2025/06/13/audio_6545ba3c7c.mp3?filename=emotional-sad-guitar-music-349888.mp3",
+                    "https://cdn.pixabay.com/download/audio/2022/10/30/audio_fbd14dd8bc.mp3?filename=sad-moment-sad-and-melancholy-piano-background-music-124488.mp3",
+                    "https://cdn.pixabay.com/download/audio/2023/05/16/audio_0636f970ca.mp3?filename=sad-violin-150146.mp3",
+                    "https://cdn.pixabay.com/download/audio/2025/02/18/audio_bbcb0e9b17.mp3?filename=cvilni-violin-302859.mp3",
+                    "https://cdn.pixabay.com/download/audio/2025/02/18/audio_5276999892.mp3?filename=cvilni-violin-1-302858.mp3",
+                    "https://cdn.pixabay.com/download/audio/2025/10/10/audio_98d41e307a.mp3?filename=echo-violin-418240.mp3",
+                    "https://cdn.pixabay.com/download/audio/2024/11/25/audio_7aa9b5975d.mp3?filename=violin-is-in-painsad-violin-268426.mp3",
+                    "https://cdn.pixabay.com/download/audio/2025/12/03/audio_941ab1f710.mp3?filename=uplifting-epic-446685.mp3",
+                    "https://cdn.pixabay.com/download/audio/2025/12/07/audio_329d3502d7.mp3?filename=epic-448501.mp3",
+                    "https://cdn.pixabay.com/download/audio/2025/12/07/audio_88fdf1567f.mp3?filename=emotional-epic-448497.mp3",
+                    "https://cdn.pixabay.com/download/audio/2024/10/07/audio_65ee49a298.mp3?filename=samurai-flutes-ethereal-fantasy-flute-relaxing-meditation-music-248255.mp3",
+                    "https://cdn.pixabay.com/download/audio/2025/07/02/audio_a94fac3b19.mp3?filename=bounce-to-the-beat-ii-368772.mp3",
+                    "https://cdn.pixabay.com/download/audio/2023/08/09/audio_f3b6314859.mp3?filename=rap-beats-music-161432.mp3"
+    ],
     "Default": ["https://cdn.pixabay.com/download/audio/2021/11/13/audio_343081d119.mp3?filename=rammstein-style-metal-10726.mp3",
                "https://cdn.pixabay.com/download/audio/2025/07/22/audio_8fc5444c41.mp3?filename=cloud-kicker-is-awesome-378633.mp3",
                "https://cdn.pixabay.com/download/audio/2025/12/05/audio_3580f915fd.mp3?filename=soft-piano-background-444129.mp3",
@@ -199,4 +216,4 @@ export const musicLibrary = {
     ]
 };
 
-export const categories = ["Discover", "Nature", "Places", "Aesthetic", "Cars", "Luxury", "Art", "Animals", "Ancient"];
+export const categories = ["Discover", "Nature", "Places", "Aesthetic", "Cars", "Luxury", "Art", "Animals", "Marine", "Ancient"];
