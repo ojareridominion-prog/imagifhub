@@ -66,7 +66,7 @@ function toggleMute() {
     btn.innerText = audio.muted ? "🔇" : "🔊";
 }
 
-// --- CORE FEED LOGIC ---
+// --- CORE FEED LOGIC (UPDATED WITH KEYWORD MORE/LESS) ---
 async function loadFeed(cat, search="") {
     currentCategory = cat;
     const feed = document.getElementById('feed');
@@ -96,15 +96,36 @@ async function loadFeed(cat, search="") {
             return;
         }
 
-        feed.innerHTML = data.map(item => `
-            <div class="swiper-slide">
-                <img src="${item.url}" alt="${item.category}" style="width:100%; height:100%; object-fit:cover;">
-                <div class="meta-overlay">
-                    <div style="font-weight:bold; font-size:18px;">#${item.category}</div>
-                    <div style="font-size:12px; opacity:0.8;">${item.Keyword || ''}</div>
+        // Build slides with keyword truncation
+        feed.innerHTML = data.map(item => {
+            const keyword = item.Keyword || '';
+            const maxLength = 100; // adjust as needed
+            let keywordHtml = '';
+            
+            if (keyword.length > maxLength) {
+                const truncated = keyword.substring(0, maxLength) + '...';
+                keywordHtml = `
+                    <span class="keyword-short">${truncated}</span>
+                    <span class="keyword-full" style="display:none;">${keyword}</span>
+                    <button class="more-btn">more</button>
+                    <button class="less-btn" style="display:none;">less</button>
+                `;
+            } else {
+                keywordHtml = `<span>${keyword}</span>`;
+            }
+
+            return `
+                <div class="swiper-slide">
+                    <img src="${item.url}" alt="${item.category}" style="width:100%; height:100%; object-fit:cover;">
+                    <div class="meta-overlay">
+                        <div style="font-weight:bold; font-size:18px;">#${item.category}</div>
+                        <div class="keyword-container" style="font-size:12px; opacity:0.8;">
+                            ${keywordHtml}
+                        </div>
+                    </div>
                 </div>
-            </div>
-        `).join('');
+            `;
+        }).join('');
 
         if (activeSwiper) activeSwiper.destroy(true, true);
         activeSwiper = new Swiper('#swiper', { 
@@ -473,7 +494,7 @@ function initTelegramWebApp() {
     }
 }
 
-// --- INITIALIZATION (updated) ---
+// --- INITIALIZATION (updated with more/less click handler) ---
 window.onload = async () => {
     // 1. Initialize Telegram WebApp
     initTelegramWebApp();
@@ -522,8 +543,30 @@ window.onload = async () => {
     
     // 8. Add manual premium check button
     addManualPremiumCheck();
+
+    // 9. Delegate click events for more/less buttons (attached to feed)
+    document.getElementById('feed').addEventListener('click', (e) => {
+        const target = e.target;
+        const container = target.closest('.keyword-container');
+        if (!container) return;
+
+        if (target.classList.contains('more-btn')) {
+            container.querySelector('.keyword-short').style.display = 'none';
+            container.querySelector('.more-btn').style.display = 'none';
+            container.querySelector('.keyword-full').style.display = 'inline';
+            container.querySelector('.less-btn').style.display = 'inline';
+            e.stopPropagation(); // prevent slide change
+        } else if (target.classList.contains('less-btn')) {
+            container.querySelector('.keyword-full').style.display = 'none';
+            container.querySelector('.less-btn').style.display = 'none';
+            container.querySelector('.keyword-short').style.display = 'inline';
+            container.querySelector('.more-btn').style.display = 'inline';
+            e.stopPropagation();
+        }
+    });
 };
 
+// --- GLOBAL EXPOSURE ---
 // --- GLOBAL EXPOSURE ---
 window.loadFeed = loadFeed;
 window.toggleMenu = toggleMenu;
