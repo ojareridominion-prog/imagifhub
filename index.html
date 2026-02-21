@@ -118,6 +118,52 @@
             50% { opacity: 1; transform: scale(1.1); }
             100% { opacity: 0.7; transform: scale(1); }
         }
+
+        /* --- Welcome Overlay (added) --- */
+        .welcome-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            backdrop-filter: blur(10px);
+            z-index: 10000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            color: white;
+            text-align: center;
+            padding: 20px;
+        }
+        .welcome-content {
+            max-width: 400px;
+        }
+        .welcome-content h1 {
+            font-size: 2.5rem;
+            margin-bottom: 20px;
+        }
+        .welcome-content p {
+            font-size: 1.2rem;
+            margin-bottom: 30px;
+            opacity: 0.9;
+        }
+        .welcome-button {
+            background: var(--accent, #9c4dff);
+            color: white;
+            border: none;
+            padding: 15px 40px;
+            font-size: 1.5rem;
+            border-radius: 50px;
+            cursor: pointer;
+            font-weight: bold;
+            box-shadow: 0 4px 15px rgba(156, 77, 255, 0.4);
+            transition: transform 0.2s;
+        }
+        .welcome-button:hover {
+            transform: scale(1.05);
+        }
     </style>
 </head>
 <body>
@@ -215,6 +261,16 @@
             <!-- Manual check button will be added by JavaScript -->
         </div>
     </div>
+
+    <!-- ========== NEW: Welcome Overlay ========== -->
+    <div id="welcomeOverlay" class="welcome-overlay">
+        <div class="welcome-content">
+            <h1>🎉 Welcome to IMAGIFHUB!</h1>
+            <p>Your personal portal to endless breathtaking beauty.<br>Swipe, vibe, and enjoy.</p>
+            <button id="welcomeContinueBtn" class="welcome-button">CONTINUE 🚀</button>
+        </div>
+    </div>
+    <!-- ========================================= -->
 
     <!-- Main JavaScript Module -->
     <script type="module" src="script.js"></script>
