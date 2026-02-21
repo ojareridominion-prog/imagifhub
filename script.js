@@ -473,7 +473,7 @@ function initTelegramWebApp() {
     }
 }
 
-// --- INITIALIZATION ---
+// --- INITIALIZATION (updated) ---
 window.onload = async () => {
     // 1. Initialize Telegram WebApp
     initTelegramWebApp();
@@ -494,18 +494,33 @@ window.onload = async () => {
         </div>
     `).join('');
 
-    // 5. Audio Ended Listener
+    // 5. Audio Ended Listener (set up even if not playing yet)
     const audioElem = document.getElementById('bgMusic');
     audioElem.addEventListener('ended', () => {
-        playRandomMusic(currentCategory); 
+        if (currentCategory) playRandomMusic(currentCategory); 
     });
 
-    // 6. Load Saved Theme & Initial Feed
+    // 6. Load Saved Theme
     const savedTheme = localStorage.getItem("imagifhub-theme") || "theme-black";
     applyTheme(savedTheme);
-    loadFeed("Discover");
     
-    // 7. Add manual premium check button
+    // 7. Setup Welcome Overlay
+    const welcomeOverlay = document.getElementById('welcomeOverlay');
+    const continueBtn = document.getElementById('welcomeContinueBtn');
+    
+    if (welcomeOverlay && continueBtn) {
+        continueBtn.addEventListener('click', () => {
+            welcomeOverlay.classList.add('hidden');
+            // Now start the app: load feed and start music
+            loadFeed("Discover");
+            // Also maybe trigger any other startup actions
+        });
+    } else {
+        // Fallback: if overlay not found, just load feed directly
+        loadFeed("Discover");
+    }
+    
+    // 8. Add manual premium check button
     addManualPremiumCheck();
 };
 
