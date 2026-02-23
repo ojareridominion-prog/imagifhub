@@ -5,24 +5,23 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>IMAGIFHUB</title>
     
-    <!-- Telegram SDK -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <script src="https://unpkg.com/@telegram-apps/sdk@7.2.0/dist/core.min.js"></script>
     
-    <!-- Swiper for vertical scrolling -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.css"/>
     <script src="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.js"></script>
     
-    <!-- Main Styles -->
     <style>
         :root { --bg: #000; --text: #fff; --bar: #1a1a1a; --accent: #9c4dff; }
-        body { margin:0; background:var(--bg); color:var(--text); font-family:system-ui; overflow:hidden; transition: 0.3s; }
+        body { margin:0; background:var(--bg); color:var(--text); font-family: 'Inter', system-ui, -apple-system, sans-serif; overflow:hidden; transition: 0.3s; }
         
+
         /* --- Layout Components --- */
         .top-bar { position:fixed; top:0; width:100%; height:56px; background:var(--bar); display:flex; align-items:center; z-index:1000; border-bottom:1px solid rgba(255,255,255,0.1); }
         .cat-bar { position:fixed; top:56px; width:100%; height:48px; background:var(--bar); overflow-x:auto; display:flex; align-items:center; gap:10px; padding:0 12px; z-index:900; scrollbar-width: none; }
         .cat-bar::-webkit-scrollbar { display: none; }
         
+
         .cat-btn { padding:6px 15px; border-radius:20px; background:#333; font-size:12px; white-space:nowrap; border:none; color:#fff; cursor:pointer; }
         .cat-btn.active { background:var(--accent); font-weight: bold; }
 
@@ -30,29 +29,69 @@
         .menu-panel.open { left:0; }
         .menu-link { padding:15px 25px; border-bottom:1px solid rgba(255,255,255,0.05); display:block; text-decoration:none; color:var(--text); font-weight:500; }
         
+
         /* Swiper Container */
         #swiper { position:absolute; top:104px; bottom:0; width:100%; z-index:10; }
         .swiper-slide { position: relative; width: 100%; height: 100%; }
         .swiper-slide img { width:100%; height:100%; object-fit:cover; }
         
-        .meta-overlay { position:absolute; bottom:50px; left:15px; text-shadow: 2px 2px 5px #000; pointer-events: none; z-index: 15; }
-        .keyword-container {
-            pointer-events: auto; /* allow clicks on buttons */
-            font-size: 24px;      /* increased for better visibility */
-            opacity: 0.8;
+
+        /* --- UPDATED TEXT OVERLAY (IKEBANA STYLE) --- */
+        .meta-overlay { 
+            position:absolute; 
+            bottom:60px; 
+            left:20px; 
+            right: 20px;
+            text-shadow: 0px 2px 10px rgba(0,0,0,0.9); 
+            pointer-events: none; 
+            z-index: 15; 
         }
+
+        /* The Category (#Nature) */
+        .category-tag {
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--text);
+            margin-bottom: 4px;
+            display: block;
+            letter-spacing: -0.5px;
+        }
+
+        /* The Main Keyword Title (IKEBANA ESSENCE Style) */
+        .keyword-container {
+            pointer-events: auto;
+            font-size: 38px;      /* Large size */
+            font-weight: 900;     /* Extra bold */
+            line-height: 1.1;
+            text-transform: uppercase; /* All caps like example */
+            margin-bottom: 10px;
+            letter-spacing: 1px;
+        }
+
+        /* Description text below title */
+        .description-text {
+            font-size: 15px;
+            line-height: 1.4;
+            opacity: 0.9;
+            max-width: 90%;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
         .keyword-container button {
             background: none;
             border: none;
             color: var(--accent);
             cursor: pointer;
-            font-size: 16px;      /* adjusted to match larger text */
+            font-size: 14px;
             text-decoration: underline;
-            padding: 0 4px;
+            padding: 0;
+            text-transform: lowercase;
+            font-weight: normal;
         }
-        .keyword-container button:hover {
-            opacity: 0.8;
-        }
+
 
         /* --- Theme Variations --- */
         .theme-white { --bg: #fff; --text: #000; --bar: #f0f0f0; --accent: #9c4dff; }
@@ -83,6 +122,7 @@
         .native-ad img { width: 100%; height: 180px; object-fit: cover; border-radius: 12px; }
         .close-ad-btn { position: absolute; top: 10px; right: 10px; background: rgba(255, 255, 255, 0.2); border: none; color: white; width: 30px; height: 30px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; z-index: 3001; }
         
+
         /* --- Premium Modal --- */
         .modal-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
@@ -121,6 +161,7 @@
         }
         .hidden { display: none !important; }
         
+
         /* Premium Indicator */
         #premiumIndicator {
             color: #ffd700;
@@ -136,7 +177,8 @@
             100% { opacity: 0.7; transform: scale(1); }
         }
 
-        /* --- Welcome Overlay with Dynamic Background --- */
+
+        /* --- Welcome Overlay --- */
         .welcome-overlay {
             position: fixed;
             top: 0;
@@ -145,7 +187,7 @@
             height: 100%;
             z-index: 10000;
             display: flex;
-            align-items: flex-end;        /* push content to bottom */
+            align-items: flex-end;
             justify-content: center;
             text-align: center;
             color: white;
@@ -153,16 +195,12 @@
             background-position: center;
             background-repeat: no-repeat;
         }
-        /* Remove the dark overlay pseudo-element for maximum transparency */
-        .welcome-overlay::before {
-            display: none;
-        }
         .overlay-content {
             position: relative;
             width: 100%;
             max-width: 400px;
             padding: 20px;
-            margin-bottom: 10vh;          /* extra space from bottom */
+            margin-bottom: 10vh;
             text-shadow: 2px 2px 8px rgba(0,0,0,0.8);
         }
         .welcome-button {
@@ -176,7 +214,7 @@
             font-weight: bold;
             box-shadow: 0 4px 15px rgba(156, 77, 255, 0.4);
             transition: transform 0.2s;
-            width: 100%;                  /* make button full width for easier tapping */
+            width: 100%;
             max-width: 300px;
             margin: 0 auto;
         }
@@ -184,20 +222,16 @@
 </head>
 <body>
 
-    <!-- Top Navigation Bar -->
     <div class="top-bar">
         <button onclick="toggleMenu()" style="background:none; border:none; color:#fff; font-size:24px; padding:15px; cursor:pointer;">☰</button>
         <h2 style="flex:1; text-align:center; font-size:16px; margin:0;">IMAGIFHUB</h2>
-        <!-- Premium indicator -->
         <div id="premiumIndicator" style="display:none;">⭐</div>
         <button id="muteBtn" onclick="toggleMute()" style="background:none; border:none; color:#fff; font-size:22px; padding:15px; cursor:pointer;">🔊</button>
         <button onclick="triggerSearch()" style="background:none; border:none; color:#fff; font-size:22px; padding:15px; cursor:pointer;">🔍</button>
     </div>
 
-    <!-- Category Bar -->
     <div class="cat-bar" id="catBar"></div>
 
-    <!-- Side Menu -->
     <div id="menuPanel" class="menu-panel">
         <a href="#" class="menu-link" onclick="toggleMenu()" style="color:var(--accent)">✕ Close Menu</a>
         
@@ -213,13 +247,10 @@
         <div class="theme-grid" id="themeGrid"></div>
     </div>
 
-    <!-- Main Image Feed (Swiper) -->
     <div id="swiper" class="swiper"><div class="swiper-wrapper" id="feed"></div></div>
     
-    <!-- Background Music -->
     <audio id="bgMusic"></audio>
 
-    <!-- Native Ad Overlay -->
     <div id="nativeAd" class="native-ad hidden" onclick="handleAdClick(event)">
         <button class="close-ad-btn" onclick="hideAd(event)">✕</button>
         <img id="adImage" src="" alt="Ad">
@@ -229,7 +260,6 @@
         </div>
     </div>
 
-    <!-- Premium Modal -->
     <div id="premiumModal" class="modal-overlay">
         <div class="premium-card">
             <h1>✨ ImagifHub Premium</h1>
@@ -245,46 +275,22 @@
             <div style="background: rgba(255, 215, 0, 0.1); padding: 15px; border-radius: 10px; margin: 20px 0; text-align: center;">
                 <p style="margin: 0; font-size: 14px; opacity: 0.9;">
                     🔒 <b>Secure Payment via Telegram</b><br>
-                    Clicking "Go Premium" will open Telegram chat<br>
-                    where you can check your status and upgrade.
+                    Clicking "Go Premium" will open Telegram chat.
                 </p>
             </div>
             
-            <button id="btnBuy" class="btn-buy" onclick="goPremium()">
-                Go Premium
-            </button>
-            
-            <div style="margin: 15px 0; font-size: 12px; opacity: 0.7; text-align: center;">
-                💫 100% Secure • Telegram Stars • 30-Day Access
-            </div>
-            
-            <!-- Added instructions -->
-            <div style="margin-top: 15px; padding: 10px; background: rgba(255, 215, 0, 0.1); border-radius: 8px;">
-                <p style="margin: 0; font-size: 12px; opacity: 0.8;">
-                    <b>After purchasing:</b><br>
-                    1. Complete payment in Telegram chat<br>
-                    2. Return here and wait for confirmation<br>
-                    3. Or use "Check Premium Status" button
-                </p>
-            </div>
-            
-            <button class="btn-close" onclick="closePremium()">
-                Close
-            </button>
-            <p id="paymentStatus" style="font-size:12px; margin-top:10px; opacity:0.7;"></p>
-            <!-- Manual check button will be added by JavaScript -->
+            <button id="btnBuy" class="btn-buy" onclick="goPremium()">Go Premium</button>
+            <button class="btn-close" onclick="closePremium()">Close</button>
         </div>
     </div>
 
-    <!-- ========== Welcome Overlay ========== -->
     <div id="welcomeOverlay" class="welcome-overlay">
         <div class="overlay-content">
             <button id="welcomeContinueBtn" class="welcome-button">CONTINUE 🚀</button>
         </div>
     </div>
-    <!-- ===================================== -->
 
-    <!-- Main JavaScript Module -->
     <script type="module" src="script.js"></script>
 </body>
-</html>
+                </html>
+                
