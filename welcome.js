@@ -58,8 +58,9 @@ export function getHolidayImage() {
 
     // May
     if (month === 5 && day === 1) return 'assets/welcome-workersday.jpg';
+    if (month === 5 && day === 25) return 'assets/welcome-africaday.jpg';
     if (month === 5 && day === 27) return 'assets/welcome-childrensday.jpg';
-
+    
     // June
     if (month === 6 && day === 1) return 'assets/welcome-newmonth.jpg';
 
