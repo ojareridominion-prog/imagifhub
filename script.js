@@ -1,5 +1,6 @@
 import { musicLibrary, categories } from './music.js';
 import { nativeAds } from './ads.js';
+import { getHolidayImage } from './welcome.js';  // <-- new import
 
 const API_URL = "https://imagifhub.vercel.app"; 
 let activeSwiper = null;
@@ -525,11 +526,14 @@ window.onload = async () => {
     const savedTheme = localStorage.getItem("imagifhub-theme") || "theme-black";
     applyTheme(savedTheme);
     
-    // 7. Setup Welcome Overlay
+    // 7. Setup Welcome Overlay with dynamic holiday image (using imported function)
     const welcomeOverlay = document.getElementById('welcomeOverlay');
     const continueBtn = document.getElementById('welcomeContinueBtn');
     
     if (welcomeOverlay && continueBtn) {
+        // Set the background image based on current date
+        welcomeOverlay.style.backgroundImage = `url('${getHolidayImage()}')`;  // <-- using imported function
+        
         continueBtn.addEventListener('click', () => {
             welcomeOverlay.classList.add('hidden');
             // Now start the app: load feed and start music
@@ -544,6 +548,7 @@ window.onload = async () => {
     // 8. Add manual premium check button
     addManualPremiumCheck();
 
+    // 9. Delegate click events for more/less buttons (attached to feed)
     // 9. Delegate click events for more/less buttons (attached to feed)
     document.getElementById('feed').addEventListener('click', (e) => {
         const target = e.target;
@@ -566,7 +571,6 @@ window.onload = async () => {
     });
 };
 
-// --- GLOBAL EXPOSURE ---
 // --- GLOBAL EXPOSURE ---
 window.loadFeed = loadFeed;
 window.toggleMenu = toggleMenu;
