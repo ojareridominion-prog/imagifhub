@@ -10,22 +10,87 @@ export function getHolidayImage() {
     const month = today.getMonth() + 1; // 1-12
     const day = today.getDate();
 
-    // Christmas: Dec 20 - Dec 26
-    if (month === 12 && day >= 20 && day <= 26) {
-        return 'assets/welcome-christmas.jpg';
-    }
-    // New Year: Dec 27 - Jan 2
-    if ((month === 12 && day >= 27) || (month === 1 && day <= 2)) {
-        return 'assets/welcome-newyear.jpg';
-    }
-    // Easter: approximate (March 22 - April 25)
-    if ((month === 3 && day >= 22) || (month === 4 && day <= 25)) {
+
+    // ==========================================
+    // FLOATING DATES (Update these manually each year)
+    // ==========================================
+    
+    // Easter: Update month and day each year
+    const easterMonth = 4; 
+    const easterDay = 20; 
+    if (month === easterMonth && day === easterDay) {
         return 'assets/welcome-easter.jpg';
     }
-    // Halloween: October 31
-    if (month === 10 && day === 31) {
-        return 'assets/welcome-halloween.jpg';
+
+    // Mother's Day: Update month and day each year
+    const mothersDayMonth = 5;
+    const mothersDayDay = 11;
+    if (month === mothersDayMonth && day === mothersDayDay) {
+        return 'assets/welcome-mothersday.jpg';
     }
-    // Fallback default image
+
+    // Father's Day: Update month and day each year
+    const fathersDayMonth = 6;
+    const fathersDayDay = 15;
+    if (month === fathersDayMonth && day === fathersDayDay) {
+        return 'assets/welcome-fathersday.jpg';
+    }
+
+
+    // ==========================================
+    // FIXED HOLIDAYS & SPECIAL DAYS
+    // ==========================================
+
+    // January
+    if (month === 1 && day === 1) return 'assets/welcome-newyear.jpg'; // New Year's Day
+
+    // February
+    if (month === 2 && day === 1) return 'assets/welcome-newmonth.jpg';
+    if (month === 2 && day === 14) return 'assets/welcome-valentine.jpg';
+
+    // March
+    if (month === 3 && day === 1) return 'assets/welcome-newmonth.jpg';
+    if (month === 3 && day === 8) return 'assets/welcome-womensday.jpg';
+
+    // April
+    if (month === 4 && day === 1) return 'assets/welcome-aprilfools.jpg';
+    if (month === 4 && day === 22) return 'assets/welcome-earthday.jpg';
+
+    // May
+    if (month === 5 && day === 1) return 'assets/welcome-workersday.jpg';
+    if (month === 5 && day === 27) return 'assets/welcome-childrensday.jpg';
+
+    // June
+    if (month === 6 && day === 1) return 'assets/welcome-newmonth.jpg';
+
+    // July
+    if (month === 7 && day === 1) return 'assets/welcome-newmonth.jpg';
+
+    // August
+    if (month === 8 && day === 1) return 'assets/welcome-newmonth.jpg';
+    if (month === 8 && day === 12) return 'assets/welcome-youthday.jpg';
+
+    // September
+    if (month === 9 && day === 1) return 'assets/welcome-newmonth.jpg';
+
+    // October
+    if (month === 10 && day === 1) return 'assets/welcome-independence.jpg';
+    if (month === 10 && day === 5) return 'assets/welcome-teachersday.jpg';
+    if (month === 10 && day === 31) return 'assets/welcome-halloween.jpg';
+
+    // November
+    if (month === 11 && day === 1) return 'assets/welcome-newmonth.jpg';
+
+    // December
+    if (month === 12 && day === 1) return 'assets/welcome-newmonth.jpg';
+    if (month === 12 && day === 24) return 'assets/welcome-christmaseve.jpg';
+    if (month === 12 && day === 25) return 'assets/welcome-christmas.jpg';
+    if (month === 12 && day === 26) return 'assets/welcome-boxingday.jpg';
+    if (month === 12 && day === 31) return 'assets/welcome-newyearseve.jpg';
+
+
+    // ==========================================
+    // FALLBACK DEFAULT
+    // ==========================================
     return 'assets/welcome-default.jpg';
-}
+        }
