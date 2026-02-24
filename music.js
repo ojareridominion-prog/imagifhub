@@ -124,7 +124,7 @@ export const musicLibrary = {
                     "https://cdn.pixabay.com/download/audio/2023/11/04/audio_61107b7ef6.mp3?filename=bounce-gone-crazy-174657.mp3",
                     "https://cdn.pixabay.com/download/audio/2025/03/18/audio_3ff2b9369c.mp3?filename=promo-advertising-funk-315207.mp3"
     ],
-    "Ancient": [
+    "Historical": [
                     "https://cdn.pixabay.com/download/audio/2025/09/23/audio_cbb893b235.mp3?filename=uplfting-rock-music-409355.mp3",
                     "https://cdn.pixabay.com/download/audio/2025/06/25/audio_e8f60a3cf5.mp3?filename=sad-documentary-background-music-365827.mp3",
                     "https://cdn.pixabay.com/download/audio/2025/06/13/audio_6545ba3c7c.mp3?filename=emotional-sad-guitar-music-349888.mp3",
@@ -141,7 +141,7 @@ export const musicLibrary = {
                     "https://cdn.pixabay.com/download/audio/2025/07/02/audio_a94fac3b19.mp3?filename=bounce-to-the-beat-ii-368772.mp3",
                     "https://cdn.pixabay.com/download/audio/2023/08/09/audio_f3b6314859.mp3?filename=rap-beats-music-161432.mp3"
     ],
-      "Marine": [
+      "Anime": [
                     "https://cdn.pixabay.com/download/audio/2025/09/23/audio_cbb893b235.mp3?filename=uplfting-rock-music-409355.mp3",
                     "https://cdn.pixabay.com/download/audio/2025/06/25/audio_e8f60a3cf5.mp3?filename=sad-documentary-background-music-365827.mp3",
                     "https://cdn.pixabay.com/download/audio/2025/06/13/audio_6545ba3c7c.mp3?filename=emotional-sad-guitar-music-349888.mp3",
@@ -193,4 +193,4 @@ export const musicLibrary = {
     ]
 };
 
-export const categories = ["Discover", "Nature", "Places", "Aesthetic", "Cars", "Luxury", "Art", "Animals", "Marine", "Ancient"];
+export const categories = ["Discover", "Nature", "Places", "Aesthetic", "Cars", "Luxury", "Art", "Animals", "Anime", "Historical"];
