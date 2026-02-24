@@ -17,9 +17,7 @@
             --text: #fff; 
             --bar: #1a1a1a; 
             --accent: #9c4dff; 
-            /* Welcome button colors – change these anytime */
-            --welcome-btn-bg: #9c4dff;   /* default purple */
-            --welcome-btn-text: white;    /* default white */
+            /* Welcome button colors – originally theme‑dependent, now fixed in .welcome-button */
         }
         body { margin:0; background:var(--bg); color:var(--text); font-family: 'Inter', system-ui, -apple-system, sans-serif; overflow:hidden; transition: 0.3s; }
         
@@ -48,7 +46,7 @@
         .swiper-slide { position: relative; width: 100%; height: 100%; }
         .swiper-slide img { width:100%; height:100%; object-fit:cover; }
         
-        /* Text Overlay */
+        /* Text Overlay – UPDATED SIZES */
         .meta-overlay { 
             position:absolute; 
             bottom:60px; 
@@ -60,7 +58,7 @@
         }
 
         .category-tag {
-            font-size: 20px;
+            font-size: 16px;          /* reduced from 20px */
             font-weight: 700;
             color: var(--text);
             margin-bottom: 4px;
@@ -70,17 +68,17 @@
 
         .keyword-container {
             pointer-events: auto;
-            font-size: 38px;
+            font-size: 24px;           /* reduced from 38px */
             font-weight: 900;
-            line-height: 1.1;
+            line-height: 1.2;
             text-transform: uppercase;
-            margin-bottom: 10px;
-            letter-spacing: 1px;
+            margin-bottom: 8px;
+            letter-spacing: 0.5px;
             color: var(--text);
         }
 
         .description-text {
-            font-size: 15px;
+            font-size: 14px;            /* slightly smaller */
             line-height: 1.4;
             opacity: 0.9;
             max-width: 90%;
@@ -211,15 +209,15 @@
             text-shadow: 2px 2px 8px rgba(0,0,0,0.8);
         }
         .welcome-button {
-            background: var(--welcome-btn-bg) !important;
-            color: var(--welcome-btn-text) !important;
+            background: #ffffff !important;   /* fixed white */
+            color: #000000 !important;        /* fixed black */
             border: none;
             padding: 15px 40px;
             font-size: 1.5rem;
             border-radius: 50px;
             cursor: pointer;
             font-weight: bold;
-            box-shadow: 0 4px 15px rgba(156, 77, 255, 0.4);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
             transition: transform 0.2s;
             width: 100%;
             max-width: 300px;
