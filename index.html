@@ -12,31 +12,43 @@
     <script src="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.js"></script>
     
     <style>
-        :root { --bg: #000; --text: #fff; --bar: #1a1a1a; --accent: #9c4dff; }
+        :root { 
+            --bg: #000; 
+            --text: #fff; 
+            --bar: #1a1a1a; 
+            --accent: #9c4dff; 
+            /* Welcome button colors – change these anytime */
+            --welcome-btn-bg: #9c4dff;   /* default purple */
+            --welcome-btn-text: white;    /* default white */
+        }
         body { margin:0; background:var(--bg); color:var(--text); font-family: 'Inter', system-ui, -apple-system, sans-serif; overflow:hidden; transition: 0.3s; }
         
-
         /* --- Layout Components --- */
         .top-bar { position:fixed; top:0; width:100%; height:56px; background:var(--bar); display:flex; align-items:center; z-index:1000; border-bottom:1px solid rgba(255,255,255,0.1); }
         .cat-bar { position:fixed; top:56px; width:100%; height:48px; background:var(--bar); overflow-x:auto; display:flex; align-items:center; gap:10px; padding:0 12px; z-index:900; scrollbar-width: none; }
         .cat-bar::-webkit-scrollbar { display: none; }
         
-
         .cat-btn { padding:6px 15px; border-radius:20px; background:#333; font-size:12px; white-space:nowrap; border:none; color:#fff; cursor:pointer; }
         .cat-btn.active { background:var(--accent); font-weight: bold; }
 
         .menu-panel { position:fixed; left:-100%; width:85%; height:100%; background:var(--bar); z-index:2000; transition:0.4s; padding-top:60px; box-shadow: 5px 0 15px rgba(0,0,0,0.5); }
         .menu-panel.open { left:0; }
-        .menu-link { padding:15px 25px; border-bottom:1px solid rgba(255,255,255,0.05); display:block; text-decoration:none; color:var(--text); font-weight:500; }
+        .menu-link { padding:15px 25px; border-bottom:1px solid rgba(255,255,255,0.05); display:block; text-decoration:none; color:var(--text); font-weight:500; cursor:pointer; }
         
+        /* Dark text override – forces overlay text to black */
+        body.dark-text .category-tag,
+        body.dark-text .keyword-container,
+        body.dark-text .keyword-container button,
+        body.dark-text .description-text {
+            color: #000 !important;
+        }
 
         /* Swiper Container */
         #swiper { position:absolute; top:104px; bottom:0; width:100%; z-index:10; }
         .swiper-slide { position: relative; width: 100%; height: 100%; }
         .swiper-slide img { width:100%; height:100%; object-fit:cover; }
         
-
-        /* --- UPDATED TEXT OVERLAY (IKEBANA STYLE) --- */
+        /* Text Overlay */
         .meta-overlay { 
             position:absolute; 
             bottom:60px; 
@@ -47,7 +59,6 @@
             z-index: 15; 
         }
 
-        /* The Category (#Nature) */
         .category-tag {
             font-size: 20px;
             font-weight: 700;
@@ -57,18 +68,17 @@
             letter-spacing: -0.5px;
         }
 
-        /* The Main Keyword Title (IKEBANA ESSENCE Style) */
         .keyword-container {
             pointer-events: auto;
-            font-size: 38px;      /* Large size */
-            font-weight: 900;     /* Extra bold */
+            font-size: 38px;
+            font-weight: 900;
             line-height: 1.1;
-            text-transform: uppercase; /* All caps like example */
+            text-transform: uppercase;
             margin-bottom: 10px;
             letter-spacing: 1px;
+            color: var(--text);
         }
 
-        /* Description text below title */
         .description-text {
             font-size: 15px;
             line-height: 1.4;
@@ -78,6 +88,7 @@
             -webkit-line-clamp: 2;
             -webkit-box-orient: vertical;
             overflow: hidden;
+            color: var(--text);
         }
 
         .keyword-container button {
@@ -91,7 +102,6 @@
             text-transform: lowercase;
             font-weight: normal;
         }
-
 
         /* --- Theme Variations --- */
         .theme-white { --bg: #fff; --text: #000; --bar: #f0f0f0; --accent: #9c4dff; }
@@ -122,7 +132,6 @@
         .native-ad img { width: 100%; height: 180px; object-fit: cover; border-radius: 12px; }
         .close-ad-btn { position: absolute; top: 10px; right: 10px; background: rgba(255, 255, 255, 0.2); border: none; color: white; width: 30px; height: 30px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; z-index: 3001; }
         
-
         /* --- Premium Modal --- */
         .modal-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
@@ -161,7 +170,6 @@
         }
         .hidden { display: none !important; }
         
-
         /* Premium Indicator */
         #premiumIndicator {
             color: #ffd700;
@@ -176,7 +184,6 @@
             50% { opacity: 1; transform: scale(1.1); }
             100% { opacity: 0.7; transform: scale(1); }
         }
-
 
         /* --- Welcome Overlay --- */
         .welcome-overlay {
@@ -204,8 +211,8 @@
             text-shadow: 2px 2px 8px rgba(0,0,0,0.8);
         }
         .welcome-button {
-            background: var(--accent, #9c4dff);
-            color: white;
+            background: var(--welcome-btn-bg) !important;
+            color: var(--welcome-btn-text) !important;
             border: none;
             padding: 15px 40px;
             font-size: 1.5rem;
@@ -239,6 +246,12 @@
             <div style="font-weight: bold; font-size: 18px;">IMAGIF PREMIUM ⭐</div>
             <div style="font-size: 11px; opacity: 0.9; margin-top: 5px;">Enjoy ad-free smooth scrolling</div>
             <button class="premium-btn-menu" onclick="openPremium()">UPGRADE NOW</button>
+        </div>
+        
+        <!-- Dark Text Toggle -->
+        <div class="menu-link" onclick="toggleDarkText()" style="display:flex; justify-content:space-between; align-items:center;">
+            <span>🌙 Dark Text</span>
+            <span id="darkTextIndicator">OFF</span>
         </div>
         
         <a href="#" class="menu-link" onclick="shareBot()">🔗 Share Bot with Friends</a>
@@ -292,5 +305,4 @@
 
     <script type="module" src="script.js"></script>
 </body>
-                </html>
-                
+</html>
