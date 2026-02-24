@@ -1,6 +1,6 @@
 import { musicLibrary, categories } from './music.js';
 import { nativeAds } from './ads.js';
-import { getHolidayImage } from './welcome.js';  // <-- new import
+import { getHolidayImage } from './welcome.js';
 
 const API_URL = "https://imagifhub.vercel.app"; 
 let activeSwiper = null;
@@ -11,6 +11,25 @@ const SEEN_LIMIT = 20;
 const SEEN_KEY = "imagifhub-seen-history";
 const PREMIUM_CHECK_INTERVAL = 30000; // 30 seconds
 let premiumCheckInterval = null;
+
+// --- Dark Text State ---
+let darkTextEnabled = localStorage.getItem('imagifhub-darktext') === 'true';
+
+function toggleDarkText() {
+    darkTextEnabled = !darkTextEnabled;
+    localStorage.setItem('imagifhub-darktext', darkTextEnabled);
+    applyDarkText();
+    updateDarkTextIndicator();
+}
+
+function applyDarkText() {
+    document.body.classList.toggle('dark-text', darkTextEnabled);
+}
+
+function updateDarkTextIndicator() {
+    const indicator = document.getElementById('darkTextIndicator');
+    if (indicator) indicator.innerText = darkTextEnabled ? 'ON' : 'OFF';
+}
 
 // --- HISTORY TRACKING ---
 function getSeenList() {
@@ -67,7 +86,7 @@ function toggleMute() {
     btn.innerText = audio.muted ? "🔇" : "🔊";
 }
 
-// --- CORE FEED LOGIC (UPDATED WITH KEYWORD MORE/LESS) ---
+// --- CORE FEED LOGIC ---
 async function loadFeed(cat, search="") {
     currentCategory = cat;
     const feed = document.getElementById('feed');
@@ -77,7 +96,6 @@ async function loadFeed(cat, search="") {
     
     document.querySelectorAll('.cat-btn').forEach(b => b.classList.toggle('active', b.innerText === cat));
 
-    // Play music if it's not already playing or if we switched categories
     if (audio.paused || currentCategory !== cat) {
         playRandomMusic(cat);
     }
@@ -100,7 +118,7 @@ async function loadFeed(cat, search="") {
         // Build slides with keyword truncation
         feed.innerHTML = data.map(item => {
             const keyword = item.Keyword || '';
-            const maxLength = 100; // adjust as needed
+            const maxLength = 100;
             let keywordHtml = '';
             
             if (keyword.length > maxLength) {
@@ -119,8 +137,8 @@ async function loadFeed(cat, search="") {
                 <div class="swiper-slide">
                     <img src="${item.url}" alt="${item.category}" style="width:100%; height:100%; object-fit:cover;">
                     <div class="meta-overlay">
-                        <div style="font-weight:bold; font-size:18px;">#${item.category}</div>
-                        <div class="keyword-container" style="font-size:12px; opacity:0.8;">
+                        <div class="category-tag">#${item.category}</div>
+                        <div class="keyword-container">
                             ${keywordHtml}
                         </div>
                     </div>
@@ -157,7 +175,7 @@ async function loadFeed(cat, search="") {
     }
 }
 
-// --- PREMIUM VERIFICATION FUNCTIONS ---
+// --- PREMIUM VERIFICATION FUNCTIONS (unchanged) ---
 async function verifyPremiumStatus() {
     try {
         const tg = window.Telegram.WebApp;
@@ -182,7 +200,7 @@ async function verifyPremiumStatus() {
             localStorage.setItem("isPremium", "true");
             localStorage.setItem("premiumExpires", data.expires_at);
             updatePremiumUI(true);
-            stopPremiumChecking(); // Stop checking if premium is active
+            stopPremiumChecking();
             return true;
         } else {
             localStorage.removeItem("isPremium");
@@ -192,7 +210,6 @@ async function verifyPremiumStatus() {
         }
     } catch (error) {
         console.log("Error verifying premium:", error);
-        // Fall back to localStorage if server check fails
         const isPremium = localStorage.getItem("isPremium") === "true";
         updatePremiumUI(isPremium);
         return isPremium;
@@ -200,13 +217,8 @@ async function verifyPremiumStatus() {
 }
 
 function startPremiumChecking(userId) {
-    // Clear any existing interval
     stopPremiumChecking();
-    
-    // Check immediately
     checkPremiumStatus(userId);
-    
-    // Then check every 30 seconds
     premiumCheckInterval = setInterval(() => {
         checkPremiumStatus(userId);
     }, PREMIUM_CHECK_INTERVAL);
@@ -230,19 +242,15 @@ async function checkPremiumStatus(userId) {
             updatePremiumUI(true);
             stopPremiumChecking();
             
-            // Show success message
             const statusEl = document.getElementById('paymentStatus');
             if (statusEl) {
                 statusEl.textContent = "✅ Premium activated! Refreshing...";
                 statusEl.style.color = "#4CAF50";
-                
-                // Refresh the feed to remove ads
                 setTimeout(() => {
                     loadFeed(currentCategory);
                     closePremium();
                 }, 2000);
             }
-            
             return true;
         }
         return false;
@@ -253,7 +261,6 @@ async function checkPremiumStatus(userId) {
 }
 
 function updatePremiumUI(isPremium) {
-    // Update menu button
     const premiumBtn = document.querySelector('.premium-btn-menu');
     if (premiumBtn) {
         if (isPremium) {
@@ -271,7 +278,6 @@ function updatePremiumUI(isPremium) {
         }
     }
     
-    // Update modal button
     const buyBtn = document.getElementById('btnBuy');
     if (buyBtn) {
         if (isPremium) {
@@ -285,13 +291,11 @@ function updatePremiumUI(isPremium) {
         }
     }
     
-    // Update premium indicator
     const indicator = document.getElementById('premiumIndicator');
     if (indicator) {
         indicator.style.display = isPremium ? 'block' : 'none';
     }
     
-    // Hide ad if premium
     if (isPremium) {
         hideAd();
     }
@@ -391,7 +395,6 @@ async function goPremium() {
     const btn = document.getElementById('btnBuy');
     const statusEl = document.getElementById('paymentStatus');
     
-    // Get user ID from Telegram
     const userId = tg.initDataUnsafe?.user?.id;
     
     if (!userId) {
@@ -406,25 +409,18 @@ async function goPremium() {
     statusEl.style.color = "#ffd700";
     
     try {
-        // Method 1: Use Telegram's openLink method (most reliable)
         if (tg.openLink) {
             const botLink = `https://t.me/IMAGIFHUB_bot?start=premium_${userId}`;
             tg.openLink(botLink);
             tg.close();
-        }
-        // Method 2: Use window.open for web
-        else {
+        } else {
             const botLink = `https://t.me/IMAGIFHUB_bot?start=premium_${userId}`;
             window.open(botLink, '_blank');
         }
         
-        // Start checking for premium status
         statusEl.textContent = "✅ Opened Telegram. Complete purchase in chat, then return here...";
-        
-        // Start polling for premium activation
         startPremiumChecking(userId);
         
-        // Set timeout to stop checking after 10 minutes
         setTimeout(() => {
             stopPremiumChecking();
             if (localStorage.getItem("isPremium") !== "true") {
@@ -432,7 +428,7 @@ async function goPremium() {
                 btn.innerText = "Go Premium";
                 btn.disabled = false;
             }
-        }, 600000); // 10 minutes
+        }, 600000);
         
     } catch (error) {
         console.error("Error opening Telegram:", error);
@@ -443,7 +439,6 @@ async function goPremium() {
 }
 
 function addManualPremiumCheck() {
-    // Add a manual check button to premium modal
     const premiumCard = document.querySelector('.premium-card');
     if (premiumCard) {
         const checkBtn = document.createElement('button');
@@ -483,11 +478,8 @@ function initTelegramWebApp() {
     const tg = window.Telegram.WebApp;
     if (tg && tg.expand) {
         tg.expand();
-        
-        // Debug
         console.log("Telegram WebApp version:", tg.version);
         console.log("Available methods:", Object.keys(tg));
-        
         const user = tg.initDataUnsafe?.user;
         if (user) {
             console.log("User ID:", user.id);
@@ -495,7 +487,7 @@ function initTelegramWebApp() {
     }
 }
 
-// --- INITIALIZATION (updated with more/less click handler) ---
+// --- INITIALIZATION ---
 window.onload = async () => {
     // 1. Initialize Telegram WebApp
     initTelegramWebApp();
@@ -516,7 +508,7 @@ window.onload = async () => {
         </div>
     `).join('');
 
-    // 5. Audio Ended Listener (set up even if not playing yet)
+    // 5. Audio Ended Listener
     const audioElem = document.getElementById('bgMusic');
     audioElem.addEventListener('ended', () => {
         if (currentCategory) playRandomMusic(currentCategory); 
@@ -526,30 +518,29 @@ window.onload = async () => {
     const savedTheme = localStorage.getItem("imagifhub-theme") || "theme-black";
     applyTheme(savedTheme);
     
-    // 7. Setup Welcome Overlay with dynamic holiday image (using imported function)
+    // 7. Apply Dark Text preference
+    applyDarkText();
+    updateDarkTextIndicator();
+    
+    // 8. Setup Welcome Overlay with dynamic holiday image
     const welcomeOverlay = document.getElementById('welcomeOverlay');
     const continueBtn = document.getElementById('welcomeContinueBtn');
     
     if (welcomeOverlay && continueBtn) {
-        // Set the background image based on current date
-        welcomeOverlay.style.backgroundImage = `url('${getHolidayImage()}')`;  // <-- using imported function
+        welcomeOverlay.style.backgroundImage = `url('${getHolidayImage()}')`;
         
         continueBtn.addEventListener('click', () => {
             welcomeOverlay.classList.add('hidden');
-            // Now start the app: load feed and start music
             loadFeed("Discover");
-            // Also maybe trigger any other startup actions
         });
     } else {
-        // Fallback: if overlay not found, just load feed directly
         loadFeed("Discover");
     }
     
-    // 8. Add manual premium check button
+    // 9. Add manual premium check button
     addManualPremiumCheck();
 
-    // 9. Delegate click events for more/less buttons (attached to feed)
-    // 9. Delegate click events for more/less buttons (attached to feed)
+    // 10. Delegate click events for more/less buttons
     document.getElementById('feed').addEventListener('click', (e) => {
         const target = e.target;
         const container = target.closest('.keyword-container');
@@ -560,7 +551,7 @@ window.onload = async () => {
             container.querySelector('.more-btn').style.display = 'none';
             container.querySelector('.keyword-full').style.display = 'inline';
             container.querySelector('.less-btn').style.display = 'inline';
-            e.stopPropagation(); // prevent slide change
+            e.stopPropagation();
         } else if (target.classList.contains('less-btn')) {
             container.querySelector('.keyword-full').style.display = 'none';
             container.querySelector('.less-btn').style.display = 'none';
@@ -583,6 +574,7 @@ window.openPremium = openPremium;
 window.closePremium = closePremium;
 window.goPremium = goPremium;
 window.verifyPremiumStatus = verifyPremiumStatus;
+window.toggleDarkText = toggleDarkText; // <-- added
 
 window.handleAdClick = (event) => {
     if (!event.target.classList.contains('close-ad-btn')) {
