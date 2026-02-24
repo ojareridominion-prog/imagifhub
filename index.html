@@ -46,7 +46,7 @@
         .swiper-slide { position: relative; width: 100%; height: 100%; }
         .swiper-slide img { width:100%; height:100%; object-fit:cover; }
         
-        /* Text Overlay – UPDATED SIZES */
+        /* Text Overlay – SWAPPED SIZES: category now larger, keyword smaller */
         .meta-overlay { 
             position:absolute; 
             bottom:60px; 
@@ -58,27 +58,28 @@
         }
 
         .category-tag {
-            font-size: 16px;          /* reduced from 20px */
-            font-weight: 700;
+            font-size: 32px;           /* increased for prominence */
+            font-weight: 900;
             color: var(--text);
-            margin-bottom: 4px;
+            margin-bottom: 8px;
             display: block;
             letter-spacing: -0.5px;
+            line-height: 1.1;
         }
 
         .keyword-container {
             pointer-events: auto;
-            font-size: 24px;           /* reduced from 38px */
-            font-weight: 900;
-            line-height: 1.2;
+            font-size: 18px;            /* reduced for description */
+            font-weight: 500;
+            line-height: 1.3;
             text-transform: uppercase;
             margin-bottom: 8px;
-            letter-spacing: 0.5px;
+            letter-spacing: 0.3px;
             color: var(--text);
         }
 
         .description-text {
-            font-size: 14px;            /* slightly smaller */
+            font-size: 14px;
             line-height: 1.4;
             opacity: 0.9;
             max-width: 90%;
@@ -208,9 +209,12 @@
             margin-bottom: 10vh;
             text-shadow: 2px 2px 8px rgba(0,0,0,0.8);
         }
+
+        /* ===== WELCOME BUTTON CUSTOMIZATION ===== */
+        /* To change the button colors, modify the background and color properties below */
         .welcome-button {
-            background: #ffffff !important;   /* fixed white */
-            color: #000000 !important;        /* fixed black */
+            background: #ffffff !important;   /* ← change this for background color */
+            color: #000000 !important;        /* ← change this for text color */
             border: none;
             padding: 15px 40px;
             font-size: 1.5rem;
@@ -223,6 +227,7 @@
             max-width: 300px;
             margin: 0 auto;
         }
+        /* ======================================= */
     </style>
 </head>
 <body>
