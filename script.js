@@ -395,8 +395,8 @@ async function goPremium() {
     const statusEl = document.getElementById('paymentStatus');
     const btn = document.getElementById('btnBuy');
 
-    // Fallback for very old Telegram clients – open the bot chat
     if (!tg.openInvoice) {
+        // fallback as before
         statusEl.textContent = "Opening Telegram...";
         const userId = tg.initDataUnsafe?.user?.id;
         if (userId) {
@@ -410,27 +410,30 @@ async function goPremium() {
     btn.disabled = true;
 
     try {
-        // 1. Request invoice slug from backend
         const response = await fetch(`${API_URL}/api/create-invoice`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'X-Telegram-Init-Data': tg.initData   // sends user identity
+                'X-Telegram-Init-Data': tg.initData
             }
         });
 
         if (!response.ok) {
-            throw new Error('Failed to create invoice');
+            // Try to get the error message from the response body
+            let errorMsg = 'Failed to create invoice';
+            try {
+                const errData = await response.json();
+                errorMsg = errData.detail || errorMsg;
+            } catch (e) { /* ignore */ }
+            throw new Error(errorMsg);
         }
 
         const data = await response.json();
         const slug = data.slug;
 
-        // 2. Open invoice inside the mini app
         tg.openInvoice(slug, async (status) => {
             if (status === 'paid') {
                 statusEl.textContent = "✅ Payment successful! Activating premium...";
-                // Refresh premium status
                 const isPremium = await verifyPremiumStatus();
                 if (isPremium) {
                     statusEl.textContent = "✅ Premium activated!";
@@ -448,10 +451,10 @@ async function goPremium() {
         });
     } catch (error) {
         console.error("Payment error:", error);
-        statusEl.textContent = "❌ Error starting payment";
+        statusEl.textContent = `❌ ${error.message}`;  // Show the actual error
         btn.disabled = false;
     }
-}
+                        }
 
 function addManualPremiumCheck() {
     const premiumCard = document.querySelector('.premium-card');
