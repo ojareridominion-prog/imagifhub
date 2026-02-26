@@ -175,7 +175,7 @@ async function loadFeed(cat, search="") {
     }
 }
 
-// --- PREMIUM VERIFICATION FUNCTIONS (unchanged) ---
+// --- PREMIUM VERIFICATION FUNCTIONS ---
 async function verifyPremiumStatus() {
     try {
         const tg = window.Telegram.WebApp;
@@ -409,12 +409,11 @@ async function goPremium() {
     statusEl.style.color = "#ffd700";
     
     try {
+        const botLink = `https://t.me/IMAGIFHUB_bot?start=premium_${userId}`;
         if (tg.openLink) {
-            const botLink = `https://t.me/IMAGIFHUB_bot?start=premium_${userId}`;
             tg.openLink(botLink);
-            tg.close();
+            // ❌ REMOVED: tg.close();  (mini app stays open)
         } else {
-            const botLink = `https://t.me/IMAGIFHUB_bot?start=premium_${userId}`;
             window.open(botLink, '_blank');
         }
         
@@ -428,7 +427,7 @@ async function goPremium() {
                 btn.innerText = "Go Premium";
                 btn.disabled = false;
             }
-        }, 600000);
+        }, 600000); // 10 minutes
         
     } catch (error) {
         console.error("Error opening Telegram:", error);
@@ -441,6 +440,7 @@ async function goPremium() {
 function addManualPremiumCheck() {
     const premiumCard = document.querySelector('.premium-card');
     if (premiumCard) {
+        // Ensure paymentStatus exists (it's now in HTML, but we add a button)
         const checkBtn = document.createElement('button');
         checkBtn.className = 'btn-check';
         checkBtn.innerHTML = '🔄 Check Premium Status';
@@ -574,7 +574,7 @@ window.openPremium = openPremium;
 window.closePremium = closePremium;
 window.goPremium = goPremium;
 window.verifyPremiumStatus = verifyPremiumStatus;
-window.toggleDarkText = toggleDarkText; // <-- added
+window.toggleDarkText = toggleDarkText;
 
 window.handleAdClick = (event) => {
     if (!event.target.classList.contains('close-ad-btn')) {
