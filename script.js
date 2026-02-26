@@ -390,7 +390,7 @@ function closePremium() {
 }
 
 // 🔁 REPLACED goPremium() WITH NEW IN‑APP PURCHASE VERSION
-async function goPremium() {
+ async function goPremium() {
     const tg = window.Telegram.WebApp;
     const statusEl = document.getElementById('paymentStatus');
     const btn = document.getElementById('btnBuy');
@@ -419,7 +419,6 @@ async function goPremium() {
         });
 
         if (!response.ok) {
-            // Try to get the error message from the response body
             let errorMsg = 'Failed to create invoice';
             try {
                 const errData = await response.json();
@@ -429,9 +428,9 @@ async function goPremium() {
         }
 
         const data = await response.json();
-        const slug = data.slug;
+        const invoiceLink = data.invoice_link;   // ✅ full invoice URL
 
-        tg.openInvoice(slug, async (status) => {
+        tg.openInvoice(invoiceLink, async (status) => {
             if (status === 'paid') {
                 statusEl.textContent = "✅ Payment successful! Activating premium...";
                 const isPremium = await verifyPremiumStatus();
@@ -451,10 +450,10 @@ async function goPremium() {
         });
     } catch (error) {
         console.error("Payment error:", error);
-        statusEl.textContent = `❌ ${error.message}`;  // Show the actual error
+        statusEl.textContent = `❌ ${error.message}`;
         btn.disabled = false;
     }
-                        }
+ }
 
 function addManualPremiumCheck() {
     const premiumCard = document.querySelector('.premium-card');
