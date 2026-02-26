@@ -146,42 +146,33 @@ async def on_successful_payment(message: Message):
 
 @app.post("/api/create-invoice")
 async def create_invoice(request: Request):
-    """Creates a Telegram Stars invoice and returns the slug for openInvoice"""
-    # Get initData from headers
     init_data = request.headers.get("X-Telegram-Init-Data", "")
     if not init_data:
         raise HTTPException(status_code=401, detail="Missing init data")
-
-    # Extract user ID from initData
     user_id = get_user_id_from_init_data(init_data)
     if not user_id:
         raise HTTPException(status_code=401, detail="Invalid user")
-
     try:
-        # Create invoice link using aiogram
         invoice_link = await bot.create_invoice_link(
             title="IMAGIFHUB Premium",
             description="30 days of ad‑free experience",
-            payload=f"premium_{user_id}",          # identifies the user on payment
-            provider_token="",                      # empty for Telegram Stars
+            payload=f"premium_{user_id}",
+            provider_token="",
             currency="XTR",
             prices=[LabeledPrice(label="Premium Access", amount=99)]
         )
-
-        # Extract the slug from the deep link
-        # Invoice link format: https://t.me/{bot_username}?start=invoice_{slug}
+        # extract slug
         parsed = urllib.parse.urlparse(invoice_link)
         query = urllib.parse.parse_qs(parsed.query)
         start_param = query.get('start', [''])[0]
-        if start_param.startswith('invoice_'):
-            slug = start_param.replace('invoice_', '')
-        else:
-            slug = start_param   # fallback (should not happen)
-
+        slug = start_param.replace('invoice_', '') if start_param.startswith('invoice_') else start_param
         return {"slug": slug}
     except Exception as e:
-        logging.error(f"Invoice creation error: {e}")
-        raise HTTPException(status_code=500, detail="Failed to create invoice")
+        logging.error(f"Invoice creation error: {e}", exc_info=True)
+        # Return a 500 with the error message (avoid exposing sensitive details in production, but helpful for now)
+        raise HTTPException(status_code=500, detail=f"Invoice creation failed: {str(e)}")
+
+
 
 # ==================== PREMIUM VERIFICATION ENDPOINTS ====================
 
