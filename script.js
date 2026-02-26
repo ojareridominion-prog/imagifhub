@@ -389,50 +389,66 @@ function closePremium() {
     document.getElementById('premiumModal').classList.remove('active');
 }
 
+// 🔁 REPLACED goPremium() WITH NEW IN‑APP PURCHASE VERSION
 async function goPremium() {
-    console.log("Starting premium purchase flow...");
     const tg = window.Telegram.WebApp;
-    const btn = document.getElementById('btnBuy');
     const statusEl = document.getElementById('paymentStatus');
-    
-    const userId = tg.initDataUnsafe?.user?.id;
-    
-    if (!userId) {
-        statusEl.textContent = "❌ Please open in Telegram app to purchase";
-        statusEl.style.color = "#ff4444";
+    const btn = document.getElementById('btnBuy');
+
+    // Fallback for very old Telegram clients – open the bot chat
+    if (!tg.openInvoice) {
+        statusEl.textContent = "Opening Telegram...";
+        const userId = tg.initDataUnsafe?.user?.id;
+        if (userId) {
+            const botLink = `https://t.me/IMAGIFHUB_bot?start=premium_${userId}`;
+            tg.openLink(botLink);
+        }
         return;
     }
-    
-    btn.innerText = "Opening Telegram...";
+
+    statusEl.textContent = "Creating invoice...";
     btn.disabled = true;
-    statusEl.textContent = "Opening Telegram for payment...";
-    statusEl.style.color = "#ffd700";
-    
+
     try {
-        const botLink = `https://t.me/IMAGIFHUB_bot?start=premium_${userId}`;
-        if (tg.openLink) {
-            tg.openLink(botLink);
-            // ❌ REMOVED: tg.close();  (mini app stays open)
-        } else {
-            window.open(botLink, '_blank');
-        }
-        
-        statusEl.textContent = "✅ Opened Telegram. Complete purchase in chat, then return here...";
-        startPremiumChecking(userId);
-        
-        setTimeout(() => {
-            stopPremiumChecking();
-            if (localStorage.getItem("isPremium") !== "true") {
-                statusEl.textContent = "❌ Purchase timeout. Please try again.";
-                btn.innerText = "Go Premium";
-                btn.disabled = false;
+        // 1. Request invoice slug from backend
+        const response = await fetch(`${API_URL}/api/create-invoice`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Telegram-Init-Data': tg.initData   // sends user identity
             }
-        }, 600000); // 10 minutes
-        
+        });
+
+        if (!response.ok) {
+            throw new Error('Failed to create invoice');
+        }
+
+        const data = await response.json();
+        const slug = data.slug;
+
+        // 2. Open invoice inside the mini app
+        tg.openInvoice(slug, async (status) => {
+            if (status === 'paid') {
+                statusEl.textContent = "✅ Payment successful! Activating premium...";
+                // Refresh premium status
+                const isPremium = await verifyPremiumStatus();
+                if (isPremium) {
+                    statusEl.textContent = "✅ Premium activated!";
+                    setTimeout(() => {
+                        closePremium();
+                        loadFeed(currentCategory);
+                    }, 1500);
+                } else {
+                    statusEl.textContent = "⚠️ Payment received but activation delayed. Please check again in a moment.";
+                }
+            } else {
+                statusEl.textContent = "❌ Payment cancelled or failed";
+            }
+            btn.disabled = false;
+        });
     } catch (error) {
-        console.error("Error opening Telegram:", error);
-        statusEl.textContent = "❌ Error opening Telegram. Please try again.";
-        btn.innerText = "Go Premium";
+        console.error("Payment error:", error);
+        statusEl.textContent = "❌ Error starting payment";
         btn.disabled = false;
     }
 }
@@ -562,6 +578,7 @@ window.onload = async () => {
     });
 };
 
+// --- GLOBAL EXPOSURE ---
 // --- GLOBAL EXPOSURE ---
 window.loadFeed = loadFeed;
 window.toggleMenu = toggleMenu;
