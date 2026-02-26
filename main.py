@@ -161,16 +161,11 @@ async def create_invoice(request: Request):
             currency="XTR",
             prices=[LabeledPrice(label="Premium Access", amount=99)]
         )
-        # extract slug
-        parsed = urllib.parse.urlparse(invoice_link)
-        query = urllib.parse.parse_qs(parsed.query)
-        start_param = query.get('start', [''])[0]
-        slug = start_param.replace('invoice_', '') if start_param.startswith('invoice_') else start_param
-        return {"slug": slug}
+        return {"invoice_link": invoice_link}
     except Exception as e:
         logging.error(f"Invoice creation error: {e}", exc_info=True)
-        # Return a 500 with the error message (avoid exposing sensitive details in production, but helpful for now)
         raise HTTPException(status_code=500, detail=f"Invoice creation failed: {str(e)}")
+    
 
 
 
