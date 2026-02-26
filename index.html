@@ -32,12 +32,20 @@
         .menu-panel.open { left:0; }
         .menu-link { padding:15px 25px; border-bottom:1px solid rgba(255,255,255,0.05); display:block; text-decoration:none; color:var(--text); font-weight:500; cursor:pointer; }
         
-        /* Dark text override – forces overlay text to black */
+        /* Dark text override – now with white outline */
+        body.dark-text .meta-overlay {
+            text-shadow: none; /* remove default dark shadow */
+        }
         body.dark-text .category-tag,
         body.dark-text .keyword-container,
         body.dark-text .keyword-container button,
         body.dark-text .description-text {
             color: #000 !important;
+            text-shadow: 
+                1px 1px 0 white,
+                -1px -1px 0 white,
+                1px -1px 0 white,
+                -1px 1px 0 white;
         }
 
         /* Swiper Container */
