@@ -142,6 +142,47 @@ async def on_successful_payment(message: Message):
         logging.error(f"Payment DB Error: {e}")
         await message.answer("Payment received, but there was an error activating premium. Please contact support.")
 
+# ==================== NEW INVOICE ENDPOINT FOR IN‑APP PURCHASE ====================
+
+@app.post("/api/create-invoice")
+async def create_invoice(request: Request):
+    """Creates a Telegram Stars invoice and returns the slug for openInvoice"""
+    # Get initData from headers
+    init_data = request.headers.get("X-Telegram-Init-Data", "")
+    if not init_data:
+        raise HTTPException(status_code=401, detail="Missing init data")
+
+    # Extract user ID from initData
+    user_id = get_user_id_from_init_data(init_data)
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Invalid user")
+
+    try:
+        # Create invoice link using aiogram
+        invoice_link = await bot.create_invoice_link(
+            title="IMAGIFHUB Premium",
+            description="30 days of ad‑free experience",
+            payload=f"premium_{user_id}",          # identifies the user on payment
+            provider_token="",                      # empty for Telegram Stars
+            currency="XTR",
+            prices=[LabeledPrice(label="Premium Access", amount=99)]
+        )
+
+        # Extract the slug from the deep link
+        # Invoice link format: https://t.me/{bot_username}?start=invoice_{slug}
+        parsed = urllib.parse.urlparse(invoice_link)
+        query = urllib.parse.parse_qs(parsed.query)
+        start_param = query.get('start', [''])[0]
+        if start_param.startswith('invoice_'):
+            slug = start_param.replace('invoice_', '')
+        else:
+            slug = start_param   # fallback (should not happen)
+
+        return {"slug": slug}
+    except Exception as e:
+        logging.error(f"Invoice creation error: {e}")
+        raise HTTPException(status_code=500, detail="Failed to create invoice")
+
 # ==================== PREMIUM VERIFICATION ENDPOINTS ====================
 
 @app.get("/api/check-premium")
@@ -219,8 +260,6 @@ async def check_premium(user_id: int):
         traceback.print_exc()
         return {"is_premium": False, "expires_at": None, "days_left": None}
 
-
-
 @app.get("/api/user-data")
 async def get_user_data(request: Request):
     """Get user data for the current Telegram user"""
@@ -261,7 +300,6 @@ async def get_user_data(request: Request):
     except Exception as e:
         logging.error(f"Error getting user data: {e}")
         return {"user": None, "premium": False}
-
 
 @app.get("/api/debug-premium/{user_id}")
 async def debug_premium(user_id: int):
@@ -320,8 +358,6 @@ async def debug_premium(user_id: int):
     except Exception as e:
         return {"error": str(e)}
         
-
-
 @app.get("/api/test-premium/{user_id}")
 async def test_premium(user_id: int):
     """Direct test endpoint that shows everything"""
@@ -360,7 +396,6 @@ async def test_premium(user_id: int):
     except Exception as e:
         return {"error": str(e), "user_id": user_id}
         
-
 # ==================== FRONTEND API ====================
 
 @app.get("/media")
@@ -431,7 +466,6 @@ async def cmd_start(message: Message):
         reply_markup=keyboard
     )
     
-
 @dp.message(F.text == "/premium")
 async def cmd_premium(message: Message):
     """Check premium status or purchase premium - RELIES ONLY ON TELEGRAM ID"""
@@ -535,7 +569,6 @@ async def cmd_premium(message: Message):
             "❌ There was an error checking your premium status.\n\n"
             "Please try again in a few moments."
         )
-        
         
 @dp.callback_query(F.data == "get_premium")
 async def get_premium_callback(call: CallbackQuery):
