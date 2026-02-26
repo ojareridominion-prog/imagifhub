@@ -176,6 +176,24 @@ async function loadFeed(cat, search="") {
 }
 
 // --- PREMIUM VERIFICATION FUNCTIONS ---
+
+// Helper to format expiry date into a readable string
+function formatExpiryDate(expiryStr) {
+    if (!expiryStr) return '';
+    try {
+        const expiry = new Date(expiryStr);
+        if (isNaN(expiry.getTime())) return '';
+        const now = new Date();
+        const daysLeft = Math.ceil((expiry - now) / (1000 * 60 * 60 * 24));
+        if (daysLeft < 0) return 'Expired';
+        if (daysLeft === 0) return 'Expires today';
+        if (daysLeft === 1) return 'Expires tomorrow';
+        return `${daysLeft} days left`;  // e.g. "23 days left"
+    } catch (e) {
+        return '';
+    }
+}
+
 async function verifyPremiumStatus() {
     try {
         const tg = window.Telegram.WebApp;
@@ -262,6 +280,8 @@ async function checkPremiumStatus(userId) {
 
 function updatePremiumUI(isPremium) {
     const premiumBtn = document.querySelector('.premium-btn-menu');
+    const expiryInfo = document.getElementById('premiumExpiryInfo');
+    
     if (premiumBtn) {
         if (isPremium) {
             premiumBtn.innerText = "⭐ PREMIUM ACTIVE";
@@ -269,12 +289,23 @@ function updatePremiumUI(isPremium) {
             premiumBtn.style.color = "white";
             premiumBtn.disabled = true;
             premiumBtn.onclick = null;
+            
+            // Show expiry info
+            const expiryStr = localStorage.getItem("premiumExpires");
+            const formatted = formatExpiryDate(expiryStr);
+            if (expiryInfo) {
+                expiryInfo.innerText = formatted ? `⏳ ${formatted}` : '';
+                expiryInfo.style.color = "#ffd700";
+            }
         } else {
             premiumBtn.innerText = "UPGRADE NOW";
             premiumBtn.style.background = "white";
             premiumBtn.style.color = "#9c4dff";
             premiumBtn.disabled = false;
             premiumBtn.onclick = openPremium;
+            
+            // Hide or clear expiry info
+            if (expiryInfo) expiryInfo.innerText = '';
         }
     }
     
@@ -580,7 +611,6 @@ window.onload = async () => {
     });
 };
 
-// --- GLOBAL EXPOSURE ---
 // --- GLOBAL EXPOSURE ---
 window.loadFeed = loadFeed;
 window.toggleMenu = toggleMenu;
