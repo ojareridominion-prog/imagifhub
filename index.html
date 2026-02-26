@@ -17,7 +17,6 @@
             --text: #fff; 
             --bar: #1a1a1a; 
             --accent: #9c4dff; 
-            /* Welcome button colors – originally theme‑dependent, now fixed in .welcome-button */
         }
         body { margin:0; background:var(--bg); color:var(--text); font-family: 'Inter', system-ui, -apple-system, sans-serif; overflow:hidden; transition: 0.3s; }
         
@@ -248,6 +247,8 @@
         <div class="premium-box">
             <div style="font-weight: bold; font-size: 18px;">IMAGIF PREMIUM ⭐</div>
             <div style="font-size: 11px; opacity: 0.9; margin-top: 5px;">Enjoy ad-free smooth scrolling</div>
+            <!-- New expiry line -->
+            <div id="premiumExpiryInfo" style="font-size: 12px; margin-top: 8px; font-weight: normal;"></div>
             <button class="premium-btn-menu" onclick="openPremium()">UPGRADE NOW</button>
         </div>
         
@@ -311,4 +312,4 @@
 
     <script type="module" src="script.js"></script>
 </body>
-                </html>
+</html>
