@@ -334,7 +334,12 @@ function updatePremiumUI(isPremium) {
 
 // --- UI & THEME FUNCTIONS ---
 function toggleMenu() { 
-    document.getElementById('menuPanel').classList.toggle('open'); 
+    const panel = document.getElementById('menuPanel');
+    panel.classList.toggle('open');
+    // When menu opens, refresh premium status so expiry info is up‑to‑date
+    if (panel.classList.contains('open')) {
+        verifyPremiumStatus();
+    }
 }
 
 function applyTheme(themeId) {
@@ -403,7 +408,7 @@ function maybeShowAd() {
     
     actionCount++;
     localStorage.setItem("actionCount", actionCount);
-    if (actionCount % 4 === 0) {
+    if (actionCount % 3 === 0) {
         showAd();
     } else {
         hideAd();
