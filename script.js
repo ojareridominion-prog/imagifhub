@@ -178,18 +178,18 @@ async function loadFeed(cat, search="") {
 
 // --- PREMIUM VERIFICATION FUNCTIONS ---
 
-// Helper to format expiry date into a readable string
+// ✅ FIXED: Uses UTC timestamps to avoid timezone errors
 function formatExpiryDate(expiryStr) {
     if (!expiryStr) return '';
     try {
-        const expiry = new Date(expiryStr);
-        if (isNaN(expiry.getTime())) return '';
-        const now = new Date();
-        const daysLeft = Math.ceil((expiry - now) / (1000 * 60 * 60 * 24));
+        const expiryMs = new Date(expiryStr).getTime();      // UTC milliseconds
+        const nowMs = Date.now();                             // UTC milliseconds
+        const diffMs = expiryMs - nowMs;
+        const daysLeft = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
         if (daysLeft < 0) return 'Expired';
         if (daysLeft === 0) return 'Expires today';
         if (daysLeft === 1) return 'Expires tomorrow';
-        return `${daysLeft} days left`;  // e.g. "23 days left"
+        return `${daysLeft} days left`;
     } catch (e) {
         return '';
     }
@@ -219,6 +219,11 @@ async function verifyPremiumStatus() {
             localStorage.setItem("isPremium", "true");
             localStorage.setItem("premiumExpires", data.expires_at);
             updatePremiumUI(true);
+            // ✅ Immediately update expiry info if menu is open
+            const expiryInfo = document.getElementById('premiumExpiryInfo');
+            if (expiryInfo) {
+                expiryInfo.innerText = formatExpiryDate(data.expires_at) ? `⏳ ${formatExpiryDate(data.expires_at)}` : '';
+            }
             stopPremiumChecking();
             return true;
         } else {
@@ -578,7 +583,6 @@ window.onload = async () => {
     updateDarkTextIndicator();
     
     // 8. Setup Welcome Overlay with dynamic holiday image
-    // 8. Setup Welcome Overlay with dynamic holiday image
     const welcomeOverlay = document.getElementById('welcomeOverlay');
     const continueBtn = document.getElementById('welcomeContinueBtn');
     
@@ -639,4 +643,3 @@ window.handleAdClick = (event) => {
         hideAd();
     }
 };
-         
