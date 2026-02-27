@@ -1,3 +1,4 @@
+// welcome.js - Holiday detection for welcome overlay
 import { musicLibrary, categories } from './music.js';
 import { nativeAds } from './ads.js';
 import { getHolidayImage } from './welcome.js';
@@ -577,6 +578,7 @@ window.onload = async () => {
     updateDarkTextIndicator();
     
     // 8. Setup Welcome Overlay with dynamic holiday image
+    // 8. Setup Welcome Overlay with dynamic holiday image
     const welcomeOverlay = document.getElementById('welcomeOverlay');
     const continueBtn = document.getElementById('welcomeContinueBtn');
     
@@ -637,3 +639,4 @@ window.handleAdClick = (event) => {
         hideAd();
     }
 };
+         
