@@ -12,7 +12,7 @@ export const nativeAds = [
         title: "Sponsored",
         subtitle: "legitimate online marketplace",
         action: () => {
-            window.open("https://temu.to/k/eob8orcu3n0", "_blank") // Add your clickable link here
+            window.open("https://temu.to/k/e3zj4ye9770", "_blank") // Add your clickable link here
         }
     },
     {
