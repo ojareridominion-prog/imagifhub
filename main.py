@@ -31,9 +31,9 @@ dp = Dispatcher(storage=MemoryStorage())
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 app.add_middleware(
-    CORSMiddleware, 
-    allow_origins=["*"], 
-    allow_methods=["*"], 
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
     allow_headers=["*"]
 )
 
@@ -43,8 +43,8 @@ class AdminUpload(StatesGroup):
     waiting_keywords = State()
 
 CATEGORIES = [
-    "Nature", "Places", "Aesthetic", "Cars", 
-    "Luxury", "Art", "Animals", "Historical", 
+    "Nature", "Places", "Aesthetic", "Cars",
+    "Luxury", "Art", "Animals", "Historical",
     "Anime", "Featured"
 ]
 
@@ -60,6 +60,12 @@ def get_user_id_from_init_data(init_data: str):
     except Exception as e:
         logging.error(f"Error parsing initData: {e}")
     return None
+
+def ensure_utc_z(dt_str: str) -> str:
+    """Ensure datetime string ends with Z (UTC indicator)."""
+    if not dt_str.endswith('Z'):
+        dt_str += 'Z'
+    return dt_str
 
 # ==================== WEBHOOK HELPERS ====================
 
@@ -93,10 +99,11 @@ async def on_successful_payment(message: Message):
     try:
         payment = message.successful_payment
         telegram_id = message.from_user.id
-        
-        # Calculate expiry (30 days from now)
+
+        # Calculate expiry (30 days from now) with UTC Z
         expires_at = datetime.utcnow() + timedelta(days=30)
-        
+        expires_at_str = expires_at.isoformat() + "Z"
+
         # Record the payment
         supabase.table("payments").insert({
             "telegram_id": telegram_id,
@@ -112,8 +119,8 @@ async def on_successful_payment(message: Message):
         supabase.table("users").upsert({
             "telegram_id": telegram_id,
             "is_premium": True,
-            "premium_expires_at": expires_at.isoformat(),
-            "updated_at": datetime.utcnow().isoformat()
+            "premium_expires_at": expires_at_str,
+            "updated_at": datetime.utcnow().isoformat() + "Z"
         }).execute()
 
         # Send congratulatory message with instructions
@@ -126,18 +133,18 @@ async def on_successful_payment(message: Message):
             "2. Or tap 'Check Premium Status' button\n\n"
             "Use /premium anytime to check your status."
         )
-        
+
         # Also send a button to refresh the mini app
         keyboard = InlineKeyboardMarkup(inline_keyboard=[
             [InlineKeyboardButton(text="🔄 Refresh Mini App", web_app={"url": "https://ojareridominion-prog.github.io/imagifhub/"})],
             [InlineKeyboardButton(text="🚀 Open IMAGIFHUB", web_app={"url": "https://ojareridominion-prog.github.io/imagifhub/"})]
         ])
-        
+
         await message.answer(
             "Click below to open the refreshed app with premium activated:",
             reply_markup=keyboard
         )
-        
+
     except Exception as e:
         logging.error(f"Payment DB Error: {e}")
         await message.answer("Payment received, but there was an error activating premium. Please contact support.")
@@ -165,36 +172,32 @@ async def create_invoice(request: Request):
     except Exception as e:
         logging.error(f"Invoice creation error: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Invoice creation failed: {str(e)}")
-    
-
-
 
 # ==================== PREMIUM VERIFICATION ENDPOINTS ====================
 
 @app.get("/api/check-premium")
 async def check_premium(user_id: int):
-    """Simplified premium check - only checks expiry date"""
+    """Simplified premium check - only checks expiry date, returns days_left"""
     try:
         print(f"🔍 Checking premium for user: {user_id}")
-        
-        # Direct query with specific field selection
+
         result = supabase.table("users") \
             .select("*") \
             .eq("telegram_id", user_id) \
             .execute()
-        
+
         print(f"📊 Query result: {result.data}")
-        
+
         if not result.data:
             print(f"❌ User {user_id} not found")
             return {"is_premium": False, "expires_at": None, "days_left": None}
-        
+
         data = result.data[0]
         is_premium = data.get("is_premium")
         expires_at_str = data.get("premium_expires_at")
-        
+
         print(f"📋 Data: is_premium={is_premium} (type: {type(is_premium)}), expires_at={expires_at_str}")
-        
+
         # Handle boolean value properly (might be string 'true' or boolean True)
         is_premium_bool = False
         if isinstance(is_premium, bool):
@@ -203,30 +206,27 @@ async def check_premium(user_id: int):
             is_premium_bool = is_premium.lower() == 'true'
         elif isinstance(is_premium, int):
             is_premium_bool = bool(is_premium)
-        
+
         # Check if premium is active
         if is_premium_bool and expires_at_str:
             try:
-                # Parse date - handle different formats
-                expires_at_str_clean = expires_at_str
-                if expires_at_str.endswith('Z'):
-                    expires_at_str_clean = expires_at_str.replace('Z', '+00:00')
-                
-                expires_at = datetime.fromisoformat(expires_at_str_clean)
+                # Ensure expires_at_str has Z for UTC
+                expires_at_str = ensure_utc_z(expires_at_str)
+                expires_at = datetime.fromisoformat(expires_at_str.replace('Z', '+00:00'))
                 now = datetime.utcnow().replace(tzinfo=None)  # Make naive for comparison
-                
+
                 # If expires_at has timezone info, make it naive too
                 if expires_at.tzinfo is not None:
                     expires_at = expires_at.replace(tzinfo=None)
-                
+
                 print(f"⏰ Now: {now}, Expires: {expires_at}")
-                
+
                 if expires_at > now:
                     days_left = (expires_at - now).days
                     print(f"✅ Premium ACTIVE! Days left: {days_left}")
                     return {
                         "is_premium": True,
-                        "expires_at": expires_at.isoformat(),
+                        "expires_at": expires_at_str,
                         "days_left": days_left
                     }
                 else:
@@ -236,10 +236,10 @@ async def check_premium(user_id: int):
                 print(f"⚠️ Raw expires_at string: {expires_at_str}")
                 import traceback
                 traceback.print_exc()
-        
+
         print(f"❌ No active premium found. is_premium_bool={is_premium_bool}")
         return {"is_premium": False, "expires_at": None, "days_left": None}
-        
+
     except Exception as e:
         print(f"🔥 Error in check_premium: {e}")
         import traceback
@@ -252,15 +252,15 @@ async def get_user_data(request: Request):
     try:
         # Get user from Telegram WebApp initData
         init_data = request.headers.get("X-Telegram-Init-Data", "")
-        
+
         if not init_data:
             return {"user": None, "premium": False}
-        
+
         user_id = get_user_id_from_init_data(init_data)
-        
+
         if not user_id:
             return {"user": None, "premium": False}
-        
+
         # Get user info from initData
         try:
             parsed = urllib.parse.parse_qs(init_data)
@@ -273,115 +273,21 @@ async def get_user_data(request: Request):
             }
         except:
             user_info = {"id": user_id}
-        
+
         # Check premium status
         premium_result = await check_premium(user_id)
-        
+
         return {
             "user": user_info,
             "premium": premium_result["is_premium"],
-            "expires_at": premium_result.get("expires_at")
+            "expires_at": premium_result.get("expires_at"),
+            "days_left": premium_result.get("days_left")
         }
-        
+
     except Exception as e:
         logging.error(f"Error getting user data: {e}")
         return {"user": None, "premium": False}
 
-@app.get("/api/debug-premium/{user_id}")
-async def debug_premium(user_id: int):
-    """Debug endpoint to see raw database data"""
-    try:
-        user_result = supabase.table("users").select("*").eq("telegram_id", user_id).execute()
-        
-        if not user_result.data:
-            return {"error": "User not found", "user_id": user_id}
-        
-        user_data = user_result.data[0]
-        is_premium = user_data.get("is_premium")
-        expires_at_str = user_data.get("premium_expires_at")
-        
-        # Parse the boolean
-        is_premium_bool = False
-        if isinstance(is_premium, bool):
-            is_premium_bool = is_premium
-        elif isinstance(is_premium, str):
-            is_premium_bool = is_premium.lower() == 'true'
-        elif isinstance(is_premium, int):
-            is_premium_bool = bool(is_premium)
-        
-        # Calculate premium status
-        calculated_status = False
-        expires_at = None
-        
-        if is_premium_bool and expires_at_str:
-            try:
-                expires_at_str_clean = expires_at_str
-                if expires_at_str.endswith('Z'):
-                    expires_at_str_clean = expires_at_str.replace('Z', '+00:00')
-                expires_at = datetime.fromisoformat(expires_at_str_clean)
-                now = datetime.utcnow().replace(tzinfo=None)
-                
-                # Make expires_at naive for comparison
-                if expires_at.tzinfo is not None:
-                    expires_at = expires_at.replace(tzinfo=None)
-                
-                calculated_status = expires_at > now
-            except Exception as e:
-                print(f"Date parsing error in debug: {e}")
-        
-        return {
-            "database_record": user_data,
-            "current_time_utc": datetime.utcnow().isoformat(),
-            "is_premium_raw": user_data.get("is_premium"),
-            "is_premium_type": str(type(user_data.get("is_premium"))),
-            "is_premium_bool": is_premium_bool,
-            "expires_at_field": user_data.get("premium_expires_at"),
-            "calculated_premium": calculated_status,
-            "premium_active": calculated_status,
-            "expires_at_naive": expires_at.isoformat() if expires_at else None,
-            "current_time_naive": datetime.utcnow().replace(tzinfo=None).isoformat()
-        }
-    except Exception as e:
-        return {"error": str(e)}
-        
-@app.get("/api/test-premium/{user_id}")
-async def test_premium(user_id: int):
-    """Direct test endpoint that shows everything"""
-    try:
-        # Get user from database
-        user_result = supabase.table("users").select("*").eq("telegram_id", user_id).execute()
-        
-        response = {
-            "user_id": user_id,
-            "current_time_utc": datetime.utcnow().isoformat(),
-            "database_record": user_result.data[0] if user_result.data else None,
-            "raw_sql_test": None
-        }
-        
-        # Also run a raw SQL test
-        from supabase import Client
-        import json
-        
-        # Raw query to see exactly what's in DB
-        sql_result = supabase.table("users").select("*").eq("telegram_id", user_id).execute()
-        
-        if sql_result.data:
-            record = sql_result.data[0]
-            response["raw_sql_test"] = {
-                "exists": True,
-                "telegram_id": record.get("telegram_id"),
-                "is_premium_raw": record.get("is_premium"),
-                "is_premium_type": type(record.get("is_premium")).__name__,
-                "expires_at_raw": record.get("premium_expires_at"),
-                "calculated_status": record.get("is_premium") == True and 
-                    datetime.fromisoformat(record.get("premium_expires_at").replace('Z', '+00:00')) > datetime.utcnow()
-            }
-        
-        return response
-        
-    except Exception as e:
-        return {"error": str(e), "user_id": user_id}
-        
 # ==================== FRONTEND API ====================
 
 @app.get("/media")
@@ -396,7 +302,7 @@ async def get_media(category: str = "all", search: str = ""):
     random.shuffle(data)
     return data[:50]
 
-# ==================== ADMIN ENDPOINTS ====================
+# ==================== ADMIN ENDPOINTS (unchanged) ====================
 
 @app.get("/api/admin/stats")
 async def admin_stats(request: Request):
@@ -405,27 +311,27 @@ async def admin_stats(request: Request):
     auth = request.headers.get("Authorization", "")
     if not auth.startswith("Bearer "):
         raise HTTPException(status_code=401, detail="Unauthorized")
-    
+
     token = auth.replace("Bearer ", "").strip()
     if token != ADMIN_TOKEN:
         raise HTTPException(status_code=401, detail="Unauthorized")
-    
+
     try:
         # Get total users
         users_res = supabase.table("users").select("count", count="exact").execute()
         total_users = users_res.count or 0
-        
+
         # Get premium users
         premium_res = supabase.table("users").select("count", count="exact").eq("is_premium", True).execute()
         premium_users = premium_res.count or 0
-        
+
         # Get total payments
         payments_res = supabase.table("payments").select("amount", "currency").eq("status", "completed").execute()
         total_revenue = sum(p.get("amount", 0) for p in payments_res.data) if payments_res.data else 0
-        
+
         # Recent payments
         recent_payments = supabase.table("payments").select("*").order("created_at", desc=True).limit(10).execute()
-        
+
         return {
             "total_users": total_users,
             "premium_users": premium_users,
@@ -433,12 +339,12 @@ async def admin_stats(request: Request):
             "total_revenue": total_revenue,
             "recent_payments": recent_payments.data if recent_payments.data else []
         }
-        
+
     except Exception as e:
         logging.error(f"Admin stats error: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
 
-# ==================== BOT LOGIC ====================
+# ==================== BOT LOGIC (unchanged, but ensure expires_at gets Z) ====================
 
 @dp.message(F.text == "/start")
 async def cmd_start(message: Message):
@@ -451,23 +357,23 @@ async def cmd_start(message: Message):
         "Don't wait, click let's go 🚀🚀 to continue",
         reply_markup=keyboard
     )
-    
+
 @dp.message(F.text == "/premium")
 async def cmd_premium(message: Message):
     """Check premium status or purchase premium - RELIES ONLY ON TELEGRAM ID"""
     telegram_id = message.from_user.id
     logging.info(f"Checking premium for user ID: {telegram_id}")
-    
+
     try:
         # Simple query - only check telegram_id, is_premium, and premium_expires_at
         user_result = supabase.table("users") \
             .select("is_premium, premium_expires_at") \
             .eq("telegram_id", telegram_id) \
             .execute()
-        
+
         # Debug logging
         logging.info(f"Query result: {user_result.data}")
-        
+
         if not user_result.data or len(user_result.data) == 0:
             # User not in database - offer premium
             logging.info(f"User {telegram_id} not found in database")
@@ -487,13 +393,13 @@ async def cmd_premium(message: Message):
                 reply_markup=keyboard
             )
             return
-        
+
         user_data = user_result.data[0]
         is_premium = user_data.get("is_premium", False)
         premium_expires_at = user_data.get("premium_expires_at")
-        
+
         logging.info(f"User {telegram_id} - is_premium: {is_premium}, expires_at: {premium_expires_at}")
-        
+
         # Handle boolean value properly
         is_premium_bool = False
         if isinstance(is_premium, bool):
@@ -502,21 +408,18 @@ async def cmd_premium(message: Message):
             is_premium_bool = is_premium.lower() == 'true'
         elif isinstance(is_premium, int):
             is_premium_bool = bool(is_premium)
-        
+
         if is_premium_bool and premium_expires_at:
             try:
-                # Parse date
-                expires_at_str = premium_expires_at
-                if expires_at_str.endswith('Z'):
-                    expires_at_str = expires_at_str.replace('Z', '+00:00')
-                
-                expires_at = datetime.fromisoformat(expires_at_str)
+                # Parse date - ensure UTC Z
+                expires_at_str = ensure_utc_z(premium_expires_at)
+                expires_at = datetime.fromisoformat(expires_at_str.replace('Z', '+00:00'))
                 now = datetime.utcnow().replace(tzinfo=None)
-                
+
                 # Make expires_at naive for comparison
                 if expires_at.tzinfo is not None:
                     expires_at = expires_at.replace(tzinfo=None)
-                
+
                 if expires_at > now:
                     days_left = (expires_at - now).days
                     await message.answer(
@@ -531,7 +434,7 @@ async def cmd_premium(message: Message):
             except Exception as e:
                 logging.error(f"Date parsing error for user {telegram_id}: {e}")
                 # Continue to show free plan if date is invalid
-        
+
         # If we get here, user is not premium
         keyboard = InlineKeyboardMarkup(inline_keyboard=[
             [InlineKeyboardButton(text="⭐ Get Premium", callback_data="get_premium")],
@@ -548,19 +451,19 @@ async def cmd_premium(message: Message):
             parse_mode="HTML",
             reply_markup=keyboard
         )
-            
+
     except Exception as e:
         logging.error(f"Premium check error for user {telegram_id}: {e}", exc_info=True)
         await message.answer(
             "❌ There was an error checking your premium status.\n\n"
             "Please try again in a few moments."
         )
-        
+
 @dp.callback_query(F.data == "get_premium")
 async def get_premium_callback(call: CallbackQuery):
     """Create invoice for premium purchase"""
     await call.answer()
-    
+
     invoice_link = await bot.create_invoice_link(
         title="IMAGIFHUB Premium",
         description="30 days of ad-free experience",
@@ -569,12 +472,12 @@ async def get_premium_callback(call: CallbackQuery):
         currency="XTR",
         prices=[LabeledPrice(label="Premium Access", amount=99)]
     )
-    
+
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="💳 Pay Now", url=invoice_link)],
         [InlineKeyboardButton(text="🔙 Back", callback_data="back_to_premium")]
     ])
-    
+
     await call.message.edit_text(
         "✨ <b>Upgrade to IMAGIFHUB Premium</b>\n\n"
         "💫 <b>Price:</b> 99 Stars (30 days)\n\n"
@@ -597,6 +500,7 @@ async def renew_premium_callback(call: CallbackQuery):
     """Renew premium subscription"""
     await get_premium_callback(call)
 
+# Handle deep linking for /start premium
 # Handle deep linking for /start premium
 @dp.message(F.text.startswith("/start premium"))
 async def start_premium(message: Message):
@@ -627,12 +531,12 @@ async def up_step2(message: Message, state: FSMContext):
     file_id = message.photo[-1].file_id
     file = await bot.get_file(file_id)
     media_url = f"https://api.telegram.org/file/bot{BOT_TOKEN}/{file.file_path}"
-    
+
     resp = requests.post(
-        "https://api.imgbb.com/1/upload", 
+        "https://api.imgbb.com/1/upload",
         params={'key': IMGBB_API_KEY, 'image': media_url}
     )
-    
+
     if resp.status_code == 200:
         final_url = resp.json()['data']['url']
         await state.update_data(url=final_url)
