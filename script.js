@@ -178,14 +178,14 @@ async function loadFeed(cat, search="") {
 
 // --- PREMIUM VERIFICATION FUNCTIONS ---
 
-// ✅ FIXED: Uses UTC timestamps to avoid timezone errors
+// ✅ Uses UTC timestamps and Math.floor for consistency with server
 function formatExpiryDate(expiryStr) {
     if (!expiryStr) return '';
     try {
         const expiryMs = new Date(expiryStr).getTime();      // UTC milliseconds
         const nowMs = Date.now();                             // UTC milliseconds
         const diffMs = expiryMs - nowMs;
-        const daysLeft = Math.floor(diffMs / (1000 * 60 * 60 * 24)); // ← changed to floor
+        const daysLeft = Math.floor(diffMs / (1000 * 60 * 60 * 24));
         if (daysLeft < 0) return 'Expired';
         if (daysLeft === 0) return 'Expires today';
         if (daysLeft === 1) return 'Expires tomorrow';
@@ -195,8 +195,8 @@ function formatExpiryDate(expiryStr) {
     }
 }
 
-// NEW: updated function to accept expiryStr and display it in the menu
-function updatePremiumUI(isPremium, expiryStr = null) {
+// UPDATED: accepts daysLeft from server if available
+function updatePremiumUI(isPremium, expiryStr = null, daysLeft = null) {
     const premiumBtn = document.querySelector('.premium-btn-menu');
     const expiryDisplay = document.getElementById('premiumExpiryDisplay');
 
@@ -220,10 +220,19 @@ function updatePremiumUI(isPremium, expiryStr = null) {
     // Update expiry display inside the premium card
     if (expiryDisplay) {
         if (isPremium) {
-            // If expiryStr not provided, fallback to localStorage
-            if (!expiryStr) expiryStr = localStorage.getItem("premiumExpires");
-            const daysText = formatExpiryDate(expiryStr);
-            expiryDisplay.innerText = daysText || "Premium active";
+            let displayText = '';
+            if (daysLeft !== null) {
+                // Use server‑calculated days
+                if (daysLeft < 0) displayText = 'Expired';
+                else if (daysLeft === 0) displayText = 'Expires today';
+                else if (daysLeft === 1) displayText = 'Expires tomorrow';
+                else displayText = `${daysLeft} days left`;
+            } else {
+                // Fallback to client calculation
+                if (!expiryStr) expiryStr = localStorage.getItem("premiumExpires");
+                displayText = formatExpiryDate(expiryStr);
+            }
+            expiryDisplay.innerText = displayText || "Premium active";
         } else {
             expiryDisplay.innerText = "Enjoy ad-free smooth scrolling";
         }
@@ -261,9 +270,8 @@ async function verifyPremiumStatus() {
         if (!initData) {
             console.log("No initData available, using localStorage");
             const isPremium = localStorage.getItem("isPremium") === "true";
-            // NEW: pass expiry from localStorage
             const expiry = localStorage.getItem("premiumExpires");
-            updatePremiumUI(isPremium, expiry);
+            updatePremiumUI(isPremium, expiry, null);
             return isPremium;
         }
         
@@ -278,8 +286,8 @@ async function verifyPremiumStatus() {
         if (data.premium) {
             localStorage.setItem("isPremium", "true");
             localStorage.setItem("premiumExpires", data.expires_at);
-            // NEW: pass expiry
-            updatePremiumUI(true, data.expires_at);
+            // Pass server‑provided days_left
+            updatePremiumUI(true, data.expires_at, data.days_left);
             stopPremiumChecking();
             return true;
         } else {
@@ -292,7 +300,7 @@ async function verifyPremiumStatus() {
         console.log("Error verifying premium:", error);
         const isPremium = localStorage.getItem("isPremium") === "true";
         const expiry = localStorage.getItem("premiumExpires");
-        updatePremiumUI(isPremium, expiry);
+        updatePremiumUI(isPremium, expiry, null);
         return isPremium;
     }
 }
@@ -320,8 +328,8 @@ async function checkPremiumStatus(userId) {
         if (data.is_premium) {
             localStorage.setItem("isPremium", "true");
             localStorage.setItem("premiumExpires", data.expires_at);
-            // NEW: pass expiry
-            updatePremiumUI(true, data.expires_at);
+            // Pass server‑provided days_left
+            updatePremiumUI(true, data.expires_at, data.days_left);
             stopPremiumChecking();
             
             const statusEl = document.getElementById('paymentStatus');
@@ -473,7 +481,7 @@ async function goPremium() {
         }
 
         const data = await response.json();
-        const invoiceLink = data.invoice_link;   // ✅ full invoice URL
+        const invoiceLink = data.invoice_link;
 
         tg.openInvoice(invoiceLink, async (status) => {
             if (status === 'paid') {
@@ -580,7 +588,6 @@ window.onload = async () => {
     const savedTheme = localStorage.getItem("imagifhub-theme") || "theme-black";
     applyTheme(savedTheme);
     
-    // 7. Apply Dark Text preference
     // 7. Apply Dark Text preference
     applyDarkText();
     updateDarkTextIndicator();
