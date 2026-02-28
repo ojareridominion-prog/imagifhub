@@ -280,7 +280,8 @@ async def get_user_data(request: Request):
         return {
             "user": user_info,
             "premium": premium_result["is_premium"],
-            "expires_at": premium_result.get("expires_at")
+            "expires_at": premium_result.get("expires_at"),
+            "days_left": premium_result.get("days_left")   # ← NEW
         }
         
     except Exception as e:
