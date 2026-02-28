@@ -195,6 +195,64 @@ function formatExpiryDate(expiryStr) {
     }
 }
 
+// NEW: updated function to accept expiryStr and display it in the menu
+function updatePremiumUI(isPremium, expiryStr = null) {
+    const premiumBtn = document.querySelector('.premium-btn-menu');
+    const expiryDisplay = document.getElementById('premiumExpiryDisplay');
+
+    // Update premium button
+    if (premiumBtn) {
+        if (isPremium) {
+            premiumBtn.innerText = "⭐ PREMIUM ACTIVE";
+            premiumBtn.style.background = "#4CAF50";
+            premiumBtn.style.color = "white";
+            premiumBtn.disabled = true;
+            premiumBtn.onclick = null;
+        } else {
+            premiumBtn.innerText = "UPGRADE NOW";
+            premiumBtn.style.background = "white";
+            premiumBtn.style.color = "#9c4dff";
+            premiumBtn.disabled = false;
+            premiumBtn.onclick = openPremium;
+        }
+    }
+
+    // Update expiry display inside the premium card
+    if (expiryDisplay) {
+        if (isPremium) {
+            // If expiryStr not provided, fallback to localStorage
+            if (!expiryStr) expiryStr = localStorage.getItem("premiumExpires");
+            const daysText = formatExpiryDate(expiryStr);
+            expiryDisplay.innerText = daysText || "Premium active";
+        } else {
+            expiryDisplay.innerText = "Enjoy ad-free smooth scrolling";
+        }
+    }
+    
+    // Buy button and indicator (unchanged)
+    const buyBtn = document.getElementById('btnBuy');
+    if (buyBtn) {
+        if (isPremium) {
+            buyBtn.innerText = "⭐ PREMIUM ACTIVE";
+            buyBtn.style.background = "#4CAF50";
+            buyBtn.disabled = true;
+        } else {
+            buyBtn.innerText = "Go Premium";
+            buyBtn.style.background = "#ffd700";
+            buyBtn.disabled = false;
+        }
+    }
+    
+    const indicator = document.getElementById('premiumIndicator');
+    if (indicator) {
+        indicator.style.display = isPremium ? 'block' : 'none';
+    }
+    
+    if (isPremium) {
+        hideAd();
+    }
+}
+
 async function verifyPremiumStatus() {
     try {
         const tg = window.Telegram.WebApp;
@@ -203,7 +261,9 @@ async function verifyPremiumStatus() {
         if (!initData) {
             console.log("No initData available, using localStorage");
             const isPremium = localStorage.getItem("isPremium") === "true";
-            updatePremiumUI(isPremium);
+            // NEW: pass expiry from localStorage
+            const expiry = localStorage.getItem("premiumExpires");
+            updatePremiumUI(isPremium, expiry);
             return isPremium;
         }
         
@@ -218,8 +278,8 @@ async function verifyPremiumStatus() {
         if (data.premium) {
             localStorage.setItem("isPremium", "true");
             localStorage.setItem("premiumExpires", data.expires_at);
-            updatePremiumUI(true);
-            // ✅ Expiry info no longer displayed
+            // NEW: pass expiry
+            updatePremiumUI(true, data.expires_at);
             stopPremiumChecking();
             return true;
         } else {
@@ -231,7 +291,8 @@ async function verifyPremiumStatus() {
     } catch (error) {
         console.log("Error verifying premium:", error);
         const isPremium = localStorage.getItem("isPremium") === "true";
-        updatePremiumUI(isPremium);
+        const expiry = localStorage.getItem("premiumExpires");
+        updatePremiumUI(isPremium, expiry);
         return isPremium;
     }
 }
@@ -259,7 +320,8 @@ async function checkPremiumStatus(userId) {
         if (data.is_premium) {
             localStorage.setItem("isPremium", "true");
             localStorage.setItem("premiumExpires", data.expires_at);
-            updatePremiumUI(true);
+            // NEW: pass expiry
+            updatePremiumUI(true, data.expires_at);
             stopPremiumChecking();
             
             const statusEl = document.getElementById('paymentStatus');
@@ -280,55 +342,11 @@ async function checkPremiumStatus(userId) {
     }
 }
 
-function updatePremiumUI(isPremium) {
-    const premiumBtn = document.querySelector('.premium-btn-menu');
-    
-    if (premiumBtn) {
-        if (isPremium) {
-            premiumBtn.innerText = "⭐ PREMIUM ACTIVE";
-            premiumBtn.style.background = "#4CAF50";
-            premiumBtn.style.color = "white";
-            premiumBtn.disabled = true;
-            premiumBtn.onclick = null;
-            
-            // Expiry info removed from menu
-        } else {
-            premiumBtn.innerText = "UPGRADE NOW";
-            premiumBtn.style.background = "white";
-            premiumBtn.style.color = "#9c4dff";
-            premiumBtn.disabled = false;
-            premiumBtn.onclick = openPremium;
-        }
-    }
-    
-    const buyBtn = document.getElementById('btnBuy');
-    if (buyBtn) {
-        if (isPremium) {
-            buyBtn.innerText = "⭐ PREMIUM ACTIVE";
-            buyBtn.style.background = "#4CAF50";
-            buyBtn.disabled = true;
-        } else {
-            buyBtn.innerText = "Go Premium";
-            buyBtn.style.background = "#ffd700";
-            buyBtn.disabled = false;
-        }
-    }
-    
-    const indicator = document.getElementById('premiumIndicator');
-    if (indicator) {
-        indicator.style.display = isPremium ? 'block' : 'none';
-    }
-    
-    if (isPremium) {
-        hideAd();
-    }
-}
-
 // --- UI & THEME FUNCTIONS ---
 function toggleMenu() { 
     const panel = document.getElementById('menuPanel');
     panel.classList.toggle('open');
-    // When menu opens, refresh premium status (no expiry info displayed)
+    // When menu opens, refresh premium status (will update expiry)
     if (panel.classList.contains('open')) {
         verifyPremiumStatus();
     }
@@ -417,8 +435,7 @@ function closePremium() {
     document.getElementById('premiumModal').classList.remove('active');
 }
 
-// 🔁 REPLACED goPremium() WITH NEW IN‑APP PURCHASE VERSION
- async function goPremium() {
+async function goPremium() {
     const tg = window.Telegram.WebApp;
     const statusEl = document.getElementById('paymentStatus');
     const btn = document.getElementById('btnBuy');
@@ -481,12 +498,11 @@ function closePremium() {
         statusEl.textContent = `❌ ${error.message}`;
         btn.disabled = false;
     }
- }
+}
 
 function addManualPremiumCheck() {
     const premiumCard = document.querySelector('.premium-card');
     if (premiumCard) {
-        // Ensure paymentStatus exists (it's now in HTML, but we add a button)
         const checkBtn = document.createElement('button');
         checkBtn.className = 'btn-check';
         checkBtn.innerHTML = '🔄 Check Premium Status';
@@ -538,7 +554,7 @@ window.onload = async () => {
     // 1. Initialize Telegram WebApp
     initTelegramWebApp();
     
-    // 2. Check premium status on load
+    // 2. Check premium status on load (will update menu expiry)
     await verifyPremiumStatus();
     
     // 3. Setup Categories
@@ -565,6 +581,7 @@ window.onload = async () => {
     applyTheme(savedTheme);
     
     // 7. Apply Dark Text preference
+    // 7. Apply Dark Text preference
     applyDarkText();
     updateDarkTextIndicator();
     
@@ -586,7 +603,6 @@ window.onload = async () => {
     // 9. Add manual premium check button
     addManualPremiumCheck();
 
-    // 10. Delegate click events for more/less buttons
     // 10. Delegate click events for more/less buttons
     document.getElementById('feed').addEventListener('click', (e) => {
         const target = e.target;
