@@ -185,7 +185,7 @@ function formatExpiryDate(expiryStr) {
         const expiryMs = new Date(expiryStr).getTime();      // UTC milliseconds
         const nowMs = Date.now();                             // UTC milliseconds
         const diffMs = expiryMs - nowMs;
-        const daysLeft = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+        const daysLeft = Math.floor(diffMs / (1000 * 60 * 60 * 24)); // ← changed to floor
         if (daysLeft < 0) return 'Expired';
         if (daysLeft === 0) return 'Expires today';
         if (daysLeft === 1) return 'Expires tomorrow';
