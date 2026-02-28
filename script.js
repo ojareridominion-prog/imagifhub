@@ -3,7 +3,7 @@ import { musicLibrary, categories } from './music.js';
 import { nativeAds } from './ads.js';
 import { getHolidayImage } from './welcome.js';
 
-const API_URL = "https://imagifhub.vercel.app";
+const API_URL = "https://imagifhub.vercel.app"; 
 let activeSwiper = null;
 let currentCategory = "Discover";
 let songPools = {}; // Tracks unplayed songs for each category
@@ -34,7 +34,7 @@ function updateDarkTextIndicator() {
 
 // --- HISTORY TRACKING ---
 function getSeenList() {
-    try { return JSON.parse(localStorage.getItem(SEEN_KEY) || "[]"); }
+    try { return JSON.parse(localStorage.getItem(SEEN_KEY) || "[]"); } 
     catch { return []; }
 }
 
@@ -92,9 +92,9 @@ async function loadFeed(cat, search="") {
     currentCategory = cat;
     const feed = document.getElementById('feed');
     const audio = document.getElementById('bgMusic');
-
+    
     feed.innerHTML = '<div class="swiper-slide" style="display:flex; align-items:center; justify-content:center;"><h3>Loading...</h3></div>';
-
+    
     document.querySelectorAll('.cat-btn').forEach(b => b.classList.toggle('active', b.innerText === cat));
 
     if (audio.paused || currentCategory !== cat) {
@@ -110,7 +110,7 @@ async function loadFeed(cat, search="") {
             const uniqueData = data.filter(item => !seenList.includes(item.url));
             if (uniqueData.length > 0) data = uniqueData;
         }
-
+        
         if (!data || data.length === 0) {
             feed.innerHTML = '<div class="swiper-slide" style="display:flex; align-items:center; justify-content:center;"><h3>No Images Found</h3></div>';
             return;
@@ -121,7 +121,7 @@ async function loadFeed(cat, search="") {
             const keyword = item.Keyword || '';
             const maxLength = 100;
             let keywordHtml = '';
-
+            
             if (keyword.length > maxLength) {
                 const truncated = keyword.substring(0, maxLength) + '...';
                 keywordHtml = `
@@ -148,8 +148,8 @@ async function loadFeed(cat, search="") {
         }).join('');
 
         if (activeSwiper) activeSwiper.destroy(true, true);
-        activeSwiper = new Swiper('#swiper', {
-            direction: 'vertical',
+        activeSwiper = new Swiper('#swiper', { 
+            direction: 'vertical', 
             mousewheel: true,
             on: {
                 reachEnd: function () {
@@ -159,7 +159,7 @@ async function loadFeed(cat, search="") {
                     const activeSlide = this.slides[this.activeIndex];
                     const img = activeSlide.querySelector('img');
                     if (img && img.src) trackSeenImage(img.src);
-                    maybeShowAd();
+                    maybeShowAd(); 
                 },
                 init: function() {
                     const activeSlide = this.slides[this.activeIndex];
@@ -170,40 +170,60 @@ async function loadFeed(cat, search="") {
                 }
             }
         });
-
-    } catch(e) {
-        feed.innerHTML = '<div class="swiper-slide" style="display:flex; align-items:center; justify-content:center;"><h3>Connection Error</h3></div>';
+        
+    } catch(e) { 
+        feed.innerHTML = '<div class="swiper-slide" style="display:flex; align-items:center; justify-content:center;"><h3>Connection Error</h3></div>'; 
     }
 }
 
 // --- PREMIUM VERIFICATION FUNCTIONS ---
 
-// ✅ Now uses backend-provided days_left
+// ✅ FIXED: Uses UTC timestamps to avoid timezone errors
+function formatExpiryDate(expiryStr) {
+    if (!expiryStr) return '';
+    try {
+        const expiryMs = new Date(expiryStr).getTime();      // UTC milliseconds
+        const nowMs = Date.now();                             // UTC milliseconds
+        const diffMs = expiryMs - nowMs;
+        const daysLeft = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+        if (daysLeft < 0) return 'Expired';
+        if (daysLeft === 0) return 'Expires today';
+        if (daysLeft === 1) return 'Expires tomorrow';
+        return `${daysLeft} days left`;
+    } catch (e) {
+        return '';
+    }
+}
+
 async function verifyPremiumStatus() {
     try {
         const tg = window.Telegram.WebApp;
         const initData = tg.initData;
-
+        
         if (!initData) {
             console.log("No initData available, using localStorage");
             const isPremium = localStorage.getItem("isPremium") === "true";
             updatePremiumUI(isPremium);
             return isPremium;
         }
-
+        
         const response = await fetch(`${API_URL}/api/user-data`, {
             headers: {
                 'X-Telegram-Init-Data': initData
             }
         });
-
+        
         const data = await response.json();
-
+        
         if (data.premium) {
             localStorage.setItem("isPremium", "true");
             localStorage.setItem("premiumExpires", data.expires_at);
-            // Use days_left from backend
-            updatePremiumUI(true, data.days_left, data.expires_at);
+            updatePremiumUI(true);
+            // ✅ Immediately update expiry info if menu is open
+            const expiryInfo = document.getElementById('premiumExpiryInfo');
+            if (expiryInfo) {
+                expiryInfo.innerText = formatExpiryDate(data.expires_at) ? `⏳ ${formatExpiryDate(data.expires_at)}` : '';
+            }
             stopPremiumChecking();
             return true;
         } else {
@@ -239,13 +259,13 @@ async function checkPremiumStatus(userId) {
     try {
         const response = await fetch(`${API_URL}/api/check-premium?user_id=${userId}`);
         const data = await response.json();
-
+        
         if (data.is_premium) {
             localStorage.setItem("isPremium", "true");
             localStorage.setItem("premiumExpires", data.expires_at);
-            updatePremiumUI(true, data.days_left, data.expires_at);
+            updatePremiumUI(true);
             stopPremiumChecking();
-
+            
             const statusEl = document.getElementById('paymentStatus');
             if (statusEl) {
                 statusEl.textContent = "✅ Premium activated! Refreshing...";
@@ -264,10 +284,10 @@ async function checkPremiumStatus(userId) {
     }
 }
 
-function updatePremiumUI(isPremium, daysLeft = null, expiryStr = null) {
+function updatePremiumUI(isPremium) {
     const premiumBtn = document.querySelector('.premium-btn-menu');
     const expiryInfo = document.getElementById('premiumExpiryInfo');
-
+    
     if (premiumBtn) {
         if (isPremium) {
             premiumBtn.innerText = "⭐ PREMIUM ACTIVE";
@@ -275,20 +295,13 @@ function updatePremiumUI(isPremium, daysLeft = null, expiryStr = null) {
             premiumBtn.style.color = "white";
             premiumBtn.disabled = true;
             premiumBtn.onclick = null;
-
-            // Show expiry info using backend days_left
+            
+            // Show expiry info
+            const expiryStr = localStorage.getItem("premiumExpires");
+            const formatted = formatExpiryDate(expiryStr);
             if (expiryInfo) {
-                if (daysLeft !== null) {
-                    let daysText = '';
-                    if (daysLeft < 0) daysText = 'Expired';
-                    else if (daysLeft === 0) daysText = 'Expires today';
-                    else if (daysLeft === 1) daysText = 'Expires tomorrow';
-                    else daysText = `${daysLeft} days left`;
-                    expiryInfo.innerText = `⏳ ${daysText}`;
-                    expiryInfo.style.color = "#ffd700";
-                } else {
-                    expiryInfo.innerText = '';
-                }
+                expiryInfo.innerText = formatted ? `⏳ ${formatted}` : '';
+                expiryInfo.style.color = "#ffd700";
             }
         } else {
             premiumBtn.innerText = "UPGRADE NOW";
@@ -296,12 +309,12 @@ function updatePremiumUI(isPremium, daysLeft = null, expiryStr = null) {
             premiumBtn.style.color = "#9c4dff";
             premiumBtn.disabled = false;
             premiumBtn.onclick = openPremium;
-
+            
             // Hide or clear expiry info
             if (expiryInfo) expiryInfo.innerText = '';
         }
     }
-
+    
     const buyBtn = document.getElementById('btnBuy');
     if (buyBtn) {
         if (isPremium) {
@@ -314,19 +327,19 @@ function updatePremiumUI(isPremium, daysLeft = null, expiryStr = null) {
             buyBtn.disabled = false;
         }
     }
-
+    
     const indicator = document.getElementById('premiumIndicator');
     if (indicator) {
         indicator.style.display = isPremium ? 'block' : 'none';
     }
-
+    
     if (isPremium) {
         hideAd();
     }
 }
 
 // --- UI & THEME FUNCTIONS ---
-function toggleMenu() {
+function toggleMenu() { 
     const panel = document.getElementById('menuPanel');
     panel.classList.toggle('open');
     // When menu opens, refresh premium status so expiry info is up‑to‑date
@@ -377,10 +390,10 @@ function getNextAd() {
 function showAd() {
     const isPremium = localStorage.getItem("isPremium") === "true";
     if (isPremium) return;
-
+    
     const ad = getNextAd();
     if (!ad) return;
-    currentAdLink = ad.action;
+    currentAdLink = ad.action; 
     document.getElementById("adImage").src = ad.image;
     document.getElementById("adTitle").innerText = ad.title;
     document.getElementById("adSubtitle").innerText = ad.subtitle;
@@ -388,7 +401,7 @@ function showAd() {
 }
 
 function hideAd(event) {
-    if (event) event.stopPropagation();
+    if (event) event.stopPropagation(); 
     document.getElementById("nativeAd").classList.add("hidden");
 }
 
@@ -398,7 +411,7 @@ function maybeShowAd() {
         hideAd();
         return;
     }
-
+    
     actionCount++;
     localStorage.setItem("actionCount", actionCount);
     if (actionCount % 3 === 0) {
@@ -419,7 +432,7 @@ function closePremium() {
 }
 
 // 🔁 REPLACED goPremium() WITH NEW IN‑APP PURCHASE VERSION
-async function goPremium() {
+ async function goPremium() {
     const tg = window.Telegram.WebApp;
     const statusEl = document.getElementById('paymentStatus');
     const btn = document.getElementById('btnBuy');
@@ -482,7 +495,7 @@ async function goPremium() {
         statusEl.textContent = `❌ ${error.message}`;
         btn.disabled = false;
     }
-}
+ }
 
 function addManualPremiumCheck() {
     const premiumCard = document.querySelector('.premium-card');
@@ -505,7 +518,7 @@ function addManualPremiumCheck() {
             const statusEl = document.getElementById('paymentStatus');
             statusEl.textContent = "Checking status...";
             statusEl.style.color = "#ffd700";
-
+            
             const verified = await verifyPremiumStatus();
             if (verified) {
                 statusEl.textContent = "✅ Premium is active!";
@@ -515,7 +528,7 @@ function addManualPremiumCheck() {
                 statusEl.style.color = "#ff4444";
             }
         };
-
+        
         premiumCard.appendChild(checkBtn);
     }
 }
@@ -538,15 +551,15 @@ function initTelegramWebApp() {
 window.onload = async () => {
     // 1. Initialize Telegram WebApp
     initTelegramWebApp();
-
+    
     // 2. Check premium status on load
     await verifyPremiumStatus();
-
+    
     // 3. Setup Categories
-    document.getElementById('catBar').innerHTML = categories.map(c =>
+    document.getElementById('catBar').innerHTML = categories.map(c => 
         `<button class="cat-btn" onclick="loadFeed('${c}')">${c}</button>`
     ).join('');
-
+    
     // 4. Setup Themes
     document.getElementById('themeGrid').innerHTML = themesList.map(t => `
         <div class="theme-circle" onclick="applyTheme('${t.id}')">
@@ -558,24 +571,24 @@ window.onload = async () => {
     // 5. Audio Ended Listener
     const audioElem = document.getElementById('bgMusic');
     audioElem.addEventListener('ended', () => {
-        if (currentCategory) playRandomMusic(currentCategory);
+        if (currentCategory) playRandomMusic(currentCategory); 
     });
 
     // 6. Load Saved Theme
     const savedTheme = localStorage.getItem("imagifhub-theme") || "theme-black";
     applyTheme(savedTheme);
-
+    
     // 7. Apply Dark Text preference
     applyDarkText();
     updateDarkTextIndicator();
-
+    
     // 8. Setup Welcome Overlay with dynamic holiday image
     const welcomeOverlay = document.getElementById('welcomeOverlay');
     const continueBtn = document.getElementById('welcomeContinueBtn');
-
+    
     if (welcomeOverlay && continueBtn) {
         welcomeOverlay.style.backgroundImage = `url('${getHolidayImage()}')`;
-
+        
         continueBtn.addEventListener('click', () => {
             welcomeOverlay.classList.add('hidden');
             loadFeed("Discover");
@@ -583,11 +596,10 @@ window.onload = async () => {
     } else {
         loadFeed("Discover");
     }
-
+    
     // 9. Add manual premium check button
     addManualPremiumCheck();
 
-    // 10. Delegate click events for more/less buttons
     // 10. Delegate click events for more/less buttons
     document.getElementById('feed').addEventListener('click', (e) => {
         const target = e.target;
