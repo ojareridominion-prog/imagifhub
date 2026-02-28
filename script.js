@@ -219,11 +219,7 @@ async function verifyPremiumStatus() {
             localStorage.setItem("isPremium", "true");
             localStorage.setItem("premiumExpires", data.expires_at);
             updatePremiumUI(true);
-            // ✅ Immediately update expiry info if menu is open
-            const expiryInfo = document.getElementById('premiumExpiryInfo');
-            if (expiryInfo) {
-                expiryInfo.innerText = formatExpiryDate(data.expires_at) ? `⏳ ${formatExpiryDate(data.expires_at)}` : '';
-            }
+            // ✅ Expiry info no longer displayed
             stopPremiumChecking();
             return true;
         } else {
@@ -286,7 +282,6 @@ async function checkPremiumStatus(userId) {
 
 function updatePremiumUI(isPremium) {
     const premiumBtn = document.querySelector('.premium-btn-menu');
-    const expiryInfo = document.getElementById('premiumExpiryInfo');
     
     if (premiumBtn) {
         if (isPremium) {
@@ -296,22 +291,13 @@ function updatePremiumUI(isPremium) {
             premiumBtn.disabled = true;
             premiumBtn.onclick = null;
             
-            // Show expiry info
-            const expiryStr = localStorage.getItem("premiumExpires");
-            const formatted = formatExpiryDate(expiryStr);
-            if (expiryInfo) {
-                expiryInfo.innerText = formatted ? `⏳ ${formatted}` : '';
-                expiryInfo.style.color = "#ffd700";
-            }
+            // Expiry info removed from menu
         } else {
             premiumBtn.innerText = "UPGRADE NOW";
             premiumBtn.style.background = "white";
             premiumBtn.style.color = "#9c4dff";
             premiumBtn.disabled = false;
             premiumBtn.onclick = openPremium;
-            
-            // Hide or clear expiry info
-            if (expiryInfo) expiryInfo.innerText = '';
         }
     }
     
@@ -342,7 +328,7 @@ function updatePremiumUI(isPremium) {
 function toggleMenu() { 
     const panel = document.getElementById('menuPanel');
     panel.classList.toggle('open');
-    // When menu opens, refresh premium status so expiry info is up‑to‑date
+    // When menu opens, refresh premium status (no expiry info displayed)
     if (panel.classList.contains('open')) {
         verifyPremiumStatus();
     }
@@ -600,6 +586,7 @@ window.onload = async () => {
     // 9. Add manual premium check button
     addManualPremiumCheck();
 
+    // 10. Delegate click events for more/less buttons
     // 10. Delegate click events for more/less buttons
     document.getElementById('feed').addEventListener('click', (e) => {
         const target = e.target;
