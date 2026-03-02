@@ -3,7 +3,7 @@ import { musicLibrary, categories } from './music.js';
 import { nativeAds } from './ads.js';
 import { getHolidayImage } from './welcome.js';
 
-const API_URL = "https://imagifhub.vercel.app"; 
+const API_URL = "https://imagifhub.onrender.com"; 
 let activeSwiper = null;
 let currentCategory = "Discover";
 let songPools = {}; // Tracks unplayed songs for each category
