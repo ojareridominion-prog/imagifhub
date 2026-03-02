@@ -2,8 +2,9 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import logging
 import os
-import asyncio
-from config import bot, dp  # <-- add this import
+import threading          # <-- new import
+import ping               # <-- new import (your ping module)
+from config import bot, dp
 
 # Import routers
 from webhook import router as webhook_router
@@ -48,3 +49,10 @@ async def set_webhook_on_startup():
             logging.error(f"Failed to set webhook: {e}")
     else:
         logging.warning("RENDER_EXTERNAL_URL not set – webhook not configured automatically")
+
+    # Start background pinger (daemon thread so it exits when main process exits)
+    def start_pinger():
+        ping.run_pinger()
+    thread = threading.Thread(target=start_pinger, daemon=True)
+    thread.start()
+    logging.info("Background pinger started")
