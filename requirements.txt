@@ -4,3 +4,4 @@ aiogram
 requests
 supabase
 python-multipart
+gunicorn   # optional, only if using gunicorn
