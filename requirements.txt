@@ -1,7 +1,7 @@
 fastapi
 uvicorn
-aiogram
+aiogram>=3.0.0,<4.0.0
 requests
 supabase
 python-multipart
-gunicorn   # optional, only if using gunicorn
+gunicorn
