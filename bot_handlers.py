@@ -220,6 +220,23 @@ async def cmd_transactions(message: Message):
         await message.answer("\n".join(lines), parse_mode="Markdown")
     except Exception as e:
         await message.answer(f"❌ Error: `{type(e).__name__}: {e}`", parse_mode="Markdown")
+
+@dp.message(F.text == "/debug_stars")
+async def cmd_debug_stars(message: Message):
+    try:
+        result = await bot.get_star_transactions(offset=0, limit=1)
+        # Get attributes of the result object
+        result_attrs = [a for a in dir(result) if not a.startswith('_')]
+        tx_attrs = []
+        if hasattr(result, 'transactions') and result.transactions:
+            tx_attrs = [a for a in dir(result.transactions[0]) if not a.startswith('_')]
+        await message.answer(
+            f"📦 **Result attributes:**\n{result_attrs}\n\n"
+            f"📦 **First transaction attributes:**\n{tx_attrs}",
+            parse_mode="Markdown"
+        )
+    except Exception as e:
+        await message.answer(f"❌ Error: `{type(e).__name__}: {e}`", parse_mode="Markdown")
         
 
 @dp.callback_query(F.data == "get_premium")
