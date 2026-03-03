@@ -14,18 +14,35 @@ class AdminUpload(StatesGroup):
     waiting_category = State()
     waiting_keywords = State()
 
-# Payment handlers
+# ==================== PAYMENT HANDLERS ====================
+
 @dp.pre_checkout_query()
 async def on_pre_checkout_query(pre_checkout_query: PreCheckoutQuery):
-    await bot.answer_pre_checkout_query(pre_checkout_query.id, ok=True)
+    """
+    Required handler – must answer within 10 seconds.
+    Always answer with ok=True unless you want to reject the payment.
+    """
+    try:
+        logging.info(f"📦 Pre-checkout query received: id={pre_checkout_query.id}, "
+                     f"user={pre_checkout_query.from_user.id}, payload={pre_checkout_query.invoice_payload}")
+        # Always accept the payment
+        await bot.answer_pre_checkout_query(pre_checkout_query.id, ok=True)
+        logging.info(f"✅ Pre-checkout query answered OK for {pre_checkout_query.id}")
+    except Exception as e:
+        logging.error(f"🔥 Failed to answer pre_checkout_query {pre_checkout_query.id}: {e}", exc_info=True)
+        # If answering fails, we cannot recover – Telegram will timeout.
 
 @dp.message(F.content_type == ContentType.SUCCESSFUL_PAYMENT)
 async def on_successful_payment(message: Message):
+    """Handle successful payment – grant premium access"""
     try:
         payment = message.successful_payment
         telegram_id = message.from_user.id
         expires_at = datetime.utcnow() + timedelta(days=30)
-        
+
+        logging.info(f"💰 Successful payment from user {telegram_id}, amount={payment.total_amount} {payment.currency}")
+
+        # Store payment record
         supabase.table("payments").insert({
             "telegram_id": telegram_id,
             "provider": "telegram_stars",
@@ -36,6 +53,7 @@ async def on_successful_payment(message: Message):
             "status": "completed"
         }).execute()
 
+        # Update or insert user premium status
         supabase.table("users").upsert({
             "telegram_id": telegram_id,
             "is_premium": True,
@@ -52,22 +70,23 @@ async def on_successful_payment(message: Message):
             "2. Or tap 'Check Premium Status' button\n\n"
             "Use /premium anytime to check your status."
         )
-        
+
         keyboard = InlineKeyboardMarkup(inline_keyboard=[
             [InlineKeyboardButton(text="🔄 Refresh Mini App", web_app={"url": "https://ojareridominion-prog.github.io/imagifhub/"})],
             [InlineKeyboardButton(text="🚀 Open IMAGIFHUB", web_app={"url": "https://ojareridominion-prog.github.io/imagifhub/"})]
         ])
-        
+
         await message.answer(
             "Click below to open the refreshed app with premium activated:",
             reply_markup=keyboard
         )
-        
+
     except Exception as e:
-        logging.error(f"Payment DB Error: {e}")
+        logging.error(f"🔥 Payment DB Error: {e}", exc_info=True)
         await message.answer("Payment received, but there was an error activating premium. Please contact support.")
 
-# Bot commands
+# ==================== BOT COMMANDS ====================
+
 @dp.message(F.text == "/start")
 async def cmd_start(message: Message):
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
@@ -84,13 +103,13 @@ async def cmd_start(message: Message):
 async def cmd_premium(message: Message):
     telegram_id = message.from_user.id
     logging.info(f"Checking premium for user ID: {telegram_id}")
-    
+
     try:
         user_result = supabase.table("users") \
             .select("is_premium, premium_expires_at") \
             .eq("telegram_id", telegram_id) \
             .execute()
-        
+
         if not user_result.data or len(user_result.data) == 0:
             keyboard = InlineKeyboardMarkup(inline_keyboard=[
                 [InlineKeyboardButton(text="⭐ Get Premium", callback_data="get_premium")],
@@ -108,12 +127,12 @@ async def cmd_premium(message: Message):
                 reply_markup=keyboard
             )
             return
-        
+
         user_data = user_result.data[0]
         is_premium = user_data.get("is_premium", False)
         premium_expires_at = user_data.get("premium_expires_at")
-        
-        # Handle boolean
+
+        # Convert boolean/string to bool
         is_premium_bool = False
         if isinstance(is_premium, bool):
             is_premium_bool = is_premium
@@ -121,7 +140,7 @@ async def cmd_premium(message: Message):
             is_premium_bool = is_premium.lower() == 'true'
         elif isinstance(is_premium, int):
             is_premium_bool = bool(is_premium)
-        
+
         if is_premium_bool and premium_expires_at:
             try:
                 expires_at_str = premium_expires_at
@@ -144,8 +163,8 @@ async def cmd_premium(message: Message):
                     return
             except Exception as e:
                 logging.error(f"Date parsing error: {e}")
-        
-        # Not premium
+
+        # Not premium or expired
         keyboard = InlineKeyboardMarkup(inline_keyboard=[
             [InlineKeyboardButton(text="⭐ Get Premium", callback_data="get_premium")],
             [InlineKeyboardButton(text="🚀 Open IMAGIFHUB", web_app={"url": "https://ojareridominion-prog.github.io/imagifhub/"})]
@@ -161,7 +180,7 @@ async def cmd_premium(message: Message):
             parse_mode="HTML",
             reply_markup=keyboard
         )
-            
+
     except Exception as e:
         logging.error(f"Premium check error: {e}", exc_info=True)
         await message.answer("❌ There was an error checking your premium status.\n\nPlease try again in a few moments.")
@@ -205,7 +224,8 @@ async def renew_premium_callback(call: CallbackQuery):
 async def start_premium(message: Message):
     await cmd_premium(message)
 
-# Admin commands
+# ==================== ADMIN COMMANDS ====================
+
 @dp.message(F.from_user.id == ADMIN_ID, F.text == "/admin")
 async def admin_cmd(message: Message, state: FSMContext):
     await state.clear()
@@ -224,12 +244,12 @@ async def up_step2(message: Message, state: FSMContext):
     file_id = message.photo[-1].file_id
     file = await bot.get_file(file_id)
     media_url = f"https://api.telegram.org/file/bot{BOT_TOKEN}/{file.file_path}"
-    
+
     resp = requests.post(
         "https://api.imgbb.com/1/upload",
         params={'key': IMGBB_API_KEY, 'image': media_url}
     )
-    
+
     if resp.status_code == 200:
         final_url = resp.json()['data']['url']
         await state.update_data(url=final_url)
@@ -259,3 +279,4 @@ async def up_final(message: Message, state: FSMContext):
     }).execute()
     await message.answer(f"✅ Successfully added to {user_data['category']}!")
     await state.clear()
+    
