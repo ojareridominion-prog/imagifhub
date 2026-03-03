@@ -29,8 +29,13 @@ async def handle_webhook(request: Request):
 
 @router.get("/api/set-webhook")
 async def set_webhook(request: Request):
-    host = request.headers.get("host")
-    url = f"https://{host}/api/telegram-webhook"
-    await bot.set_webhook(url=url, drop_pending_updates=True)
-    logging.info(f"Webhook set to {url}")
-    return {"status": "Webhook updated", "new_url": url}
+    try:
+        host = request.headers.get("host")
+        url = f"https://{host}/api/telegram-webhook"
+        await bot.set_webhook(url=url, drop_pending_updates=True)
+        logging.info(f"Webhook manually set to {url}")
+        return {"status": "Webhook updated", "new_url": url}
+    except Exception as e:
+        logging.error(f"Failed to set webhook: {e}", exc_info=True)
+        return {"status": "error", "message": str(e)}
+        
