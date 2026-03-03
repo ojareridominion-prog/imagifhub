@@ -195,13 +195,21 @@ async def cmd_premium(message: Message):
 
 @dp.message(F.text == "/balance")
 async def cmd_balance(message: Message):
-    try:
-        result = await bot.get_star_transactions(offset=0, limit=1)
-        balance = result.balance
-        await message.answer(f"⭐️ **Bot Star Balance:** `{balance}` Stars", parse_mode="Markdown")
-    except Exception as e:
-        # Show the full error in Telegram
-        await message.answer(f"❌ Error: `{type(e).__name__}: {e}`", parse_mode="Markdown")
+    result = await bot.get_star_transactions(offset=0, limit=1)
+    await message.answer(f"⭐️ **Bot Balance:** `{result.balance}` Stars")
+
+@dp.message(F.text == "/transactions")
+async def cmd_transactions(message: Message):
+    result = await bot.get_star_transactions(offset=0, limit=5)
+    if not result.transactions:
+        await message.answer("No recent transactions.")
+        return
+    lines = ["📊 **Recent Star Transactions**\n"]
+    for tx in result.transactions:
+        lines.append(f"• {tx.amount} ⭐️ - {tx.date.strftime('%Y-%m-%d %H:%M')}")
+    lines.append(f"\n💰 **Current Balance:** {result.balance} ⭐️")
+    await message.answer("\n".join(lines))
+    
 
 @dp.message(F.text == "/transactions")
 async def cmd_transactions(message: Message):
@@ -210,16 +218,29 @@ async def cmd_transactions(message: Message):
         if not result.transactions:
             await message.answer("No recent transactions.")
             return
+
         lines = ["📊 **Recent Star Transactions**\n"]
         for tx in result.transactions:
-            amount = tx.amount
-            date = tx.date.strftime("%Y-%m-%d %H:%M")
-            peer = tx.peer.title if tx.peer else "Unknown"
-            lines.append(f"• {amount} ⭐️ - {peer} ({date})")
-        lines.append(f"\n💰 **Current Balance:** {result.balance} ⭐️")
+            tx_data = tx.dict()  # convert to dict to see all fields
+            amount = tx_data.get('amount', '?')
+            date = tx_data.get('date', '?')
+            # Show source or receiver if available
+            source = tx_data.get('source')
+            receiver = tx_data.get('receiver')
+            if source:
+                # source might be a dict with 'type' and 'user'
+                source_info = source.get('user', {}).get('username') or source.get('type', 'Unknown')
+                lines.append(f"• **{amount} ⭐️** from {source_info} at {date}")
+            elif receiver:
+                receiver_info = receiver.get('user', {}).get('username') or receiver.get('type', 'Unknown')
+                lines.append(f"• **{amount} ⭐️** to {receiver_info} at {date}")
+            else:
+                lines.append(f"• **{amount} ⭐️** at {date}")
+
         await message.answer("\n".join(lines), parse_mode="Markdown")
     except Exception as e:
         await message.answer(f"❌ Error: `{type(e).__name__}: {e}`", parse_mode="Markdown")
+
 
 @dp.message(F.text == "/debug_stars")
 async def cmd_debug_stars(message: Message):
