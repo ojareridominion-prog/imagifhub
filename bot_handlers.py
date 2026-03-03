@@ -195,51 +195,31 @@ async def cmd_premium(message: Message):
 
 @dp.message(F.text == "/balance")
 async def cmd_balance(message: Message):
-    """Check bot's Star balance"""
     try:
-        # Get bot's own balance using getStarTransactions
-        # This returns an object that includes current balance
         result = await bot.get_star_transactions(offset=0, limit=1)
-        balance = result.balance  # This is the current Star balance
-        
-        # Format the balance (Stars are stored as integer amounts)
-        stars_amount = balance  # Telegram returns the raw amount
-        
-        await message.answer(
-            f"⭐️ **Bot Star Balance**\n\n"
-            f"Current balance: `{stars_amount}` Stars\n\n"
-            f"Use /transactions to see recent payments.",
-            parse_mode="Markdown"
-        )
+        balance = result.balance
+        await message.answer(f"⭐️ **Bot Star Balance:** `{balance}` Stars", parse_mode="Markdown")
     except Exception as e:
-        logging.error(f"Balance check failed: {e}")
-        await message.answer("❌ Could not retrieve balance at this time.")
+        # Show the full error in Telegram
+        await message.answer(f"❌ Error: `{type(e).__name__}: {e}`", parse_mode="Markdown")
 
 @dp.message(F.text == "/transactions")
 async def cmd_transactions(message: Message):
-    """Show recent Star transactions"""
     try:
-        # Fetch last 5 transactions
         result = await bot.get_star_transactions(offset=0, limit=5)
-        
         if not result.transactions:
-            await message.answer("No recent transactions found.")
+            await message.answer("No recent transactions.")
             return
-            
         lines = ["📊 **Recent Star Transactions**\n"]
         for tx in result.transactions:
-            # Each transaction has amount, date, and peer info
             amount = tx.amount
             date = tx.date.strftime("%Y-%m-%d %H:%M")
             peer = tx.peer.title if tx.peer else "Unknown"
             lines.append(f"• {amount} ⭐️ - {peer} ({date})")
-        
         lines.append(f"\n💰 **Current Balance:** {result.balance} ⭐️")
         await message.answer("\n".join(lines), parse_mode="Markdown")
-        
     except Exception as e:
-        logging.error(f"Transaction fetch failed: {e}")
-        await message.answer("❌ Could not retrieve transactions.")
+        await message.answer(f"❌ Error: `{type(e).__name__}: {e}`", parse_mode="Markdown")
         
 
 @dp.callback_query(F.data == "get_premium")
