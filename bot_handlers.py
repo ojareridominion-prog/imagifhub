@@ -18,19 +18,12 @@ class AdminUpload(StatesGroup):
 
 @dp.pre_checkout_query()
 async def on_pre_checkout_query(pre_checkout_query: PreCheckoutQuery):
-    """
-    Required handler – must answer within 10 seconds.
-    Always answer with ok=True unless you want to reject the payment.
-    """
+    """Required handler – answer within 10 seconds"""
     try:
-        logging.info(f"📦 Pre-checkout query received: id={pre_checkout_query.id}, "
-                     f"user={pre_checkout_query.from_user.id}, payload={pre_checkout_query.invoice_payload}")
-        # Always accept the payment
+        logging.info(f"📦 Pre-checkout query: id={pre_checkout_query.id}, user={pre_checkout_query.from_user.id}")
         await bot.answer_pre_checkout_query(pre_checkout_query.id, ok=True)
-        logging.info(f"✅ Pre-checkout query answered OK for {pre_checkout_query.id}")
     except Exception as e:
-        logging.error(f"🔥 Failed to answer pre_checkout_query {pre_checkout_query.id}: {e}", exc_info=True)
-        # If answering fails, we cannot recover – Telegram will timeout.
+        logging.error(f"🔥 Failed to answer pre_checkout_query: {e}", exc_info=True)
 
 @dp.message(F.content_type == ContentType.SUCCESSFUL_PAYMENT)
 async def on_successful_payment(message: Message):
@@ -42,8 +35,18 @@ async def on_successful_payment(message: Message):
 
         logging.info(f"💰 Successful payment from user {telegram_id}, amount={payment.total_amount} {payment.currency}")
 
-        # Store payment record
-        supabase.table("payments").insert({
+        # --- STEP 1: Upsert user (create if not exists, set premium) ---
+        user_data = {
+            "telegram_id": telegram_id,
+            "is_premium": True,
+            "premium_expires_at": expires_at.isoformat(),
+            "updated_at": datetime.utcnow().isoformat()
+        }
+        supabase.table("users").upsert(user_data).execute()
+        logging.info(f"✅ User {telegram_id} upserted with premium until {expires_at.isoformat()}")
+
+        # --- STEP 2: Insert payment record (now foreign key is satisfied) ---
+        payment_record = {
             "telegram_id": telegram_id,
             "provider": "telegram_stars",
             "amount": payment.total_amount,
@@ -51,16 +54,11 @@ async def on_successful_payment(message: Message):
             "payload": payment.invoice_payload,
             "transaction_id": payment.telegram_payment_charge_id,
             "status": "completed"
-        }).execute()
+        }
+        supabase.table("payments").insert(payment_record).execute()
+        logging.info(f"✅ Payment record inserted for user {telegram_id}")
 
-        # Update or insert user premium status
-        supabase.table("users").upsert({
-            "telegram_id": telegram_id,
-            "is_premium": True,
-            "premium_expires_at": expires_at.isoformat(),
-            "updated_at": datetime.utcnow().isoformat()
-        }).execute()
-
+        # Notify user
         await message.answer(
             "🎉 Payment successful! You are now an IMAGIFHUB Premium member!\n\n"
             "✅ Your premium access is active for 30 days.\n"
@@ -83,12 +81,31 @@ async def on_successful_payment(message: Message):
 
     except Exception as e:
         logging.error(f"🔥 Payment DB Error: {e}", exc_info=True)
-        await message.answer("Payment received, but there was an error activating premium. Please contact support.")
+        await message.answer(
+            f"⚠️ Payment received, but there was an error activating premium. "
+            f"Please contact support and provide your user ID: {message.from_user.id}"
+        )
 
 # ==================== BOT COMMANDS ====================
 
 @dp.message(F.text == "/start")
 async def cmd_start(message: Message):
+    # Optional: create user record on first start (so they exist in DB)
+    telegram_id = message.from_user.id
+    try:
+        # Check if user exists
+        result = supabase.table("users").select("telegram_id").eq("telegram_id", telegram_id).execute()
+        if not result.data:
+            # Create basic user record (non-premium)
+            supabase.table("users").insert({
+                "telegram_id": telegram_id,
+                "is_premium": False,
+                "created_at": datetime.utcnow().isoformat()
+            }).execute()
+            logging.info(f"👤 New user {telegram_id} created via /start")
+    except Exception as e:
+        logging.error(f"Error creating user on /start: {e}")
+
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="🚀 Let's Go!", web_app={"url": "https://ojareridominion-prog.github.io/imagifhub/"})],
         [InlineKeyboardButton(text="📢 Official Channel", url="https://t.me/imagifhub")]
@@ -111,24 +128,15 @@ async def cmd_premium(message: Message):
             .execute()
 
         if not user_result.data or len(user_result.data) == 0:
-            keyboard = InlineKeyboardMarkup(inline_keyboard=[
-                [InlineKeyboardButton(text="⭐ Get Premium", callback_data="get_premium")],
-                [InlineKeyboardButton(text="🚀 Open IMAGIFHUB", web_app={"url": "https://ojareridominion-prog.github.io/imagifhub/"})]
-            ])
-            await message.answer(
-                "✨ <b>IMAGIFHUB Premium</b>\n\n"
-                "🔓 You are currently on the free plan.\n\n"
-                "✨ <b>Upgrade to Premium for:</b>\n"
-                "• 🚫 No ads\n"
-                "• 😁 Support the project\n\n"
-                "💫 <b>Price:</b> 99 Stars (30 days)\n\n"
-                "Click 'Get Premium' to upgrade!",
-                parse_mode="HTML",
-                reply_markup=keyboard
-            )
-            return
+            # User not in DB – create them as free user
+            supabase.table("users").insert({
+                "telegram_id": telegram_id,
+                "is_premium": False
+            }).execute()
+            user_data = {"is_premium": False, "premium_expires_at": None}
+        else:
+            user_data = user_result.data[0]
 
-        user_data = user_result.data[0]
         is_premium = user_data.get("is_premium", False)
         premium_expires_at = user_data.get("premium_expires_at")
 
