@@ -32,6 +32,15 @@ function updateDarkTextIndicator() {
     if (indicator) indicator.innerText = darkTextEnabled ? 'ON' : 'OFF';
 }
 
+function openCopyright() {
+    document.getElementById('menuPanel').classList.remove('open');
+    document.getElementById('copyrightModal').classList.add('active');
+}
+
+function closeCopyright() {
+    document.getElementById('copyrightModal').classList.remove('active');
+}
+
 // --- HISTORY TRACKING ---
 function getSeenList() {
     try { return JSON.parse(localStorage.getItem(SEEN_KEY) || "[]"); } 
@@ -645,6 +654,8 @@ window.closePremium = closePremium;
 window.goPremium = goPremium;
 window.verifyPremiumStatus = verifyPremiumStatus;
 window.toggleDarkText = toggleDarkText;
+window.openCopyright = openCopyright;
+window.closeCopyright = closeCopyright;
 
 window.handleAdClick = (event) => {
     if (!event.target.classList.contains('close-ad-btn')) {
