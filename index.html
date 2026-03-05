@@ -157,6 +157,51 @@
         }
         .modal-overlay.active .premium-card { transform: scale(1); }
 
+        /* --- Copyright Modal --- */
+        .copyright-card {
+            background: linear-gradient(135deg, #1a1a1a, #2c3e50);
+            padding: 25px;
+            border-radius: 20px;
+            width: 90%;
+            max-width: 450px;
+            max-height: 80vh;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            border: 1px solid #444;
+            transform: scale(0.9);
+            transition: transform 0.3s ease;
+        }
+        .modal-overlay.active .copyright-card {
+            transform: scale(1);
+        }
+        .copyright-content {
+            overflow-y: auto;
+            margin: 15px 0;
+            padding-right: 10px;
+            font-size: 14px;
+            line-height: 1.5;
+            color: #eee;
+        }
+        .copyright-content a {
+            color: #ffd700;
+            text-decoration: underline;
+        }
+        .copyright-content p {
+            margin-bottom: 15px;
+        }
+        /* Scrollbar styling */
+        .copyright-content::-webkit-scrollbar {
+            width: 5px;
+        }
+        .copyright-content::-webkit-scrollbar-track {
+            background: rgba(255,255,255,0.1);
+        }
+        .copyright-content::-webkit-scrollbar-thumb {
+            background: #9c4dff;
+            border-radius: 10px;
+        }
+
         .price-tag { margin: 20px 0; font-size: 18px; }
         .new-price { color: #ffd700; font-weight: bold; display: block; font-size: 24px; margin-top: 5px; }
         .old-price { text-decoration: line-through; opacity: 0.5; font-size: 14px; }
@@ -261,6 +306,9 @@
             <button class="premium-btn-menu" onclick="openPremium()">UPGRADE NOW</button>
         </div>
         
+        <!-- NEW: Copyright Policy menu item -->
+        <a href="#" class="menu-link" onclick="openCopyright()">⚖️ Copyright Policy</a>
+        
         <!-- Dark Text Toggle -->
         <div class="menu-link" onclick="toggleDarkText()" style="display:flex; justify-content:space-between; align-items:center;">
             <span>🌙 Dark Text</span>
@@ -313,6 +361,35 @@
         </div>
     </div>
 
+    <!-- NEW: Copyright Modal -->
+    <div id="copyrightModal" class="modal-overlay">
+        <div class="copyright-card">
+            <h2 style="margin-top:0;">⚖️ ImagifHub: Intellectual Property Policy</h2>
+            <div class="copyright-content scrollable">
+                <p><strong>1. Content Sources</strong><br>
+                ImagifHub is a content discovery platform. The media displayed within this application is sourced from:<br>
+                • Public Domain & Creative Commons: Images sourced from platforms like Unsplash, Pexels, stocksnap, burst, wallpezia and Pixabay under their respective commercial-use licenses.<br>
+                • AI-Generated Art: Original visuals created via Generative AI models.<br>
+                • User-Contributed Content: (If applicable) Content uploaded by our community.</p>
+
+                <p><strong>2. Respect for Copyright</strong><br>
+                We respect the intellectual property rights of others. It is our policy to respond to any claim that Content posted on the Service infringes the copyright or other intellectual property infringement of any person.</p>
+
+                <p><strong>3. DMCA & Takedown Requests</strong><br>
+                If you are a copyright owner, or authorized on behalf of one, and you believe that a copyrighted work has been used in a way that constitutes copyright infringement, please submit your claim via telegram to <a href="https://t.me/ojareridominion" target="_blank">https://t.me/ojareridominion</a> with the subject line: "Copyright Takedown Request."<br>
+                Please include the following in your request:<br>
+                • A description of the copyrighted work you claim has been infringed.<br>
+                • The specific URL<br>
+                • Your contact information (Email and Phone Number).<br>
+                • A statement that you have a good-faith belief that the use is not authorized by the copyright owner.</p>
+
+                <p><strong>4. Disclaimer</strong><br>
+                ImagifHub does not claim ownership of the trademarked characters or brands that may appear in user-generated prompts or historical search results. We make every effort to remove copyrighted material from our mini app.</p>
+            </div>
+            <button class="btn-close" onclick="closeCopyright()">Close</button>
+        </div>
+    </div>
+
     <div id="welcomeOverlay" class="welcome-overlay">
         <div class="overlay-content">
             <button id="welcomeContinueBtn" class="welcome-button">CONTINUE 🚀</button>
@@ -320,5 +397,6 @@
     </div>
 
     <script type="module" src="script.js"></script>
+    
 </body>
-</html>
+            </html>
