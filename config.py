@@ -21,5 +21,5 @@ supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 CATEGORIES = [
     "Nature", "Places", "Aesthetic", "Cars",
     "Luxury", "Art", "Animals", "Historical",
-    "Anime", "Featured"
+    "Ai-generated", "Featured"
 ]
