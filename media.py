@@ -8,7 +8,8 @@ router = APIRouter()
 async def get_media(category: str = "all", search: str = ""):
     query = supabase.table('media_content').select('*')
     if category.lower() not in ["all", "discover"]:
-        query = query.eq('category', category.title())
+        # Use raw category string to preserve exact case (e.g., "Ai-generated")
+        query = query.eq('category', category)
     if search:
         query = query.ilike('Keyword', f'%{search}%')
     res = query.execute()
