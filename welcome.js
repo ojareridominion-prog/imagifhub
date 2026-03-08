@@ -31,7 +31,7 @@ export function getHolidayImage() {
 
     // Father's Day: Update month and day each year
     const fathersDayMonth = 6;
-    const fathersDayDay = 15;
+    const fathersDayDay = 21;
     if (month === fathersDayMonth && day === fathersDayDay) {
         return 'assets/welcome-fathersday.jpg';
     }
