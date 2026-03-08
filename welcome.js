@@ -23,8 +23,8 @@ export function getHolidayImage() {
     }
 
     // Mother's Day: Update month and day each year
-    const mothersDayMonth = 5;
-    const mothersDayDay = 11;
+    const mothersDayMonth = 3;
+    const mothersDayDay = 15;
     if (month === mothersDayMonth && day === mothersDayDay) {
         return 'assets/welcome-mothersday.jpg';
     }
