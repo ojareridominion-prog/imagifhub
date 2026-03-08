@@ -17,7 +17,7 @@ export function getHolidayImage() {
     
     // Easter: Update month and day each year
     const easterMonth = 4; 
-    const easterDay = 20; 
+    const easterDay = 5; 
     if (month === easterMonth && day === easterDay) {
         return 'assets/welcome-easter.jpg';
     }
