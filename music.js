@@ -12,6 +12,7 @@ export const musicLibrary = {
         "https://cdn.pixabay.com/download/audio/2023/05/16/audio_0636f970ca.mp3?filename=music_for_videos-sad-violin-150146.mp3",
         "https://cdn.pixabay.com/download/audio/2025/02/18/audio_bbcb0e9b17.mp3?filename=adiiswanto-cvilni-violin-302859.mp3",
         "https://cdn.pixabay.com/download/audio/2025/02/18/audio_5276999892.mp3?filename=adiiswanto-cvilni-violin-1-302858.mp3",
+        "https://cdn.pixabay.com/download/audio/2025/10/10/audio_98d41e307a.mp3?filename=audiolibraryinfinite-echo-violin-418240.mp3",
         
     ],
     
@@ -24,6 +25,7 @@ export const musicLibrary = {
         "https://cdn.pixabay.com/download/audio/2025/10/14/audio_d7b510058d.mp3?filename=audioknap-rock-420049.mp3",
         "https://cdn.pixabay.com/download/audio/2025/03/18/audio_c38aba1e54.mp3?filename=delosound-upbeat-motivation-rock-315219.mp3",
         "https://cdn.pixabay.com/download/audio/2025/02/18/audio_bbcb0e9b17.mp3?filename=adiiswanto-cvilni-violin-302859.mp3",
+        "https://cdn.pixabay.com/download/audio/2025/10/10/audio_98d41e307a.mp3?filename=audiolibraryinfinite-echo-violin-418240.mp3",
               ],
     
     "Aesthetic": [
@@ -39,6 +41,7 @@ export const musicLibrary = {
         "https://cdn.pixabay.com/download/audio/2023/05/16/audio_0636f970ca.mp3?filename=music_for_videos-sad-violin-150146.mp3",
         "https://cdn.pixabay.com/download/audio/2025/02/18/audio_bbcb0e9b17.mp3?filename=adiiswanto-cvilni-violin-302859.mp3",
         "https://cdn.pixabay.com/download/audio/2025/02/18/audio_5276999892.mp3?filename=adiiswanto-cvilni-violin-1-302858.mp3",
+        "https://cdn.pixabay.com/download/audio/2025/10/10/audio_98d41e307a.mp3?filename=audiolibraryinfinite-echo-violin-418240.mp3",
         
         
     ],
@@ -67,6 +70,7 @@ export const musicLibrary = {
         "https://cdn.pixabay.com/download/audio/2025/06/25/audio_e8f60a3cf5.mp3?filename=sigmamusicart-sad-documentary-background-music-365827.mp3",
         "https://cdn.pixabay.com/download/audio/2025/02/18/audio_bbcb0e9b17.mp3?filename=adiiswanto-cvilni-violin-302859.mp3",
         "https://cdn.pixabay.com/download/audio/2025/02/18/audio_5276999892.mp3?filename=adiiswanto-cvilni-violin-1-302858.mp3",
+        "https://cdn.pixabay.com/download/audio/2025/10/10/audio_98d41e307a.mp3?filename=audiolibraryinfinite-echo-violin-418240.mp3",
         
     ],
     
@@ -82,6 +86,7 @@ export const musicLibrary = {
         "https://cdn.pixabay.com/download/audio/2023/05/16/audio_0636f970ca.mp3?filename=music_for_videos-sad-violin-150146.mp3",
         "https://cdn.pixabay.com/download/audio/2025/02/18/audio_bbcb0e9b17.mp3?filename=adiiswanto-cvilni-violin-302859.mp3",
         "https://cdn.pixabay.com/download/audio/2025/02/18/audio_5276999892.mp3?filename=adiiswanto-cvilni-violin-1-302858.mp3",
+        "https://cdn.pixabay.com/download/audio/2025/10/10/audio_98d41e307a.mp3?filename=audiolibraryinfinite-echo-violin-418240.mp3",
               ],
     
     "Animals": [
@@ -93,6 +98,7 @@ export const musicLibrary = {
         "https://cdn.pixabay.com/download/audio/2025/03/18/audio_c38aba1e54.mp3?filename=delosound-upbeat-motivation-rock-315219.mp3",
         "https://cdn.pixabay.com/download/audio/2025/06/25/audio_e8f60a3cf5.mp3?filename=sigmamusicart-sad-documentary-background-music-365827.mp3",
         "https://cdn.pixabay.com/download/audio/2022/10/30/audio_fbd14dd8bc.mp3?filename=soulprodmusic-sad-moment-sad-and-melancholy-piano-background-music-124488.mp3",
+        "https://cdn.pixabay.com/download/audio/2025/10/10/audio_98d41e307a.mp3?filename=audiolibraryinfinite-echo-violin-418240.mp3",
     ],
     
     "Historical": [
@@ -106,6 +112,7 @@ export const musicLibrary = {
         "https://cdn.pixabay.com/download/audio/2023/05/16/audio_0636f970ca.mp3?filename=music_for_videos-sad-violin-150146.mp3",
         "https://cdn.pixabay.com/download/audio/2025/02/18/audio_bbcb0e9b17.mp3?filename=adiiswanto-cvilni-violin-302859.mp3",
         "https://cdn.pixabay.com/download/audio/2025/02/18/audio_5276999892.mp3?filename=adiiswanto-cvilni-violin-1-302858.mp3",
+        "https://cdn.pixabay.com/download/audio/2025/10/10/audio_98d41e307a.mp3?filename=audiolibraryinfinite-echo-violin-418240.mp3",
         
         
     ],
@@ -118,6 +125,7 @@ export const musicLibrary = {
           "https://cdn.pixabay.com/download/audio/2025/03/18/audio_c38aba1e54.mp3?filename=delosound-upbeat-motivation-rock-315219.mp3",
           "https://cdn.pixabay.com/download/audio/2025/02/18/audio_bbcb0e9b17.mp3?filename=adiiswanto-cvilni-violin-302859.mp3",
           "https://cdn.pixabay.com/download/audio/2025/02/18/audio_5276999892.mp3?filename=adiiswanto-cvilni-violin-1-302858.mp3",
+          "https://cdn.pixabay.com/download/audio/2025/10/10/audio_98d41e307a.mp3?filename=audiolibraryinfinite-echo-violin-418240.mp3",
           
           
     ],
@@ -134,6 +142,7 @@ export const musicLibrary = {
         "https://cdn.pixabay.com/download/audio/2025/03/18/audio_c38aba1e54.mp3?filename=delosound-upbeat-motivation-rock-315219.mp3",
         "https://cdn.pixabay.com/download/audio/2025/02/18/audio_bbcb0e9b17.mp3?filename=adiiswanto-cvilni-violin-302859.mp3",
         "https://cdn.pixabay.com/download/audio/2025/02/18/audio_5276999892.mp3?filename=adiiswanto-cvilni-violin-1-302858.mp3",
+        "https://cdn.pixabay.com/download/audio/2025/10/10/audio_98d41e307a.mp3?filename=audiolibraryinfinite-echo-violin-418240.mp3",
     ]
     
 };
