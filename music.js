@@ -47,6 +47,7 @@ export const musicLibrary = {
         "https://cdn.pixabay.com/download/audio/2024/11/23/audio_96e44c3196.mp3?filename=panda-beats-butterflys-rap-x-hip-hop-type-beat-267843.mp3",
         "https://cdn.pixabay.com/download/audio/2022/08/23/audio_d16737dc28.mp3?filename=qubesounds-electronic-future-beats_fadeout-117997.mp3",
         "https://cdn.pixabay.com/download/audio/2025/10/25/audio_72c2e26bd0.mp3?filename=geronic-old-party-425839.mp3",
+        "https://cdn.pixabay.com/download/audio/2025/12/05/audio_b74f67e903.mp3?filename=audioknap-the-rock-443900.mp3",
         
               ],
     
@@ -90,6 +91,7 @@ export const musicLibrary = {
         "https://cdn.pixabay.com/download/audio/2023/08/09/audio_f3b6314859.mp3?filename=diephoanghai-rap-beats-music-161432.mp3",
         "https://cdn.pixabay.com/download/audio/2025/09/25/audio_3e56bd1c2a.mp3?filename=nastelbom-rap-410675.mp3",
         "https://cdn.pixabay.com/download/audio/2024/11/23/audio_96e44c3196.mp3?filename=panda-beats-butterflys-rap-x-hip-hop-type-beat-267843.mp3",
+        "https://cdn.pixabay.com/download/audio/2025/12/05/audio_b74f67e903.mp3?filename=audioknap-the-rock-443900.mp3",
         
     ],
     
