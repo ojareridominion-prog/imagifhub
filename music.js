@@ -21,6 +21,7 @@ export const musicLibrary = {
         "https://cdn.pixabay.com/download/audio/2024/09/22/audio_8acca15fed.mp3?filename=lbdlprod-drum-bass-243588.mp3",
         "https://cdn.pixabay.com/download/audio/2024/01/04/audio_896a3bc8f7.mp3?filename=alexgrohl-no-copyright-music-bounce-on-it-184234.mp3",
         "https://cdn.pixabay.com/download/audio/2022/08/23/audio_d16737dc28.mp3?filename=qubesounds-electronic-future-beats_fadeout-117997.mp3",
+        "https://cdn.pixabay.com/download/audio/2025/11/15/audio_cdcbb9b250.mp3?filename=nikitakondrashev-hopeful-437009.mp3",
         
     ],
     
@@ -68,6 +69,7 @@ export const musicLibrary = {
         "https://cdn.pixabay.com/download/audio/2025/03/18/audio_3ff2b9369c.mp3?filename=delosound-promo-advertising-funk-315207.mp3",
         "https://cdn.pixabay.com/download/audio/2024/09/22/audio_8acca15fed.mp3?filename=lbdlprod-drum-bass-243588.mp3",
         "https://cdn.pixabay.com/download/audio/2022/08/23/audio_d16737dc28.mp3?filename=qubesounds-electronic-future-beats_fadeout-117997.mp3",
+        "https://cdn.pixabay.com/download/audio/2025/11/15/audio_cdcbb9b250.mp3?filename=nikitakondrashev-hopeful-437009.mp3",
         
         
     ],
@@ -136,6 +138,7 @@ export const musicLibrary = {
         "https://cdn.pixabay.com/download/audio/2024/09/22/audio_8acca15fed.mp3?filename=lbdlprod-drum-bass-243588.mp3",
         "https://cdn.pixabay.com/download/audio/2024/01/04/audio_896a3bc8f7.mp3?filename=alexgrohl-no-copyright-music-bounce-on-it-184234.mp3",
         "https://cdn.pixabay.com/download/audio/2022/08/23/audio_d16737dc28.mp3?filename=qubesounds-electronic-future-beats_fadeout-117997.mp3",
+        "https://cdn.pixabay.com/download/audio/2025/11/15/audio_cdcbb9b250.mp3?filename=nikitakondrashev-hopeful-437009.mp3",
         
               ],
     
