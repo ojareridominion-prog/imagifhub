@@ -16,6 +16,7 @@ export const musicLibrary = {
         "https://cdn.pixabay.com/download/audio/2024/11/25/audio_7aa9b5975d.mp3?filename=restum-anoush-violin-in-painsad-violin-268426.mp3",
         "https://cdn.pixabay.com/download/audio/2025/12/03/audio_941ab1f710.mp3?filename=audioknap-uplifting-epic-446685.mp3",
         "https://cdn.pixabay.com/download/audio/2025/12/07/audio_88fdf1567f.mp3?filename=audioknap-emotional-epic-448497.mp3",
+        "https://cdn.pixabay.com/download/audio/2025/07/02/audio_a94fac3b19.mp3?filename=lazarosv-bounce-to-the-beat-ii-368772.mp3",
         
     ],
     
@@ -51,6 +52,7 @@ export const musicLibrary = {
         "https://cdn.pixabay.com/download/audio/2025/10/10/audio_98d41e307a.mp3?filename=audiolibraryinfinite-echo-violin-418240.mp3",
         "https://cdn.pixabay.com/download/audio/2024/11/25/audio_7aa9b5975d.mp3?filename=restum-anoush-violin-in-painsad-violin-268426.mp3",
         "https://cdn.pixabay.com/download/audio/2025/12/03/audio_941ab1f710.mp3?filename=audioknap-uplifting-epic-446685.mp3",
+        "https://cdn.pixabay.com/download/audio/2025/07/02/audio_a94fac3b19.mp3?filename=lazarosv-bounce-to-the-beat-ii-368772.mp3",
         
         
     ],
@@ -86,6 +88,7 @@ export const musicLibrary = {
         "https://cdn.pixabay.com/download/audio/2025/12/03/audio_941ab1f710.mp3?filename=audioknap-uplifting-epic-446685.mp3",
         "https://cdn.pixabay.com/download/audio/2024/07/26/audio_ae5558d34f.mp3?filename=onesevenbeatxs-bouncy-flute-and-keys-hard-trap-beat-prod-by-onesevenbeatxs-227243.mp3",
         "https://cdn.pixabay.com/download/audio/2025/03/18/audio_7d5c12b31a.mp3?filename=cosmonkey-dont-talk-315229.mp3",
+        "https://cdn.pixabay.com/download/audio/2025/07/02/audio_a94fac3b19.mp3?filename=lazarosv-bounce-to-the-beat-ii-368772.mp3",
         
     ],
     
@@ -118,6 +121,7 @@ export const musicLibrary = {
         "https://cdn.pixabay.com/download/audio/2022/10/30/audio_fbd14dd8bc.mp3?filename=soulprodmusic-sad-moment-sad-and-melancholy-piano-background-music-124488.mp3",
         "https://cdn.pixabay.com/download/audio/2025/10/10/audio_98d41e307a.mp3?filename=audiolibraryinfinite-echo-violin-418240.mp3",
         "https://cdn.pixabay.com/download/audio/2024/11/25/audio_7aa9b5975d.mp3?filename=restum-anoush-violin-in-painsad-violin-268426.mp3",
+        "https://cdn.pixabay.com/download/audio/2025/07/02/audio_a94fac3b19.mp3?filename=lazarosv-bounce-to-the-beat-ii-368772.mp3",
     ],
     
     "Historical": [
@@ -134,7 +138,8 @@ export const musicLibrary = {
         "https://cdn.pixabay.com/download/audio/2025/10/10/audio_98d41e307a.mp3?filename=audiolibraryinfinite-echo-violin-418240.mp3",
         "https://cdn.pixabay.com/download/audio/2024/11/25/audio_7aa9b5975d.mp3?filename=restum-anoush-violin-in-painsad-violin-268426.mp3",
         "https://cdn.pixabay.com/download/audio/2025/12/03/audio_941ab1f710.mp3?filename=audioknap-uplifting-epic-446685.mp3",
-        "https://cdn.pixabay.com/download/audio/2025/12/07/audio_329d3502d7.mp3?filename=audioknap-epic-448501.mp3"
+        "https://cdn.pixabay.com/download/audio/2025/12/07/audio_329d3502d7.mp3?filename=audioknap-epic-448501.mp3",
+        "https://cdn.pixabay.com/download/audio/2025/07/02/audio_a94fac3b19.mp3?filename=lazarosv-bounce-to-the-beat-ii-368772.mp3",
         
         
     ],
