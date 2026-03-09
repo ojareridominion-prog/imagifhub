@@ -1,7 +1,7 @@
 // welcome.js - Holiday detection for welcome overlay
 import { musicLibrary, categories } from './music.js';
 import { nativeAds } from './ads.js';
-import { getHolidayImage } from './welcome.js';
+import { getHolidayImage, getFestiveTitle } from './welcome.js';
 
 const API_URL = "https://imagifhub.onrender.com"; 
 let activeSwiper = null;
@@ -580,6 +580,7 @@ window.onload = async () => {
     ).join('');
     
     // 4. Setup Themes
+    // 4. Setup Themes
     document.getElementById('themeGrid').innerHTML = themesList.map(t => `
         <div class="theme-circle" onclick="applyTheme('${t.id}')">
             <div style="background:${t.top}"></div>
@@ -615,11 +616,14 @@ window.onload = async () => {
     } else {
         loadFeed("Discover");
     }
+
+    // 9. Set festive top bar title
+    document.querySelector('.top-bar h2').innerText = getFestiveTitle();
     
-    // 9. Add manual premium check button
+    // 10. Add manual premium check button
     addManualPremiumCheck();
 
-    // 10. Delegate click events for more/less buttons
+    // 11. Delegate click events for more/less buttons
     document.getElementById('feed').addEventListener('click', (e) => {
         const target = e.target;
         const container = target.closest('.keyword-container');
