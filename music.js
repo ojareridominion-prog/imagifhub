@@ -186,6 +186,7 @@ export const musicLibrary = {
           "https://cdn.pixabay.com/download/audio/2025/03/18/audio_3ff2b9369c.mp3?filename=delosound-promo-advertising-funk-315207.mp3",
           "https://cdn.pixabay.com/download/audio/2025/09/25/audio_3e56bd1c2a.mp3?filename=nastelbom-rap-410675.mp3",
           "https://cdn.pixabay.com/download/audio/2024/09/22/audio_8acca15fed.mp3?filename=lbdlprod-drum-bass-243588.mp3",
+          "https://cdn.pixabay.com/download/audio/2025/10/02/audio_942db5dcd2.mp3?filename=bassloom-drum-or-bass-ryan-stasik-413932.mp3",
           
           
           
