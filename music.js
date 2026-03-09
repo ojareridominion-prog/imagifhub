@@ -21,7 +21,7 @@ export const musicLibrary = {
         "https://cdn.pixabay.com/download/audio/2024/09/22/audio_8acca15fed.mp3?filename=lbdlprod-drum-bass-243588.mp3",
         "https://cdn.pixabay.com/download/audio/2024/01/04/audio_896a3bc8f7.mp3?filename=alexgrohl-no-copyright-music-bounce-on-it-184234.mp3",
         "https://cdn.pixabay.com/download/audio/2022/08/23/audio_d16737dc28.mp3?filename=qubesounds-electronic-future-beats_fadeout-117997.mp3",
-        "https://cdn.pixabay.com/download/audio/2025/11/15/audio_cdcbb9b250.mp3?filename=nikitakondrashev-hopeful-437009.mp3",
+        "https://cdn.pixabay.com/download/audio/2025/11/15/audio_cdcbb9b250.mp3?filename=nikitakondrashev-hopeful-437009.mp3"
         
     ],
     
@@ -47,7 +47,7 @@ export const musicLibrary = {
         "https://cdn.pixabay.com/download/audio/2024/11/23/audio_96e44c3196.mp3?filename=panda-beats-butterflys-rap-x-hip-hop-type-beat-267843.mp3",
         "https://cdn.pixabay.com/download/audio/2022/08/23/audio_d16737dc28.mp3?filename=qubesounds-electronic-future-beats_fadeout-117997.mp3",
         "https://cdn.pixabay.com/download/audio/2025/10/25/audio_72c2e26bd0.mp3?filename=geronic-old-party-425839.mp3",
-        "https://cdn.pixabay.com/download/audio/2025/12/05/audio_b74f67e903.mp3?filename=audioknap-the-rock-443900.mp3",
+        "https://cdn.pixabay.com/download/audio/2025/12/05/audio_b74f67e903.mp3?filename=audioknap-the-rock-443900.mp3"
         
               ],
     
@@ -71,7 +71,7 @@ export const musicLibrary = {
         "https://cdn.pixabay.com/download/audio/2025/03/18/audio_3ff2b9369c.mp3?filename=delosound-promo-advertising-funk-315207.mp3",
         "https://cdn.pixabay.com/download/audio/2024/09/22/audio_8acca15fed.mp3?filename=lbdlprod-drum-bass-243588.mp3",
         "https://cdn.pixabay.com/download/audio/2022/08/23/audio_d16737dc28.mp3?filename=qubesounds-electronic-future-beats_fadeout-117997.mp3",
-        "https://cdn.pixabay.com/download/audio/2025/11/15/audio_cdcbb9b250.mp3?filename=nikitakondrashev-hopeful-437009.mp3",
+        "https://cdn.pixabay.com/download/audio/2025/11/15/audio_cdcbb9b250.mp3?filename=nikitakondrashev-hopeful-437009.mp3"
         
         
     ],
@@ -92,6 +92,7 @@ export const musicLibrary = {
         "https://cdn.pixabay.com/download/audio/2025/09/25/audio_3e56bd1c2a.mp3?filename=nastelbom-rap-410675.mp3",
         "https://cdn.pixabay.com/download/audio/2024/11/23/audio_96e44c3196.mp3?filename=panda-beats-butterflys-rap-x-hip-hop-type-beat-267843.mp3",
         "https://cdn.pixabay.com/download/audio/2025/12/05/audio_b74f67e903.mp3?filename=audioknap-the-rock-443900.mp3",
+        "https://cdn.pixabay.com/download/audio/2021/11/13/audio_343081d119.mp3?filename=geriart-rammstein-style-metal-10726.mp3"
         
     ],
     
@@ -119,7 +120,7 @@ export const musicLibrary = {
         "https://cdn.pixabay.com/download/audio/2024/08/11/audio_ba941ef08f.mp3?filename=panda-beats-royalty-free-element-hard-rap-beat-231463.mp3",
         "https://cdn.pixabay.com/download/audio/2024/11/23/audio_96e44c3196.mp3?filename=panda-beats-butterflys-rap-x-hip-hop-type-beat-267843.mp3",
         "https://cdn.pixabay.com/download/audio/2024/01/04/audio_896a3bc8f7.mp3?filename=alexgrohl-no-copyright-music-bounce-on-it-184234.mp3",
-        "https://cdn.pixabay.com/download/audio/2025/10/25/audio_72c2e26bd0.mp3?filename=geronic-old-party-425839.mp3",
+        "https://cdn.pixabay.com/download/audio/2025/10/25/audio_72c2e26bd0.mp3?filename=geronic-old-party-425839.mp3"
         
     ],
     
@@ -142,7 +143,7 @@ export const musicLibrary = {
         "https://cdn.pixabay.com/download/audio/2024/09/22/audio_8acca15fed.mp3?filename=lbdlprod-drum-bass-243588.mp3",
         "https://cdn.pixabay.com/download/audio/2024/01/04/audio_896a3bc8f7.mp3?filename=alexgrohl-no-copyright-music-bounce-on-it-184234.mp3",
         "https://cdn.pixabay.com/download/audio/2022/08/23/audio_d16737dc28.mp3?filename=qubesounds-electronic-future-beats_fadeout-117997.mp3",
-        "https://cdn.pixabay.com/download/audio/2025/11/15/audio_cdcbb9b250.mp3?filename=nikitakondrashev-hopeful-437009.mp3",
+        "https://cdn.pixabay.com/download/audio/2025/11/15/audio_cdcbb9b250.mp3?filename=nikitakondrashev-hopeful-437009.mp3"
         
               ],
     
@@ -159,7 +160,7 @@ export const musicLibrary = {
         "https://cdn.pixabay.com/download/audio/2024/11/25/audio_7aa9b5975d.mp3?filename=restum-anoush-violin-in-painsad-violin-268426.mp3",
         "https://cdn.pixabay.com/download/audio/2025/07/02/audio_a94fac3b19.mp3?filename=lazarosv-bounce-to-the-beat-ii-368772.mp3",
         "https://cdn.pixabay.com/download/audio/2024/09/22/audio_8acca15fed.mp3?filename=lbdlprod-drum-bass-243588.mp3",
-        "https://cdn.pixabay.com/download/audio/2024/01/04/audio_896a3bc8f7.mp3?filename=alexgrohl-no-copyright-music-bounce-on-it-184234.mp3",
+        "https://cdn.pixabay.com/download/audio/2024/01/04/audio_896a3bc8f7.mp3?filename=alexgrohl-no-copyright-music-bounce-on-it-184234.mp3"
     ],
     
     "Historical": [
@@ -178,7 +179,7 @@ export const musicLibrary = {
         "https://cdn.pixabay.com/download/audio/2025/12/03/audio_941ab1f710.mp3?filename=audioknap-uplifting-epic-446685.mp3",
         "https://cdn.pixabay.com/download/audio/2025/12/07/audio_329d3502d7.mp3?filename=audioknap-epic-448501.mp3",
         "https://cdn.pixabay.com/download/audio/2025/07/02/audio_a94fac3b19.mp3?filename=lazarosv-bounce-to-the-beat-ii-368772.mp3",
-        "https://cdn.pixabay.com/download/audio/2024/09/22/audio_8acca15fed.mp3?filename=lbdlprod-drum-bass-243588.mp3",
+        "https://cdn.pixabay.com/download/audio/2024/09/22/audio_8acca15fed.mp3?filename=lbdlprod-drum-bass-243588.mp3"
         
         
     ],
@@ -201,7 +202,7 @@ export const musicLibrary = {
           "https://cdn.pixabay.com/download/audio/2025/03/18/audio_3ff2b9369c.mp3?filename=delosound-promo-advertising-funk-315207.mp3",
           "https://cdn.pixabay.com/download/audio/2025/09/25/audio_3e56bd1c2a.mp3?filename=nastelbom-rap-410675.mp3",
           "https://cdn.pixabay.com/download/audio/2024/09/22/audio_8acca15fed.mp3?filename=lbdlprod-drum-bass-243588.mp3",
-          "https://cdn.pixabay.com/download/audio/2025/10/02/audio_942db5dcd2.mp3?filename=bassloom-drum-or-bass-ryan-stasik-413932.mp3",
+          "https://cdn.pixabay.com/download/audio/2025/10/02/audio_942db5dcd2.mp3?filename=bassloom-drum-or-bass-ryan-stasik-413932.mp3"
           
           
           
@@ -227,6 +228,7 @@ export const musicLibrary = {
         "https://cdn.pixabay.com/download/audio/2023/11/04/audio_61107b7ef6.mp3?filename=rockot-bounce-gone-crazy-174657.mp3",
         "https://cdn.pixabay.com/download/audio/2025/03/18/audio_3ff2b9369c.mp3?filename=delosound-promo-advertising-funk-315207.mp3",
         "https://cdn.pixabay.com/download/audio/2023/08/09/audio_f3b6314859.mp3?filename=diephoanghai-rap-beats-music-161432.mp3",
+        "https://cdn.pixabay.com/download/audio/2021/11/13/audio_343081d119.mp3?filename=geriart-rammstein-style-metal-10726.mp3"
     ]
     
 };
