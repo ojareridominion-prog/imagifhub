@@ -94,4 +94,77 @@ export function getHolidayImage() {
     // FALLBACK DEFAULT
     // ==========================================
     return 'assets/welcome-default.jpg';
+}
+
+/**
+ * Returns a festive emoji version of "IMAGIFHUB" based on the current date.
+ */
+export function getFestiveTitle() {
+    const today = new Date();
+    const month = today.getMonth() + 1;
+    const day = today.getDate();
+
+    // Floating dates (same as in getHolidayImage)
+    const easterMonth = 4, easterDay = 5;
+    const mothersDayMonth = 3, mothersDayDay = 15;
+    const fathersDayMonth = 6, fathersDayDay = 21;
+
+    // Easter
+    if (month === easterMonth && day === easterDay) return 'IM🐰G🥚FH🐣B';
+    // Mother's Day
+    if (month === mothersDayMonth && day === mothersDayDay) return 'IM👩‍👧G🌸FH🌺B';
+    // Father's Day
+    if (month === fathersDayMonth && day === fathersDayDay) return 'IM👨‍👧G🧔FH👞B';
+
+    // Fixed holidays
+    // January
+    if (month === 1 && day === 1) return 'IM🎊G🎆FH🎉B'; // New Year's Day
+
+    // February
+    if (month === 2 && day === 1) return 'IM📅G🌙FH🌟B'; // New Month
+    if (month === 2 && day === 14) return 'IM❤️G🌹FH💌B'; // Valentine's Day
+
+    // March
+    if (month === 3 && day === 1) return 'IM📅G🌙FH🌟B'; // New Month
+    if (month === 3 && day === 8) return 'IM👩G🌸FH💐B'; // Women's Day
+
+    // April
+    if (month === 4 && day === 1) return 'IM🤡G😜FH🃏B'; // April Fools' Day
+    if (month === 4 && day === 22) return 'IM🌍G🌱FH♻️B'; // Earth Day
+
+    // May
+    if (month === 5 && day === 1) return 'IM👷G🔧FH⚒️B'; // Workers' Day
+    if (month === 5 && day === 25) return 'IM🌍G🦁FH🐘B'; // Africa Day
+    if (month === 5 && day === 27) return 'IM🧒G🍭FH🧸B'; // Children's Day
+
+    // June
+    if (month === 6 && day === 1) return 'IM📅G🌙FH🌟B'; // New Month
+
+    // July
+    if (month === 7 && day === 1) return 'IM📅G🌙FH🌟B'; // New Month
+
+    // August
+    if (month === 8 && day === 1) return 'IM📅G🌙FH🌟B'; // New Month
+    if (month === 8 && day === 12) return 'IM🧑G🎓FH🌟B'; // Youth Day
+
+    // September
+    if (month === 9 && day === 1) return 'IM📅G🌙FH🌟B'; // New Month
+
+    // October
+    if (month === 10 && day === 1) return 'IM🇳🇬G🎆FH🕊️B'; // Independence Day
+    if (month === 10 && day === 5) return 'IM👩‍🏫G📚FH✏️B'; // Teachers' Day
+    if (month === 10 && day === 31) return 'IM🎃G👻FH🕸️B'; // Halloween
+
+    // November
+    if (month === 11 && day === 1) return 'IM📅G🌙FH🌟B'; // New Month
+
+    // December
+    if (month === 12 && day === 1) return 'IM📅G🌙FH🌟B'; // New Month
+    if (month === 12 && day === 24) return 'IM🎄G🎅FH🕯️B'; // Christmas Eve
+    if (month === 12 && day === 25) return 'IM🎄G🎁FH🎅B'; // Christmas Day
+    if (month === 12 && day === 26) return 'IM📦G🎁FH📦B'; // Boxing Day
+    if (month === 12 && day === 31) return 'IM🥂G🎆FH🎉B'; // New Year's Eve
+
+    // Default fallback
+    return 'IMAGIFHUB';
         }
