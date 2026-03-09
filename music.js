@@ -38,6 +38,7 @@ export const musicLibrary = {
         "https://cdn.pixabay.com/download/audio/2023/11/04/audio_61107b7ef6.mp3?filename=rockot-bounce-gone-crazy-174657.mp3",
         "https://cdn.pixabay.com/download/audio/2025/03/18/audio_3ff2b9369c.mp3?filename=delosound-promo-advertising-funk-315207.mp3",
         "https://cdn.pixabay.com/download/audio/2023/08/09/audio_f3b6314859.mp3?filename=diephoanghai-rap-beats-music-161432.mp3",
+        "https://cdn.pixabay.com/download/audio/2025/12/05/audio_1c1f8db6b0.mp3?filename=viacheslavstarostin-rap-beat-beats-music-444108.mp3",
               ],
     
     "Aesthetic": [
