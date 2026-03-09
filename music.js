@@ -15,6 +15,7 @@ export const musicLibrary = {
         "https://cdn.pixabay.com/download/audio/2025/10/10/audio_98d41e307a.mp3?filename=audiolibraryinfinite-echo-violin-418240.mp3",
         "https://cdn.pixabay.com/download/audio/2024/11/25/audio_7aa9b5975d.mp3?filename=restum-anoush-violin-in-painsad-violin-268426.mp3",
         "https://cdn.pixabay.com/download/audio/2025/12/03/audio_941ab1f710.mp3?filename=audioknap-uplifting-epic-446685.mp3",
+        "https://cdn.pixabay.com/download/audio/2025/12/07/audio_88fdf1567f.mp3?filename=audioknap-emotional-epic-448497.mp3",
         
     ],
     
@@ -96,6 +97,7 @@ export const musicLibrary = {
         "https://cdn.pixabay.com/download/audio/2025/10/10/audio_98d41e307a.mp3?filename=audiolibraryinfinite-echo-violin-418240.mp3",
         "https://cdn.pixabay.com/download/audio/2024/11/25/audio_7aa9b5975d.mp3?filename=restum-anoush-violin-in-painsad-violin-268426.mp3",
         "https://cdn.pixabay.com/download/audio/2025/12/03/audio_941ab1f710.mp3?filename=audioknap-uplifting-epic-446685.mp3",
+        "https://cdn.pixabay.com/download/audio/2025/12/07/audio_88fdf1567f.mp3?filename=audioknap-emotional-epic-448497.mp3",
               ],
     
     "Animals": [
@@ -140,6 +142,7 @@ export const musicLibrary = {
           "https://cdn.pixabay.com/download/audio/2025/02/18/audio_5276999892.mp3?filename=adiiswanto-cvilni-violin-1-302858.mp3",
           "https://cdn.pixabay.com/download/audio/2025/10/10/audio_98d41e307a.mp3?filename=audiolibraryinfinite-echo-violin-418240.mp3",
           "https://cdn.pixabay.com/download/audio/2024/11/25/audio_7aa9b5975d.mp3?filename=restum-anoush-violin-in-painsad-violin-268426.mp3",
+          "https://cdn.pixabay.com/download/audio/2025/12/07/audio_88fdf1567f.mp3?filename=audioknap-emotional-epic-448497.mp3",
           
           
     ],
