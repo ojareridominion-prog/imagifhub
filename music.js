@@ -20,6 +20,7 @@ export const musicLibrary = {
         "https://cdn.pixabay.com/download/audio/2025/03/18/audio_3ff2b9369c.mp3?filename=delosound-promo-advertising-funk-315207.mp3",
         "https://cdn.pixabay.com/download/audio/2024/09/22/audio_8acca15fed.mp3?filename=lbdlprod-drum-bass-243588.mp3",
         "https://cdn.pixabay.com/download/audio/2024/01/04/audio_896a3bc8f7.mp3?filename=alexgrohl-no-copyright-music-bounce-on-it-184234.mp3",
+        "https://cdn.pixabay.com/download/audio/2022/08/23/audio_d16737dc28.mp3?filename=qubesounds-electronic-future-beats_fadeout-117997.mp3",
         
     ],
     
@@ -43,6 +44,7 @@ export const musicLibrary = {
         "https://cdn.pixabay.com/download/audio/2025/12/05/audio_1c1f8db6b0.mp3?filename=viacheslavstarostin-rap-beat-beats-music-444108.mp3",
         "https://cdn.pixabay.com/download/audio/2025/09/25/audio_3e56bd1c2a.mp3?filename=nastelbom-rap-410675.mp3",
         "https://cdn.pixabay.com/download/audio/2024/11/23/audio_96e44c3196.mp3?filename=panda-beats-butterflys-rap-x-hip-hop-type-beat-267843.mp3",
+        "https://cdn.pixabay.com/download/audio/2022/08/23/audio_d16737dc28.mp3?filename=qubesounds-electronic-future-beats_fadeout-117997.mp3",
         
               ],
     
@@ -65,6 +67,7 @@ export const musicLibrary = {
         "https://cdn.pixabay.com/download/audio/2025/07/02/audio_a94fac3b19.mp3?filename=lazarosv-bounce-to-the-beat-ii-368772.mp3",
         "https://cdn.pixabay.com/download/audio/2025/03/18/audio_3ff2b9369c.mp3?filename=delosound-promo-advertising-funk-315207.mp3",
         "https://cdn.pixabay.com/download/audio/2024/09/22/audio_8acca15fed.mp3?filename=lbdlprod-drum-bass-243588.mp3",
+        "https://cdn.pixabay.com/download/audio/2022/08/23/audio_d16737dc28.mp3?filename=qubesounds-electronic-future-beats_fadeout-117997.mp3",
         
         
     ],
@@ -132,6 +135,7 @@ export const musicLibrary = {
         "https://cdn.pixabay.com/download/audio/2025/12/07/audio_88fdf1567f.mp3?filename=audioknap-emotional-epic-448497.mp3",
         "https://cdn.pixabay.com/download/audio/2024/09/22/audio_8acca15fed.mp3?filename=lbdlprod-drum-bass-243588.mp3",
         "https://cdn.pixabay.com/download/audio/2024/01/04/audio_896a3bc8f7.mp3?filename=alexgrohl-no-copyright-music-bounce-on-it-184234.mp3",
+        "https://cdn.pixabay.com/download/audio/2022/08/23/audio_d16737dc28.mp3?filename=qubesounds-electronic-future-beats_fadeout-117997.mp3",
         
               ],
     
