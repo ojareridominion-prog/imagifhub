@@ -37,6 +37,7 @@ export const musicLibrary = {
         "https://cdn.pixabay.com/download/audio/2024/06/02/audio_3e600c093f.mp3?filename=rockot-making-a-bounce-214000.mp3",
         "https://cdn.pixabay.com/download/audio/2023/11/04/audio_61107b7ef6.mp3?filename=rockot-bounce-gone-crazy-174657.mp3",
         "https://cdn.pixabay.com/download/audio/2025/03/18/audio_3ff2b9369c.mp3?filename=delosound-promo-advertising-funk-315207.mp3",
+        "https://cdn.pixabay.com/download/audio/2023/08/09/audio_f3b6314859.mp3?filename=diephoanghai-rap-beats-music-161432.mp3",
               ],
     
     "Aesthetic": [
@@ -73,6 +74,7 @@ export const musicLibrary = {
         "https://cdn.pixabay.com/download/audio/2024/07/26/audio_ae5558d34f.mp3?filename=onesevenbeatxs-bouncy-flute-and-keys-hard-trap-beat-prod-by-onesevenbeatxs-227243.mp3",
         "https://cdn.pixabay.com/download/audio/2025/03/18/audio_7d5c12b31a.mp3?filename=cosmonkey-dont-talk-315229.mp3",
         "https://cdn.pixabay.com/download/audio/2023/11/04/audio_61107b7ef6.mp3?filename=rockot-bounce-gone-crazy-174657.mp3",
+        "https://cdn.pixabay.com/download/audio/2023/08/09/audio_f3b6314859.mp3?filename=diephoanghai-rap-beats-music-161432.mp3",
         
     ],
     
@@ -96,6 +98,7 @@ export const musicLibrary = {
         "https://cdn.pixabay.com/download/audio/2025/07/02/audio_a94fac3b19.mp3?filename=lazarosv-bounce-to-the-beat-ii-368772.mp3",
         "https://cdn.pixabay.com/download/audio/2023/11/04/audio_61107b7ef6.mp3?filename=rockot-bounce-gone-crazy-174657.mp3",
         "https://cdn.pixabay.com/download/audio/2025/03/18/audio_3ff2b9369c.mp3?filename=delosound-promo-advertising-funk-315207.mp3",
+        "https://cdn.pixabay.com/download/audio/2023/08/09/audio_f3b6314859.mp3?filename=diephoanghai-rap-beats-music-161432.mp3",
         
     ],
     
@@ -190,6 +193,7 @@ export const musicLibrary = {
         "https://cdn.pixabay.com/download/audio/2024/06/02/audio_3e600c093f.mp3?filename=rockot-making-a-bounce-214000.mp3",
         "https://cdn.pixabay.com/download/audio/2023/11/04/audio_61107b7ef6.mp3?filename=rockot-bounce-gone-crazy-174657.mp3",
         "https://cdn.pixabay.com/download/audio/2025/03/18/audio_3ff2b9369c.mp3?filename=delosound-promo-advertising-funk-315207.mp3",
+        "https://cdn.pixabay.com/download/audio/2023/08/09/audio_f3b6314859.mp3?filename=diephoanghai-rap-beats-music-161432.mp3",
     ]
     
 };
