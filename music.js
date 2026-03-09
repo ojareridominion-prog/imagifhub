@@ -17,6 +17,7 @@ export const musicLibrary = {
         "https://cdn.pixabay.com/download/audio/2025/12/03/audio_941ab1f710.mp3?filename=audioknap-uplifting-epic-446685.mp3",
         "https://cdn.pixabay.com/download/audio/2025/12/07/audio_88fdf1567f.mp3?filename=audioknap-emotional-epic-448497.mp3",
         "https://cdn.pixabay.com/download/audio/2025/07/02/audio_a94fac3b19.mp3?filename=lazarosv-bounce-to-the-beat-ii-368772.mp3",
+        "https://cdn.pixabay.com/download/audio/2025/03/18/audio_3ff2b9369c.mp3?filename=delosound-promo-advertising-funk-315207.mp3",
         
     ],
     
@@ -35,6 +36,7 @@ export const musicLibrary = {
         "https://cdn.pixabay.com/download/audio/2025/03/18/audio_7d5c12b31a.mp3?filename=cosmonkey-dont-talk-315229.mp3",
         "https://cdn.pixabay.com/download/audio/2024/06/02/audio_3e600c093f.mp3?filename=rockot-making-a-bounce-214000.mp3",
         "https://cdn.pixabay.com/download/audio/2023/11/04/audio_61107b7ef6.mp3?filename=rockot-bounce-gone-crazy-174657.mp3",
+        "https://cdn.pixabay.com/download/audio/2025/03/18/audio_3ff2b9369c.mp3?filename=delosound-promo-advertising-funk-315207.mp3",
               ],
     
     "Aesthetic": [
@@ -54,6 +56,7 @@ export const musicLibrary = {
         "https://cdn.pixabay.com/download/audio/2024/11/25/audio_7aa9b5975d.mp3?filename=restum-anoush-violin-in-painsad-violin-268426.mp3",
         "https://cdn.pixabay.com/download/audio/2025/12/03/audio_941ab1f710.mp3?filename=audioknap-uplifting-epic-446685.mp3",
         "https://cdn.pixabay.com/download/audio/2025/07/02/audio_a94fac3b19.mp3?filename=lazarosv-bounce-to-the-beat-ii-368772.mp3",
+        "https://cdn.pixabay.com/download/audio/2025/03/18/audio_3ff2b9369c.mp3?filename=delosound-promo-advertising-funk-315207.mp3",
         
         
     ],
@@ -92,6 +95,7 @@ export const musicLibrary = {
         "https://cdn.pixabay.com/download/audio/2025/03/18/audio_7d5c12b31a.mp3?filename=cosmonkey-dont-talk-315229.mp3",
         "https://cdn.pixabay.com/download/audio/2025/07/02/audio_a94fac3b19.mp3?filename=lazarosv-bounce-to-the-beat-ii-368772.mp3",
         "https://cdn.pixabay.com/download/audio/2023/11/04/audio_61107b7ef6.mp3?filename=rockot-bounce-gone-crazy-174657.mp3",
+        "https://cdn.pixabay.com/download/audio/2025/03/18/audio_3ff2b9369c.mp3?filename=delosound-promo-advertising-funk-315207.mp3",
         
     ],
     
@@ -162,6 +166,7 @@ export const musicLibrary = {
           "https://cdn.pixabay.com/download/audio/2025/03/18/audio_7d5c12b31a.mp3?filename=cosmonkey-dont-talk-315229.mp3",
           "https://cdn.pixabay.com/download/audio/2024/06/02/audio_3e600c093f.mp3?filename=rockot-making-a-bounce-214000.mp3",
           "https://cdn.pixabay.com/download/audio/2023/11/04/audio_61107b7ef6.mp3?filename=rockot-bounce-gone-crazy-174657.mp3",
+          "https://cdn.pixabay.com/download/audio/2025/03/18/audio_3ff2b9369c.mp3?filename=delosound-promo-advertising-funk-315207.mp3",
           
           
     ],
@@ -184,6 +189,7 @@ export const musicLibrary = {
         "https://cdn.pixabay.com/download/audio/2025/03/18/audio_7d5c12b31a.mp3?filename=cosmonkey-dont-talk-315229.mp3",
         "https://cdn.pixabay.com/download/audio/2024/06/02/audio_3e600c093f.mp3?filename=rockot-making-a-bounce-214000.mp3",
         "https://cdn.pixabay.com/download/audio/2023/11/04/audio_61107b7ef6.mp3?filename=rockot-bounce-gone-crazy-174657.mp3",
+        "https://cdn.pixabay.com/download/audio/2025/03/18/audio_3ff2b9369c.mp3?filename=delosound-promo-advertising-funk-315207.mp3",
     ]
     
 };
