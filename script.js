@@ -435,7 +435,7 @@ function maybeShowAd() {
     
     actionCount++;
     localStorage.setItem("actionCount", actionCount);
-    if (actionCount % 3 === 0) {
+    if (actionCount % 4 === 0) {
         showAd();
     } else {
         hideAd();
