@@ -187,12 +187,11 @@ async function loadFeed(cat, search="") {
 
 // --- PREMIUM VERIFICATION FUNCTIONS ---
 
-// ✅ Uses UTC timestamps and Math.floor for consistency with server
 function formatExpiryDate(expiryStr) {
     if (!expiryStr) return '';
     try {
-        const expiryMs = new Date(expiryStr).getTime();      // UTC milliseconds
-        const nowMs = Date.now();                             // UTC milliseconds
+        const expiryMs = new Date(expiryStr).getTime();
+        const nowMs = Date.now();
         const diffMs = expiryMs - nowMs;
         const daysLeft = Math.floor(diffMs / (1000 * 60 * 60 * 24));
         if (daysLeft < 0) return 'Expired';
@@ -204,12 +203,10 @@ function formatExpiryDate(expiryStr) {
     }
 }
 
-// UPDATED: accepts daysLeft from server if available
 function updatePremiumUI(isPremium, expiryStr = null, daysLeft = null) {
     const premiumBtn = document.querySelector('.premium-btn-menu');
     const expiryDisplay = document.getElementById('premiumExpiryDisplay');
 
-    // Update premium button
     if (premiumBtn) {
         if (isPremium) {
             premiumBtn.innerText = "⭐ PREMIUM ACTIVE";
@@ -226,18 +223,15 @@ function updatePremiumUI(isPremium, expiryStr = null, daysLeft = null) {
         }
     }
 
-    // Update expiry display inside the premium card
     if (expiryDisplay) {
         if (isPremium) {
             let displayText = '';
             if (daysLeft !== null) {
-                // Use server‑calculated days
                 if (daysLeft < 0) displayText = 'Expired';
                 else if (daysLeft === 0) displayText = 'Expires today';
                 else if (daysLeft === 1) displayText = 'Expires tomorrow';
                 else displayText = `${daysLeft} days left`;
             } else {
-                // Fallback to client calculation
                 if (!expiryStr) expiryStr = localStorage.getItem("premiumExpires");
                 displayText = formatExpiryDate(expiryStr);
             }
@@ -247,7 +241,6 @@ function updatePremiumUI(isPremium, expiryStr = null, daysLeft = null) {
         }
     }
     
-    // Buy button and indicator (unchanged)
     const buyBtn = document.getElementById('btnBuy');
     if (buyBtn) {
         if (isPremium) {
@@ -271,6 +264,51 @@ function updatePremiumUI(isPremium, expiryStr = null, daysLeft = null) {
     }
 }
 
+// NEW: Update user info card
+function updateUserCard(user) {
+    if (!user) {
+        document.getElementById('userName').innerText = 'Unknown User';
+        document.getElementById('userId').innerText = '-';
+        return;
+    }
+    // Set name (first_name + last_name if available, else username or ID)
+    let name = user.first_name || '';
+    if (user.last_name) name += ' ' + user.last_name;
+    if (!name.trim() && user.username) name = '@' + user.username;
+    if (!name.trim()) name = `User ${user.id}`;
+    document.getElementById('userName').innerText = name;
+
+    // Set user ID
+    document.getElementById('userId').innerText = user.id;
+
+    // Set avatar if photo_url is available, otherwise keep default
+    const avatarImg = document.getElementById('userAvatar');
+    if (user.photo_url) {
+        avatarImg.src = user.photo_url;
+    } else {
+        // Use default avatar (e.g., UI Avatars or local asset)
+        avatarImg.src = 'assets/default-avatar.png';
+    }
+}
+
+// NEW: Copy user ID to clipboard
+function copyUserId() {
+    const userId = document.getElementById('userId').innerText;
+    if (userId && userId !== '-') {
+        navigator.clipboard.writeText(userId).then(() => {
+            // Optional: show a temporary tooltip or alert
+            const btn = document.getElementById('copyIdBtn');
+            const originalText = btn.innerText;
+            btn.innerText = '✅ Copied!';
+            setTimeout(() => {
+                btn.innerText = originalText;
+            }, 1500);
+        }).catch(err => {
+            console.error('Failed to copy: ', err);
+        });
+    }
+}
+
 async function verifyPremiumStatus() {
     try {
         const tg = window.Telegram.WebApp;
@@ -281,6 +319,11 @@ async function verifyPremiumStatus() {
             const isPremium = localStorage.getItem("isPremium") === "true";
             const expiry = localStorage.getItem("premiumExpires");
             updatePremiumUI(isPremium, expiry, null);
+            // Try to get user from initDataUnsafe as fallback
+            const user = tg.initDataUnsafe?.user;
+            if (user) {
+                updateUserCard(user);
+            }
             return isPremium;
         }
         
@@ -292,10 +335,18 @@ async function verifyPremiumStatus() {
         
         const data = await response.json();
         
+        // Update user card with data from backend
+        if (data.user) {
+            updateUserCard(data.user);
+        } else {
+            // Fallback to initDataUnsafe
+            const user = tg.initDataUnsafe?.user;
+            if (user) updateUserCard(user);
+        }
+        
         if (data.premium) {
             localStorage.setItem("isPremium", "true");
             localStorage.setItem("premiumExpires", data.expires_at);
-            // Pass server‑provided days_left
             updatePremiumUI(true, data.expires_at, data.days_left);
             stopPremiumChecking();
             return true;
@@ -310,6 +361,9 @@ async function verifyPremiumStatus() {
         const isPremium = localStorage.getItem("isPremium") === "true";
         const expiry = localStorage.getItem("premiumExpires");
         updatePremiumUI(isPremium, expiry, null);
+        // Try to get user from initDataUnsafe as fallback
+        const user = window.Telegram.WebApp.initDataUnsafe?.user;
+        if (user) updateUserCard(user);
         return isPremium;
     }
 }
@@ -337,7 +391,6 @@ async function checkPremiumStatus(userId) {
         if (data.is_premium) {
             localStorage.setItem("isPremium", "true");
             localStorage.setItem("premiumExpires", data.expires_at);
-            // Pass server‑provided days_left
             updatePremiumUI(true, data.expires_at, data.days_left);
             stopPremiumChecking();
             
@@ -363,7 +416,7 @@ async function checkPremiumStatus(userId) {
 function toggleMenu() { 
     const panel = document.getElementById('menuPanel');
     panel.classList.toggle('open');
-    // When menu opens, refresh premium status (will update expiry)
+    // When menu opens, refresh premium status (will update expiry and user card)
     if (panel.classList.contains('open')) {
         verifyPremiumStatus();
     }
@@ -458,7 +511,6 @@ async function goPremium() {
     const btn = document.getElementById('btnBuy');
 
     if (!tg.openInvoice) {
-        // fallback as before
         statusEl.textContent = "Opening Telegram...";
         const userId = tg.initDataUnsafe?.user?.id;
         if (userId) {
@@ -571,7 +623,7 @@ window.onload = async () => {
     // 1. Initialize Telegram WebApp
     initTelegramWebApp();
     
-    // 2. Check premium status on load (will update menu expiry)
+    // 2. Check premium status on load (will update menu expiry and user card)
     await verifyPremiumStatus();
     
     // 3. Setup Categories
@@ -579,7 +631,6 @@ window.onload = async () => {
         `<button class="cat-btn" onclick="loadFeed('${c}')">${c}</button>`
     ).join('');
     
-    // 4. Setup Themes
     // 4. Setup Themes
     document.getElementById('themeGrid').innerHTML = themesList.map(t => `
         <div class="theme-circle" onclick="applyTheme('${t.id}')">
@@ -660,6 +711,7 @@ window.verifyPremiumStatus = verifyPremiumStatus;
 window.toggleDarkText = toggleDarkText;
 window.openCopyright = openCopyright;
 window.closeCopyright = closeCopyright;
+window.copyUserId = copyUserId;   // expose for onclick
 
 window.handleAdClick = (event) => {
     if (!event.target.classList.contains('close-ad-btn')) {
