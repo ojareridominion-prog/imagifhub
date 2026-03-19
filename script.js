@@ -269,26 +269,40 @@ function updateUserCard(user) {
     if (!user) {
         document.getElementById('userName').innerText = 'Unknown User';
         document.getElementById('userId').innerText = '-';
+        document.getElementById('userAvatar').src = 'assets/default-avatar.png';
         return;
     }
-    // Set name (first_name + last_name if available, else username or ID)
+
+    // Set name (same as before)
     let name = user.first_name || '';
     if (user.last_name) name += ' ' + user.last_name;
     if (!name.trim() && user.username) name = '@' + user.username;
     if (!name.trim()) name = `User ${user.id}`;
     document.getElementById('userName').innerText = name;
-
-    // Set user ID
     document.getElementById('userId').innerText = user.id;
 
-    // Set avatar if photo_url is available, otherwise keep default
+    // Fetch profile photo
     const avatarImg = document.getElementById('userAvatar');
-    if (user.photo_url) {
-        avatarImg.src = user.photo_url;
-    } else {
-        // Use default avatar (e.g., UI Avatars or local asset)
+    const tg = window.Telegram.WebApp;
+    
+    fetch(`${API_URL}/api/user-photo`, {
+        headers: {
+            'X-Telegram-Init-Data': tg.initData
+        }
+    })
+    .then(response => {
+        if (!response.ok) throw new Error('No photo');
+        return response.blob();
+    })
+    .then(blob => {
+        const url = URL.createObjectURL(blob);
+        avatarImg.src = url;
+        // Optional: revoke the object URL later if you want to free memory
+        // avatarImg.onload = () => URL.revokeObjectURL(url);
+    })
+    .catch(() => {
         avatarImg.src = 'assets/default-avatar.png';
-    }
+    });
 }
 
 // NEW: Copy user ID to clipboard
