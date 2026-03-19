@@ -1,9 +1,11 @@
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Request, HTTPException
+from fastapi.responses import Response
 from datetime import datetime
 import json
 import urllib.parse
 import logging
-from config import supabase
+import httpx
+from config import supabase, bot, BOT_TOKEN
 from utils import get_user_id_from_init_data
 
 router = APIRouter()
@@ -202,3 +204,45 @@ async def test_premium(user_id: int):
         
     except Exception as e:
         return {"error": str(e), "user_id": user_id}
+
+# ==================== NEW ENDPOINT: FETCH USER PROFILE PHOTO ====================
+
+@router.get("/api/user-photo")
+async def get_user_photo(request: Request):
+    """
+    Returns the user's Telegram profile photo as an image (JPEG).
+    Requires X-Telegram-Init-Data header.
+    """
+    init_data = request.headers.get("X-Telegram-Init-Data", "")
+    if not init_data:
+        raise HTTPException(status_code=401, detail="Missing init data")
+    
+    user_id = get_user_id_from_init_data(init_data)
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Invalid user")
+
+    try:
+        # Get profile photos from Telegram
+        photos = await bot.get_user_profile_photos(user_id, limit=1)
+        if not photos or not photos.photos:
+            raise HTTPException(status_code=404, detail="No profile photo")
+
+        # Largest photo is the last in the list of sizes
+        file_id = photos.photos[0][-1].file_id
+        file = await bot.get_file(file_id)
+        file_path = file.file_path
+
+        # Download the image from Telegram servers
+        url = f"https://api.telegram.org/file/bot{BOT_TOKEN}/{file_path}"
+        async with httpx.AsyncClient() as client:
+            resp = await client.get(url)
+            if resp.status_code != 200:
+                raise HTTPException(status_code=500, detail="Failed to fetch photo")
+            return Response(content=resp.content, media_type="image/jpeg")
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logging.error(f"Error fetching user photo: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+        
