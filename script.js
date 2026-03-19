@@ -16,6 +16,44 @@ let premiumCheckInterval = null;
 // --- Dark Text State ---
 let darkTextEnabled = localStorage.getItem('imagifhub-darktext') === 'true';
 
+// Generate a data URL for a colored circle with initials (Telegram style)
+function generateInitialsAvatar(user) {
+    const canvas = document.createElement('canvas');
+    canvas.width = 100;
+    canvas.height = 100;
+    const ctx = canvas.getContext('2d');
+
+    // Pick a color based on user id (like Telegram does)
+    const colors = [
+        '#e56c4b', '#be5c4b', '#b85c4b', '#9c4dff', '#4a90e2',
+        '#50c878', '#f4a460', '#daa520', '#cd5c5c', '#4682b4'
+    ];
+    const colorIndex = (user.id % colors.length + colors.length) % colors.length;
+    const bgColor = colors[colorIndex];
+
+    // Draw circle
+    ctx.beginPath();
+    ctx.arc(50, 50, 50, 0, 2 * Math.PI);
+    ctx.fillStyle = bgColor;
+    ctx.fill();
+
+    // Draw initials
+    ctx.fillStyle = 'white';
+    ctx.font = 'bold 40px "Inter", system-ui, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+
+    let initials = '';
+    if (user.first_name) initials += user.first_name.charAt(0).toUpperCase();
+    if (user.last_name) initials += user.last_name.charAt(0).toUpperCase();
+    if (!initials && user.username) initials = user.username.charAt(0).toUpperCase();
+    if (!initials) initials = 'U';  // fallback
+
+    ctx.fillText(initials, 50, 50);
+
+    return canvas.toDataURL('image/png');
+}
+
 function toggleDarkText() {
     darkTextEnabled = !darkTextEnabled;
     localStorage.setItem('imagifhub-darktext', darkTextEnabled);
