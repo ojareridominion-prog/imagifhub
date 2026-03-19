@@ -339,8 +339,10 @@ function updateUserCard(user) {
         // avatarImg.onload = () => URL.revokeObjectURL(url);
     })
     .catch(() => {
-        avatarImg.src = 'assets/default-avatar.png';
-    });
+    // No profile photo – generate a Telegram‑style placeholder
+    avatarImg.src = generateInitialsAvatar(user);
+});
+    
 }
 
 // NEW: Copy user ID to clipboard
