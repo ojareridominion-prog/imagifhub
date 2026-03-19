@@ -127,6 +127,71 @@
         .premium-box { margin: 15px; padding: 15px; background: linear-gradient(45deg, #9c4dff, #ff4d4d); border-radius: 12px; color: white; text-align: center; }
         .premium-btn-menu { background: white; color: #9c4dff; border: none; padding: 8px 15px; border-radius: 20px; font-weight: bold; margin-top: 10px; cursor: pointer; }
 
+        /* NEW: User Info Card */
+        .user-info-card {
+            margin: 15px;
+            padding: 15px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            backdrop-filter: blur(5px);
+            border: 1px solid rgba(255,255,255,0.15);
+        }
+        .user-avatar {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            overflow: hidden;
+            background: #333;
+            flex-shrink: 0;
+        }
+        .user-avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .user-details {
+            flex: 1;
+            min-width: 0; /* for text truncation */
+        }
+        .user-name {
+            font-weight: bold;
+            font-size: 16px;
+            margin-bottom: 4px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .user-id-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+            color: #aaa;
+        }
+        .user-id-row span {
+            font-family: monospace;
+            background: rgba(0,0,0,0.3);
+            padding: 2px 6px;
+            border-radius: 4px;
+        }
+        .user-id-row button {
+            background: transparent;
+            border: 1px solid var(--accent);
+            color: var(--accent);
+            border-radius: 12px;
+            padding: 2px 10px;
+            font-size: 11px;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        .user-id-row button:hover {
+            background: var(--accent);
+            color: #000;
+        }
+
         /* --- Native Ad Styles - ENLARGED TO COVER ALMOST FULL SCREEN --- */
         .native-ad {
             position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
@@ -307,13 +372,26 @@
         
         <div class="premium-box">
             <div style="font-weight: bold; font-size: 18px;">IMAGIF PREMIUM ⭐</div>
-            <!-- NEW: expiry display added with ID -->
             <div id="premiumExpiryDisplay" style="font-size: 11px; opacity: 0.9; margin-top: 5px;">
                 Enjoy ad-free smooth scrolling
             </div>
             <button class="premium-btn-menu" onclick="openPremium()">UPGRADE NOW</button>
         </div>
-        
+
+        <!-- NEW: User Info Card -->
+        <div class="user-info-card" id="userInfoCard">
+            <div class="user-avatar">
+                <img id="userAvatar" src="assets/default-avatar.png" alt="User">
+            </div>
+            <div class="user-details">
+                <div id="userName" class="user-name">Loading...</div>
+                <div class="user-id-row">
+                    <span id="userId">-</span>
+                    <button id="copyIdBtn" onclick="copyUserId()">📋 Copy</button>
+                </div>
+            </div>
+        </div>
+
         <!-- NEW: Copyright Policy menu item -->
         <a href="#" class="menu-link" onclick="openCopyright()">⚖️ Copyright Policy</a>
         
