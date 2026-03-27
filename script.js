@@ -628,7 +628,7 @@ async function goPremium() {
                         closePremium();
                     }, 1500);
                 } else {
-                    statusEl.textContent = "⚠️ Payment received but activation delayed. Please check again in a moment.";
+                    statusEl.textContent = "⚠️ Payment received but activation delayed. Please refresh.";
                 }
             } else {
                 statusEl.textContent = "❌ Payment cancelled or failed";
