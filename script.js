@@ -14,7 +14,7 @@ const PREMIUM_CHECK_INTERVAL = 30000; // 30 seconds
 let premiumCheckInterval = null;
 let isPremiumUser = false;               // <-- GLOBAL PREMIUM FLAG
 let currentAdIndex = 0;                 // <-- INDEX FOR ADS
-const AD_FREQUENCY = 4;                 // <-- SHOW AD AFTER EVERY 4 IMAGES
+const AD_FREQUENCY = 3;                 // <-- SHOW AD AFTER EVERY 4 IMAGES
 
 // --- Dark Text State ---
 let darkTextEnabled = localStorage.getItem('imagifhub-darktext') === 'true';
