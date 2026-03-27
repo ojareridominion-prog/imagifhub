@@ -110,66 +110,85 @@
         }
 
         /* --- Ad Overlay Styles (NEW) --- */
-        .ad-overlay {
-            position: absolute;
-            bottom: 60px;
-            left: 20px;
-            right: 20px;
-            text-shadow: 0px 2px 10px rgba(0,0,0,0.9);
-            z-index: 15;
-            pointer-events: auto;
-            color: #fff;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            text-align: center;
-        }
-        .ad-sponsored {
-            font-size: 14px;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            margin-bottom: 12px;
-            background: rgba(0,0,0,0.6);
-            display: inline-block;
-            padding: 4px 12px;
-            border-radius: 20px;
-        }
-        .ad-title {
-            font-size: 28px;
-            font-weight: bold;
-            margin-bottom: 8px;
-        }
-        .ad-description {
-            font-size: 16px;
-            margin-bottom: 20px;
-            opacity: 0.9;
-        }
-        .ad-action-btn, .remove-ads-btn {
-            background: #ffd700;
-            border: none;
-            padding: 12px 24px;
-            border-radius: 40px;
-            font-weight: bold;
-            font-size: 18px;
-            margin-top: 8px;
-            cursor: pointer;
-            transition: transform 0.2s;
-        }
-        .ad-action-btn:hover, .remove-ads-btn:hover {
-            transform: scale(1.02);
-        }
-        .remove-ads-btn {
-            background: rgba(255,255,255,0.2);
-            color: white;
-            backdrop-filter: blur(5px);
-            position: absolute;
-            top: 16px;
-            right: 16px;
-            padding: 8px 16px;
-            font-size: 14px;
-            border-radius: 30px;
-            margin: 0;
-        }
+        /* Ad Overlay – bottom‑left aligned */
+.ad-overlay {
+    position: absolute;
+    bottom: 60px;
+    left: 20px;
+    right: 20px;
+    z-index: 15;
+    pointer-events: auto;
+    color: #fff;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;      /* left‑align content */
+    text-align: left;
+    text-shadow: 0px 2px 10px rgba(0,0,0,0.9);
+}
+
+.ad-sponsored {
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    background: rgba(0,0,0,0.6);
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 20px;
+    margin-bottom: 8px;
+}
+
+.ad-title {
+    font-size: 28px;
+    font-weight: bold;
+    margin-bottom: 4px;
+}
+
+.ad-description {
+    font-size: 16px;
+    margin-bottom: 16px;
+    opacity: 0.9;
+}
+
+/* Big white button */
+.ad-action-btn {
+    background: #ffffff !important;
+    color: #000000 !important;
+    border: none;
+    padding: 14px 28px;
+    font-size: 18px;
+    font-weight: bold;
+    border-radius: 40px;
+    cursor: pointer;
+    transition: transform 0.2s, background 0.2s;
+    margin-top: 8px;
+    width: auto;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+}
+
+.ad-action-btn:hover {
+    transform: scale(1.02);
+    background: #f0f0f0 !important;
+}
+
+/* Remove Ads button – stays at top‑right */
+.remove-ads-btn {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    background: rgba(255,255,255,0.2);
+    color: white;
+    backdrop-filter: blur(5px);
+    border: none;
+    padding: 8px 16px;
+    font-size: 14px;
+    border-radius: 30px;
+    cursor: pointer;
+    transition: background 0.2s;
+    z-index: 20;
+}
+.remove-ads-btn:hover {
+    background: rgba(255,255,255,0.4);
+}
         /* --- End Ad Overlay Styles --- */
 
         /* --- Theme Variations --- */
