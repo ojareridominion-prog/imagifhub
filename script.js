@@ -12,6 +12,9 @@ const SEEN_LIMIT = 20;
 const SEEN_KEY = "imagifhub-seen-history";
 const PREMIUM_CHECK_INTERVAL = 30000; // 30 seconds
 let premiumCheckInterval = null;
+let isPremiumUser = false;               // <-- GLOBAL PREMIUM FLAG
+let currentAdIndex = 0;                 // <-- INDEX FOR ADS
+const AD_FREQUENCY = 4;                 // <-- SHOW AD AFTER EVERY 4 IMAGES
 
 // --- Dark Text State ---
 let darkTextEnabled = localStorage.getItem('imagifhub-darktext') === 'true';
@@ -134,8 +137,36 @@ function toggleMute() {
     btn.innerText = audio.muted ? "🔇" : "🔊";
 }
 
+// --- HELPER: INTERLEAVE ADS AFTER EVERY AD_FREQUENCY IMAGES ---
+function buildSlides(images, isPremium) {
+    if (isPremium) {
+        // No ads for premium users
+        return images.map(img => ({ type: 'image', item: img }));
+    }
+
+    const slides = [];
+    let adCounter = 0;
+
+    for (let i = 0; i < images.length; i++) {
+        slides.push({ type: 'image', item: images[i] });
+        adCounter++;
+
+        if (adCounter >= AD_FREQUENCY) {
+            // Get next ad, cycle through nativeAds array
+            const ad = nativeAds[currentAdIndex % nativeAds.length];
+            slides.push({
+                type: 'ad',
+                item: { ...ad, index: currentAdIndex % nativeAds.length }
+            });
+            currentAdIndex++;
+            adCounter = 0;
+        }
+    }
+    return slides;
+}
+
 // --- CORE FEED LOGIC ---
-async function loadFeed(cat, search="") {
+async function loadFeed(cat, search = "") {
     currentCategory = cat;
     const feed = document.getElementById('feed');
     const audio = document.getElementById('bgMusic');
@@ -163,38 +194,63 @@ async function loadFeed(cat, search="") {
             return;
         }
 
-        // Build slides with keyword truncation
-        feed.innerHTML = data.map(item => {
-            const keyword = item.Keyword || '';
-            const maxLength = 100;
-            let keywordHtml = '';
-            
-            if (keyword.length > maxLength) {
-                const truncated = keyword.substring(0, maxLength) + '...';
-                keywordHtml = `
-                    <span class="keyword-short">${truncated}</span>
-                    <span class="keyword-full" style="display:none;">${keyword}</span>
-                    <button class="more-btn">more</button>
-                    <button class="less-btn" style="display:none;">less</button>
-                `;
-            } else {
-                keywordHtml = `<span>${keyword}</span>`;
-            }
+        // Build combined slides (images + ads)
+        const slides = buildSlides(data, isPremiumUser);
 
-            return `
-                <div class="swiper-slide">
-                    <img src="${item.url}" alt="${item.category}" style="width:100%; height:100%; object-fit:cover;">
-                    <div class="meta-overlay">
-                        <div class="category-tag">#${item.category}</div>
-                        <div class="keyword-container">
-                            ${keywordHtml}
+        // Generate HTML for each slide
+        feed.innerHTML = slides.map(slide => {
+            if (slide.type === 'image') {
+                const item = slide.item;
+                const keyword = item.Keyword || '';
+                const maxLength = 100;
+                let keywordHtml = '';
+                
+                if (keyword.length > maxLength) {
+                    const truncated = keyword.substring(0, maxLength) + '...';
+                    keywordHtml = `
+                        <span class="keyword-short">${truncated}</span>
+                        <span class="keyword-full" style="display:none;">${keyword}</span>
+                        <button class="more-btn">more</button>
+                        <button class="less-btn" style="display:none;">less</button>
+                    `;
+                } else {
+                    keywordHtml = `<span>${keyword}</span>`;
+                }
+
+                return `
+                    <div class="swiper-slide" data-type="image">
+                        <img src="${item.url}" alt="${item.category}" style="width:100%; height:100%; object-fit:cover;">
+                        <div class="meta-overlay">
+                            <div class="category-tag">#${item.category}</div>
+                            <div class="keyword-container">
+                                ${keywordHtml}
+                            </div>
                         </div>
                     </div>
-                </div>
-            `;
+                `;
+            } else {
+                // Ad slide
+                const ad = slide.item;
+                const buttonLabel = ad.buttonLabel || 'Open';
+                return `
+                    <div class="swiper-slide" data-type="ad" data-ad-index="${ad.index}">
+                        <img src="${ad.image}" alt="Ad" style="width:100%; height:100%; object-fit:cover;">
+                        <div class="ad-overlay">
+                            <div class="ad-sponsored">Sponsored</div>
+                            <div class="ad-title">${ad.title}</div>
+                            <div class="ad-description">${ad.subtitle}</div>
+                            <button class="ad-action-btn">${buttonLabel}</button>
+                            <button class="remove-ads-btn">Remove Ads</button>
+                        </div>
+                    </div>
+                `;
+            }
         }).join('');
 
+        // Destroy existing Swiper if any
         if (activeSwiper) activeSwiper.destroy(true, true);
+        
+        // Initialize new Swiper
         activeSwiper = new Swiper('#swiper', { 
             direction: 'vertical', 
             mousewheel: true,
@@ -204,13 +260,15 @@ async function loadFeed(cat, search="") {
                 },
                 slideChange: function () {
                     const activeSlide = this.slides[this.activeIndex];
-                    const img = activeSlide.querySelector('img');
-                    if (img && img.src) trackSeenImage(img.src);
-                    maybeShowAd(); 
+                    // Track only real images (skip ad slides)
+                    if (activeSlide && activeSlide.dataset.type === 'image') {
+                        const img = activeSlide.querySelector('img');
+                        if (img && img.src) trackSeenImage(img.src);
+                    }
                 },
                 init: function() {
                     const activeSlide = this.slides[this.activeIndex];
-                    if(activeSlide) {
+                    if (activeSlide && activeSlide.dataset.type === 'image') {
                         const img = activeSlide.querySelector('img');
                         if (img && img.src) trackSeenImage(img.src);
                     }
@@ -298,7 +356,8 @@ function updatePremiumUI(isPremium, expiryStr = null, daysLeft = null) {
     }
     
     if (isPremium) {
-        hideAd();
+        // If user just became premium, reload feed to remove ads
+        loadFeed(currentCategory);
     }
 }
 
@@ -335,14 +394,11 @@ function updateUserCard(user) {
     .then(blob => {
         const url = URL.createObjectURL(blob);
         avatarImg.src = url;
-        // Optional: revoke the object URL later if you want to free memory
-        // avatarImg.onload = () => URL.revokeObjectURL(url);
     })
     .catch(() => {
-    // No profile photo – generate a Telegram‑style placeholder
-    avatarImg.src = generateInitialsAvatar(user);
-});
-    
+        // No profile photo – generate a Telegram‑style placeholder
+        avatarImg.src = generateInitialsAvatar(user);
+    });
 }
 
 // NEW: Copy user ID to clipboard
@@ -350,7 +406,6 @@ function copyUserId() {
     const userId = document.getElementById('userId').innerText;
     if (userId && userId !== '-') {
         navigator.clipboard.writeText(userId).then(() => {
-            // Optional: show a temporary tooltip or alert
             const btn = document.getElementById('copyIdBtn');
             const originalText = btn.innerText;
             btn.innerText = '✅ Copied!';
@@ -372,12 +427,10 @@ async function verifyPremiumStatus() {
             console.log("No initData available, using localStorage");
             const isPremium = localStorage.getItem("isPremium") === "true";
             const expiry = localStorage.getItem("premiumExpires");
+            isPremiumUser = isPremium;
             updatePremiumUI(isPremium, expiry, null);
-            // Try to get user from initDataUnsafe as fallback
             const user = tg.initDataUnsafe?.user;
-            if (user) {
-                updateUserCard(user);
-            }
+            if (user) updateUserCard(user);
             return isPremium;
         }
         
@@ -389,33 +442,43 @@ async function verifyPremiumStatus() {
         
         const data = await response.json();
         
-        // Update user card with data from backend
         if (data.user) {
             updateUserCard(data.user);
         } else {
-            // Fallback to initDataUnsafe
             const user = tg.initDataUnsafe?.user;
             if (user) updateUserCard(user);
         }
+        
+        const newPremiumStatus = data.premium === true;
+        const wasPremium = isPremiumUser;
+        isPremiumUser = newPremiumStatus;
         
         if (data.premium) {
             localStorage.setItem("isPremium", "true");
             localStorage.setItem("premiumExpires", data.expires_at);
             updatePremiumUI(true, data.expires_at, data.days_left);
             stopPremiumChecking();
+            if (!wasPremium) {
+                // Premium just activated: reload feed to remove ads
+                loadFeed(currentCategory);
+            }
             return true;
         } else {
             localStorage.removeItem("isPremium");
             localStorage.removeItem("premiumExpires");
             updatePremiumUI(false);
+            if (wasPremium) {
+                // Premium expired: reload feed to show ads
+                loadFeed(currentCategory);
+            }
             return false;
         }
     } catch (error) {
         console.log("Error verifying premium:", error);
         const isPremium = localStorage.getItem("isPremium") === "true";
         const expiry = localStorage.getItem("premiumExpires");
+        isPremiumUser = isPremium;
         updatePremiumUI(isPremium, expiry, null);
-        // Try to get user from initDataUnsafe as fallback
         const user = window.Telegram.WebApp.initDataUnsafe?.user;
         if (user) updateUserCard(user);
         return isPremium;
@@ -443,17 +506,20 @@ async function checkPremiumStatus(userId) {
         const data = await response.json();
         
         if (data.is_premium) {
+            const wasPremium = isPremiumUser;
+            isPremiumUser = true;
             localStorage.setItem("isPremium", "true");
             localStorage.setItem("premiumExpires", data.expires_at);
             updatePremiumUI(true, data.expires_at, data.days_left);
             stopPremiumChecking();
-            
+            if (!wasPremium) {
+                loadFeed(currentCategory);
+            }
             const statusEl = document.getElementById('paymentStatus');
             if (statusEl) {
                 statusEl.textContent = "✅ Premium activated! Refreshing...";
                 statusEl.style.color = "#4CAF50";
                 setTimeout(() => {
-                    loadFeed(currentCategory);
                     closePremium();
                 }, 2000);
             }
@@ -470,7 +536,6 @@ async function checkPremiumStatus(userId) {
 function toggleMenu() { 
     const panel = document.getElementById('menuPanel');
     panel.classList.toggle('open');
-    // When menu opens, refresh premium status (will update expiry and user card)
     if (panel.classList.contains('open')) {
         verifyPremiumStatus();
     }
@@ -501,52 +566,6 @@ async function shareBot() {
             alert('Link & Text copied to clipboard!');
         }
     } catch (err) { console.log('Error sharing:', err); }
-}
-
-// --- ADS LOGIC ---
-let adIndex = Number(localStorage.getItem("adIndex") || 0);
-let currentAdLink = null;
-let actionCount = Number(localStorage.getItem("actionCount") || 0);
-
-function getNextAd() {
-    const ad = nativeAds[adIndex % nativeAds.length];
-    adIndex++;
-    localStorage.setItem("adIndex", adIndex);
-    return ad;
-}
-
-function showAd() {
-    const isPremium = localStorage.getItem("isPremium") === "true";
-    if (isPremium) return;
-    
-    const ad = getNextAd();
-    if (!ad) return;
-    currentAdLink = ad.action; 
-    document.getElementById("adImage").src = ad.image;
-    document.getElementById("adTitle").innerText = ad.title;
-    document.getElementById("adSubtitle").innerText = ad.subtitle;
-    document.getElementById("nativeAd").classList.remove("hidden");
-}
-
-function hideAd(event) {
-    if (event) event.stopPropagation(); 
-    document.getElementById("nativeAd").classList.add("hidden");
-}
-
-function maybeShowAd() {
-    const isPremium = localStorage.getItem("isPremium") === "true";
-    if (isPremium) {
-        hideAd();
-        return;
-    }
-    
-    actionCount++;
-    localStorage.setItem("actionCount", actionCount);
-    if (actionCount % 4 === 0) {
-        showAd();
-    } else {
-        hideAd();
-    }
 }
 
 // --- PREMIUM MODAL FUNCTIONS ---
@@ -606,7 +625,6 @@ async function goPremium() {
                     statusEl.textContent = "✅ Premium activated!";
                     setTimeout(() => {
                         closePremium();
-                        loadFeed(currentCategory);
                     }, 1500);
                 } else {
                     statusEl.textContent = "⚠️ Payment received but activation delayed. Please check again in a moment.";
@@ -672,6 +690,34 @@ function initTelegramWebApp() {
     }
 }
 
+// --- EVENT DELEGATION FOR AD BUTTONS ---
+function setupAdButtonListeners() {
+    document.getElementById('feed').addEventListener('click', (e) => {
+        const target = e.target;
+        const slide = target.closest('.swiper-slide');
+        if (!slide) return;
+
+        // Open action button
+        if (target.classList.contains('ad-action-btn')) {
+            const adIndex = parseInt(slide.dataset.adIndex);
+            const ad = nativeAds[adIndex];
+            if (ad && ad.action) {
+                if (typeof ad.action === 'function') {
+                    ad.action();
+                } else if (typeof ad.action === 'string') {
+                    window.open(ad.action, '_blank');
+                }
+            }
+            e.stopPropagation();
+        }
+        // Remove Ads button
+        else if (target.classList.contains('remove-ads-btn')) {
+            openPremium();
+            e.stopPropagation();
+        }
+    });
+}
+
 // --- INITIALIZATION ---
 window.onload = async () => {
     // 1. Initialize Telegram WebApp
@@ -728,7 +774,7 @@ window.onload = async () => {
     // 10. Add manual premium check button
     addManualPremiumCheck();
 
-    // 11. Delegate click events for more/less buttons
+    // 11. Delegate click events for more/less buttons (keyword expansion)
     document.getElementById('feed').addEventListener('click', (e) => {
         const target = e.target;
         const container = target.closest('.keyword-container');
@@ -748,6 +794,9 @@ window.onload = async () => {
             e.stopPropagation();
         }
     });
+
+    // 12. Setup ad button listeners
+    setupAdButtonListeners();
 };
 
 // --- GLOBAL EXPOSURE ---
@@ -757,7 +806,6 @@ window.toggleMute = toggleMute;
 window.triggerSearch = triggerSearch;
 window.applyTheme = applyTheme;
 window.shareBot = shareBot;
-window.hideAd = hideAd;
 window.openPremium = openPremium;
 window.closePremium = closePremium;
 window.goPremium = goPremium;
@@ -765,12 +813,4 @@ window.verifyPremiumStatus = verifyPremiumStatus;
 window.toggleDarkText = toggleDarkText;
 window.openCopyright = openCopyright;
 window.closeCopyright = closeCopyright;
-window.copyUserId = copyUserId;   // expose for onclick
-
-window.handleAdClick = (event) => {
-    if (!event.target.classList.contains('close-ad-btn')) {
-        if (typeof currentAdLink === 'function') currentAdLink();
-        else if (typeof currentAdLink === "string") window.open(currentAdLink, '_blank');
-        hideAd();
-    }
-};
+window.copyUserId = copyUserId;
