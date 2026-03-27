@@ -240,8 +240,9 @@ async function loadFeed(cat, search = "") {
                             <div class="ad-title">${ad.title}</div>
                             <div class="ad-description">${ad.subtitle}</div>
                             <button class="ad-action-btn">${buttonLabel}</button>
-                            <button class="remove-ads-btn">Remove Ads</button>
+                            
                         </div>
+                        <button class="remove-ads-btn">Remove Ads</button>
                     </div>
                 `;
             }
