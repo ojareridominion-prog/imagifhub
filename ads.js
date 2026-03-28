@@ -30,8 +30,8 @@ export const nativeAds = [
     {
         id: "bitoshi africa",
         image: "ads/bitoshi.png",
-        title: "Sponsored",
-        subtitle: "swap, buy, sell, send and receive crypto with bitoshi africa",
+        title: "Bitoshi africa",
+        subtitle: "swap, buy, sell, send and receive crypto easily with bitoshi africa",
         buttonLabel: "Trade Crypto",
         action: () => {
             window.open("https://bitoshi.africa/ref?username=ojareri", "_blank")
