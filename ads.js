@@ -20,7 +20,7 @@ export const nativeAds = [
     {
         id: "Stake.com",
         image: "ads/stake.png",
-        title: "Sponsored",
+        title: "Stake.com",
         subtitle: "The Global Giant of Crypto Gambling",
         buttonLabel: "Play Now",
         action: () => {
