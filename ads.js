@@ -43,8 +43,8 @@ export const nativeAds = [
     {
         id: "telegramchannel",
         image: "ads/channel.png",
-        title: "Sponsored",
-        subtitle: "join our telegram channel",
+        title: "Our channel",
+        subtitle: "join our telegram channel and get the latest updates",
         buttonLabel: "Join",
         action: () => {
             window.open("https://t.me/imagifhub", "_blank")
