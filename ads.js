@@ -10,7 +10,7 @@ export const nativeAds = [
     {
         id: "Temu",
         image: "ads/temu.png",
-        title: "Sponsored",
+        title: "Temu",
         subtitle: "legitimate online marketplace",
         buttonLabel: "Shop Now",
         action: () => {
