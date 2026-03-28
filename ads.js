@@ -40,7 +40,7 @@ export const nativeAds = [
     {
         id: "gemgala",
         image: "ads/gemgala.png",
-        title: "Sponsored",
+        title: "gemgala",
         subtitle: "play games, chat and earn",
         buttonLabel: "Play Games",
         action: () => {
