@@ -9,6 +9,10 @@ from aiogram.fsm.state import State, StatesGroup
 from config import bot, dp, supabase, ADMIN_ID, IMGBB_API_KEY, BOT_TOKEN, CATEGORIES
 from aiogram.types import LabeledPrice
 
+# Warn if ImgBB API key is missing (for debugging)
+if not IMGBB_API_KEY:
+    logging.warning("⚠️ IMGBB_API_KEY is not set in environment. Admin uploads will fail with 'forbidden' errors.")
+
 # Define states
 class AdminUpload(StatesGroup):
     waiting_media = State()
@@ -265,6 +269,16 @@ async def up_step2(message: Message, state: FSMContext):
         image_data = downloaded.getvalue() if hasattr(downloaded, 'getvalue') else downloaded.read()
         base64_image = base64.b64encode(image_data).decode('utf-8')
 
+        # Validate API key is set
+        if not IMGBB_API_KEY:
+            await message.answer(
+                "❌ **ImgBB API key is missing.**\n"
+                "The bot administrator needs to set the `IMGBB_API_KEY` environment variable.\n"
+                "Contact support to resolve this."
+            )
+            logging.error("Upload aborted: IMGBB_API_KEY is empty")
+            return
+
         # Upload to ImgBB using base64
         payload = {
             'key': IMGBB_API_KEY,
@@ -289,10 +303,27 @@ async def up_step2(message: Message, state: FSMContext):
             else:
                 error_msg = data.get('error', {}).get('message', 'Unknown error')
                 logging.error(f"ImgBB API error: {error_msg}")
-                await message.answer(f"❌ ImgBB upload failed: {error_msg}")
+                await message.answer(f"❌ ImgBB upload failed: {error_msg}\n\nPlease check your API key.")
         else:
-            logging.error(f"ImgBB HTTP {resp.status_code}: {resp.text[:500]}")
-            await message.answer("❌ Error uploading to ImgBB (HTTP error). Check logs.")
+            # Detailed error reporting
+            try:
+                error_json = resp.json()
+                error_msg = error_json.get('error', {}).get('message', 'Unknown error')
+                error_code = error_json.get('error', {}).get('code', 'N/A')
+                status_txt = error_json.get('status_txt', '')
+                full_response = f"HTTP {resp.status_code} - {error_msg} (code {error_code})"
+                logging.error(f"ImgBB HTTP {resp.status_code}: {resp.text[:500]}")
+            except:
+                error_msg = f"HTTP {resp.status_code}"
+                full_response = resp.text[:500]
+            await message.answer(
+                f"❌ **Error uploading to ImgBB:**\n{full_response}\n\n"
+                f"Possible reasons:\n"
+                f"- Invalid API key\n"
+                f"- API key disabled or expired\n"
+                f"- ImgBB service issues\n\n"
+                f"Check logs for more details."
+            )
     except Exception as e:
         logging.error(f"Unexpected error during upload: {e}", exc_info=True)
         await message.answer("❌ An unexpected error occurred. Please try again.")
