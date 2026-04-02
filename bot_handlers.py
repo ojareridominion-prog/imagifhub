@@ -1,3 +1,4 @@
+import base64
 import logging
 import requests
 from datetime import datetime, timedelta
@@ -250,26 +251,51 @@ async def up_step1(call: CallbackQuery, state: FSMContext):
 
 @dp.message(AdminUpload.waiting_media, F.photo)
 async def up_step2(message: Message, state: FSMContext):
-    file_id = message.photo[-1].file_id
-    file = await bot.get_file(file_id)
-    media_url = f"https://api.telegram.org/file/bot{BOT_TOKEN}/{file.file_path}"
+    try:
+        # Get the largest photo (last in array)
+        photo = message.photo[-1]
+        file_id = photo.file_id
 
-    resp = requests.post(
-        "https://api.imgbb.com/1/upload",
-        params={'key': IMGBB_API_KEY, 'image': media_url}
-    )
+        # Download the file from Telegram
+        file = await bot.get_file(file_id)
+        file_path = file.file_path
+        downloaded = await bot.download_file(file_path)
 
-    if resp.status_code == 200:
-        final_url = resp.json()['data']['url']
-        await state.update_data(url=final_url)
-        btns = []
-        for i in range(0, len(CATEGORIES), 2):
-            row = [InlineKeyboardButton(text=c, callback_data=f"set_{c}") for c in CATEGORIES[i:i+2]]
-            btns.append(row)
-        await message.answer("Select the Category:", reply_markup=InlineKeyboardMarkup(inline_keyboard=btns))
-        await state.set_state(AdminUpload.waiting_category)
-    else:
-        await message.answer("❌ Error uploading to ImgBB.")
+        # Read the bytes and encode to base64
+        image_data = downloaded.getvalue() if hasattr(downloaded, 'getvalue') else downloaded.read()
+        base64_image = base64.b64encode(image_data).decode('utf-8')
+
+        # Upload to ImgBB using base64
+        payload = {
+            'key': IMGBB_API_KEY,
+            'image': base64_image,
+        }
+        resp = requests.post('https://api.imgbb.com/1/upload', data=payload, timeout=30)
+
+        if resp.status_code == 200:
+            data = resp.json()
+            if data.get('success'):
+                final_url = data['data']['url']
+                await state.update_data(url=final_url)
+
+                # Build category buttons
+                btns = []
+                for i in range(0, len(CATEGORIES), 2):
+                    row = [InlineKeyboardButton(text=c, callback_data=f"set_{c}") for c in CATEGORIES[i:i+2]]
+                    btns.append(row)
+                await message.answer("Select the Category:", reply_markup=InlineKeyboardMarkup(inline_keyboard=btns))
+                await state.set_state(AdminUpload.waiting_category)
+                return
+            else:
+                error_msg = data.get('error', {}).get('message', 'Unknown error')
+                logging.error(f"ImgBB API error: {error_msg}")
+                await message.answer(f"❌ ImgBB upload failed: {error_msg}")
+        else:
+            logging.error(f"ImgBB HTTP {resp.status_code}: {resp.text[:500]}")
+            await message.answer("❌ Error uploading to ImgBB (HTTP error). Check logs.")
+    except Exception as e:
+        logging.error(f"Unexpected error during upload: {e}", exc_info=True)
+        await message.answer("❌ An unexpected error occurred. Please try again.")
 
 @dp.callback_query(F.data.startswith("set_"))
 async def up_step3(call: CallbackQuery, state: FSMContext):
