@@ -1,71 +1,92 @@
-// adsgram.js - AdsGram integration for in‑feed ads
+// adsgram.js - AdsGram integration using direct advbot API
 
-// Your AdsGram block ID (provided in the task)
 const ADSGRAM_BLOCK_ID = "26851";
-
-// Timeout in ms for fetching an ad
 const FETCH_TIMEOUT = 5000;
 
 /**
- * Fetch a single ad from AdsGram.
- * @returns {Promise<Object|null>} Ad object with image, title, subtitle, buttonLabel, action (URL)
+ * Strips HTML tags from a string
+ * @param {string} html
+ * @returns {string}
+ */
+function stripHtml(html) {
+    if (!html) return "";
+    return html.replace(/<[^>]*>/g, "");
+}
+
+/**
+ * Fetch a single ad from AdsGram advbot API
+ * @returns {Promise<Object|null>} Ad object with image, title, subtitle, buttonLabel, action
  */
 export async function fetchAdsgramAd() {
-    // Check if SDK is loaded
-    if (typeof window === "undefined" || !window.Adsgram) {
-        console.warn("[AdsGram] SDK not loaded");
-        return null;
+    // Get Telegram user ID
+    let userId = "0";
+    try {
+        if (window.Telegram?.WebApp?.initDataUnsafe?.user?.id) {
+            userId = window.Telegram.WebApp.initDataUnsafe.user.id;
+        }
+    } catch (e) {
+        console.warn("[AdsGram] Could not get Telegram user ID:", e);
     }
 
-    // Create a promise that rejects after timeout
+    const url = `https://api.adsgram.ai/advbot?blockid=${ADSGRAM_BLOCK_ID}&tgid=${userId}`;
+
+    // Timeout promise
     const timeoutPromise = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error("AdsGram fetch timeout")), FETCH_TIMEOUT)
+        setTimeout(() => reject(new Error("AdsGram API timeout")), FETCH_TIMEOUT)
     );
 
-    // Try to get an ad using the AdsGram method.
-    // According to AdsGram documentation, you can use `showAd` for interstitials,
-    // but for native/in‑feed ads we assume a method like `getNativeAd` exists.
-    // If the actual method differs, replace it with the correct one.
-    const fetchPromise = new Promise((resolve) => {
-        try {
-            // Hypothetical method – replace with the real AdsGram native ad call if needed.
-            // For demonstration we use `getNativeAd`; adjust according to AdsGram docs.
-            if (typeof window.Adsgram.getNativeAd === "function") {
-                window.Adsgram.getNativeAd({ blockId: ADSGRAM_BLOCK_ID })
-                    .then((adData) => {
-                        if (adData && adData.image && adData.link) {
-                            resolve({
-                                image: adData.image,
-                                title: adData.title || "Sponsored",
-                                subtitle: adData.description || "",
-                                buttonLabel: adData.buttonText || "Learn More",
-                                action: adData.link,   // URL string
-                            });
-                        } else {
-                            console.warn("[AdsGram] Invalid ad data", adData);
-                            resolve(null);
-                        }
-                    })
-                    .catch((err) => {
-                        console.error("[AdsGram] getNativeAd error:", err);
-                        resolve(null);
-                    });
-            } else {
-                // Fallback: if the specific method is not available, try generic showAd? Not suitable.
-                console.warn("[AdsGram] getNativeAd not implemented in SDK");
-                resolve(null);
+    const fetchPromise = fetch(url)
+        .then(async (response) => {
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
             }
-        } catch (e) {
-            console.error("[AdsGram] Exception:", e);
-            resolve(null);
-        }
-    });
+            const data = await response.json();
+            
+            // Expected response structure: { ads: [...] } or maybe direct ad object
+            // Let's be flexible: if data.ads is array and has at least one item, use first.
+            let adData = null;
+            if (data.ads && Array.isArray(data.ads) && data.ads.length > 0) {
+                adData = data.ads[0];
+            } else if (data.image_url || data.image) {
+                // Direct ad object
+                adData = data;
+            } else {
+                console.warn("[AdsGram] Unexpected API response format", data);
+                return null;
+            }
+
+            // Extract fields
+            const image = adData.image_url || adData.image || "";
+            const title = adData.title || "Sponsored";
+            // Strip HTML from text_html or description
+            const rawDescription = adData.text_html || adData.description || "";
+            const subtitle = stripHtml(rawDescription);
+            const buttonLabel = adData.button_text || adData.cta_text || "Learn More";
+            const action = adData.link || adData.url || "";
+
+            if (!image || !action) {
+                console.warn("[AdsGram] Missing required fields", { image, action });
+                return null;
+            }
+
+            return {
+                image: image,
+                title: title,
+                subtitle: subtitle,
+                buttonLabel: buttonLabel,
+                action: action,
+            };
+        })
+        .catch((err) => {
+            console.error("[AdsGram] Fetch error:", err);
+            return null;
+        });
 
     try {
         const ad = await Promise.race([fetchPromise, timeoutPromise]);
         return ad || null;
     } catch (err) {
-        console.error("[AdsGram] Fetch failed:", err);
+        console.error("[AdsGram] Request failed:", err);
         return null;
     }
-    }
+}
