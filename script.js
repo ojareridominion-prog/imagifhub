@@ -381,18 +381,19 @@ async function loadFeed(cat, search = "") {
                 const ad = slide.item;
                 const buttonLabel = ad.buttonLabel || 'Open';
                 const isAdsGram = ad.type === 'adsgram';
-                return `
-                    <div class="swiper-slide" data-type="ad" data-ad-id="${ad.id || ''}" data-ad-type="${ad.type}">
-                        <img src="${ad.image}" alt="Ad" style="width:100%; height:100%; object-fit:cover;">
-                        <div class="ad-overlay">
-                            <div class="ad-sponsored">${isAdsGram ? 'Advertisement' : 'Sponsored'}</div>
-                            <div class="ad-title">${ad.title}</div>
-                            <div class="ad-description">${ad.subtitle}</div>
-                            <button class="ad-action-btn">${buttonLabel}</button>
-                        </div>
-                        <button class="remove-ads-btn">Remove Ads</button>
-                    </div>
-                `;
+                const actionUrl = ad.action && typeof ad.action === 'string' ? ad.action : '';
+return `
+    <div class="swiper-slide" data-type="ad" data-ad-id="${ad.id || ''}" data-ad-type="${ad.type}" ${actionUrl ? `data-action-url="${actionUrl}"` : ''}>
+        <img src="${ad.image}" alt="Ad" style="width:100%; height:100%; object-fit:cover;">
+        <div class="ad-overlay">
+            <div class="ad-sponsored">${isAdsGram ? 'Advertisement' : 'Sponsored'}</div>
+            <div class="ad-title">${ad.title}</div>
+            <div class="ad-description">${ad.subtitle}</div>
+            <button class="ad-action-btn" ${actionUrl ? `data-action-url="${actionUrl}"` : ''}>${buttonLabel}</button>
+        </div>
+        <button class="remove-ads-btn">Remove Ads</button>
+    </div>
+`;
             }
         }).join('');
 
