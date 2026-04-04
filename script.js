@@ -853,44 +853,6 @@ function initTelegramWebApp() {
     }
 }
 
-function setupAdButtonListeners() {
-    document.getElementById('feed').addEventListener('click', (e) => {
-        const target = e.target;
-        const slide = target.closest('.swiper-slide');
-        if (!slide) return;
-
-        // Open action button (for both native and AdsGram ads)
-        if (target.classList.contains('ad-action-btn')) {
-            const adType = slide.dataset.adType;
-            let ad;
-            if (adType === 'adsgram') {
-                // For AdsGram ads, we need to retrieve the ad object from cache or data attribute
-                // Simplified: we store the action URL in the button's dataset
-                const actionUrl = target.dataset.actionUrl;
-                if (actionUrl) {
-                    window.open(actionUrl, '_blank');
-                }
-            } else {
-                // Native ad: find by id from nativeAds array
-                const adId = slide.dataset.adId;
-                const nativeAd = nativeAds.find(a => a.id == adId);
-                if (nativeAd && nativeAd.action) {
-                    if (typeof nativeAd.action === 'function') {
-                        nativeAd.action();
-                    } else if (typeof nativeAd.action === 'string') {
-                        window.open(nativeAd.action, '_blank');
-                    }
-                }
-            }
-            e.stopPropagation();
-        }
-        // Remove Ads button
-        else if (target.classList.contains('remove-ads-btn')) {
-            openPremium();
-            e.stopPropagation();
-        }
-    });
-}
 
 // Store action URLs for AdsGram ads in button dataset when rendering
 // (Modified in buildSlidesWithAds rendering part)
