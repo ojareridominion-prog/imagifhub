@@ -16,13 +16,6 @@ let isPremiumUser = false;
 let currentAdIndex = 0;
 const AD_FREQUENCY = 3;                 // Show ad group after every 3 images
 
-// AdsGram configuration
-const ADSGRAM_ENABLED = true;
-const NATIVE_PER_SLOT = 1;
-const ADSGRAM_PER_SLOT = 2;
-let adsgramAdCache = [];                // Cache of AdsGram ad objects
-let isFetchingAdsgram = false;
-let adsgramFetchQueue = [];
 
 // --- Dark Text State ---
 let darkTextEnabled = localStorage.getItem('imagifhub-darktext') === 'true';
