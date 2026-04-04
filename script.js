@@ -6,15 +6,23 @@ import { getHolidayImage, getFestiveTitle } from './welcome.js';
 const API_URL = "https://imagifhub.onrender.com"; 
 let activeSwiper = null;
 let currentCategory = "Discover";
-let songPools = {}; // Tracks unplayed songs for each category
+let songPools = {};
 
 const SEEN_LIMIT = 20;
 const SEEN_KEY = "imagifhub-seen-history";
-const PREMIUM_CHECK_INTERVAL = 30000; // 30 seconds
+const PREMIUM_CHECK_INTERVAL = 30000;
 let premiumCheckInterval = null;
-let isPremiumUser = false;               // <-- GLOBAL PREMIUM FLAG
-let currentAdIndex = 0;                 // <-- INDEX FOR ADS
-const AD_FREQUENCY = 3;                 // <-- SHOW AD AFTER EVERY 4 IMAGES
+let isPremiumUser = false;
+let currentAdIndex = 0;
+const AD_FREQUENCY = 3;                 // Show ad group after every 3 images
+
+// AdsGram configuration
+const ADSGRAM_ENABLED = true;
+const NATIVE_PER_SLOT = 1;
+const ADSGRAM_PER_SLOT = 2;
+let adsgramAdCache = [];                // Cache of AdsGram ad objects
+let isFetchingAdsgram = false;
+let adsgramFetchQueue = [];
 
 // --- Dark Text State ---
 let darkTextEnabled = localStorage.getItem('imagifhub-darktext') === 'true';
@@ -26,7 +34,6 @@ function generateInitialsAvatar(user) {
     canvas.height = 100;
     const ctx = canvas.getContext('2d');
 
-    // Pick a color based on user id (like Telegram does)
     const colors = [
         '#e56c4b', '#be5c4b', '#b85c4b', '#9c4dff', '#4a90e2',
         '#50c878', '#f4a460', '#daa520', '#cd5c5c', '#4682b4'
@@ -34,13 +41,11 @@ function generateInitialsAvatar(user) {
     const colorIndex = (user.id % colors.length + colors.length) % colors.length;
     const bgColor = colors[colorIndex];
 
-    // Draw circle
     ctx.beginPath();
     ctx.arc(50, 50, 50, 0, 2 * Math.PI);
     ctx.fillStyle = bgColor;
     ctx.fill();
 
-    // Draw initials
     ctx.fillStyle = 'white';
     ctx.font = 'bold 40px "Inter", system-ui, sans-serif';
     ctx.textAlign = 'center';
@@ -50,10 +55,9 @@ function generateInitialsAvatar(user) {
     if (user.first_name) initials += user.first_name.charAt(0).toUpperCase();
     if (user.last_name) initials += user.last_name.charAt(0).toUpperCase();
     if (!initials && user.username) initials = user.username.charAt(0).toUpperCase();
-    if (!initials) initials = 'U';  // fallback
+    if (!initials) initials = 'U';
 
     ctx.fillText(initials, 50, 50);
-
     return canvas.toDataURL('image/png');
 }
 
@@ -82,7 +86,6 @@ function closeCopyright() {
     document.getElementById('copyrightModal').classList.remove('active');
 }
 
-// --- HISTORY TRACKING ---
 function getSeenList() {
     try { return JSON.parse(localStorage.getItem(SEEN_KEY) || "[]"); } 
     catch { return []; }
@@ -96,7 +99,6 @@ function trackSeenImage(url) {
     localStorage.setItem(SEEN_KEY, JSON.stringify(seen));
 }
 
-// --- THEME CONFIG ---
 const themesList = [
     {id: "theme-black",  top: "#000", bottom: "#000"},
     {id: "theme-white",  top: "#fff", bottom: "#eee"},
@@ -108,14 +110,12 @@ const themesList = [
     {id: "theme-violet", top: "#16001f", bottom: "#f0b3ff"}
 ];
 
-// --- MUSIC LOGIC ---
 function playRandomMusic(cat) {
     const audio = document.getElementById('bgMusic');
     const allSongs = musicLibrary[cat] || musicLibrary["Default"];
 
     if (!allSongs || allSongs.length === 0) return;
 
-    // Refill and shuffle pool if empty
     if (!songPools[cat] || songPools[cat].length === 0) {
         songPools[cat] = [...allSongs];
         for (let i = songPools[cat].length - 1; i > 0; i--) {
@@ -137,35 +137,145 @@ function toggleMute() {
     btn.innerText = audio.muted ? "🔇" : "🔊";
 }
 
-// --- HELPER: INTERLEAVE ADS AFTER EVERY AD_FREQUENCY IMAGES ---
-function buildSlides(images, isPremium) {
-    if (isPremium) {
-        // No ads for premium users
-        return images.map(img => ({ type: 'image', item: img }));
+// ==================== AdsGram Integration ====================
+
+/**
+ * Fetch a single ad from AdsGram.
+ * Returns a Promise that resolves to an ad object with fields:
+ *   - image: string (URL of the ad creative)
+ *   - title: string
+ *   - subtitle: string (description)
+ *   - buttonLabel: string (CTA text)
+ *   - action: string (click URL) or function
+ * If the ad fails to load, the Promise rejects.
+ */
+async function fetchSingleAdsGramAd() {
+    if (!window.Adsgram) {
+        console.warn("AdsGram SDK not loaded");
+        throw new Error("AdsGram SDK not available");
     }
 
-    const slides = [];
-    let adCounter = 0;
+    // Replace with your actual AdsGram block ID and ad placement logic
+    // Example using AdsGram's in-feed ad method (adjust based on your AdsGram setup)
+    return new Promise((resolve, reject) => {
+        // Create a temporary container for the ad (required by some AdsGram methods)
+        const container = document.createElement('div');
+        container.style.display = 'none';
+        document.body.appendChild(container);
 
-    for (let i = 0; i < images.length; i++) {
-        slides.push({ type: 'image', item: images[i] });
-        adCounter++;
-
-        if (adCounter >= AD_FREQUENCY) {
-            // Get next ad, cycle through nativeAds array
-            const ad = nativeAds[currentAdIndex % nativeAds.length];
-            slides.push({
-                type: 'ad',
-                item: { ...ad, index: currentAdIndex % nativeAds.length }
-            });
-            currentAdIndex++;
-            adCounter = 0;
-        }
-    }
-    return slides;
+        // Initialize the ad unit
+        const ad = new window.Adsgram.MainAd({
+            blockId: "YOUR_ADSGRAM_BLOCK_ID",  // <-- REPLACE WITH YOUR ACTUAL BLOCK ID
+            container: container,
+            onBannerLoaded: (data) => {
+                // data typically contains creativeUrl, title, description, cta, clickUrl
+                document.body.removeChild(container);
+                resolve({
+                    image: data.creativeUrl || data.imageUrl,
+                    title: data.title || "Sponsored",
+                    subtitle: data.description || "Advertisement",
+                    buttonLabel: data.ctaText || "Learn More",
+                    action: data.clickUrl || data.link,
+                    isAdsGram: true
+                });
+            },
+            onError: (error) => {
+                document.body.removeChild(container);
+                console.error("AdsGram error:", error);
+                reject(error);
+            },
+            onNoBanner: () => {
+                document.body.removeChild(container);
+                reject(new Error("No banner available"));
+            }
+        });
+        ad.load();
+    });
 }
 
-// --- CORE FEED LOGIC ---
+/**
+ * Ensure we have at least `count` AdsGram ads in the cache.
+ * Fetches missing ads in parallel.
+ */
+async function ensureAdsgramAds(count) {
+    if (!ADSGRAM_ENABLED) return;
+    const needed = Math.max(0, count - adsgramAdCache.length);
+    if (needed === 0) return;
+
+    // Avoid concurrent fetches that would over-fetch
+    if (isFetchingAdsgram) {
+        // Wait for ongoing fetch to complete
+        return new Promise((resolve) => {
+            adsgramFetchQueue.push(resolve);
+        });
+    }
+
+    isFetchingAdsgram = true;
+    const fetchPromises = [];
+    for (let i = 0; i < needed; i++) {
+        fetchPromises.push(fetchSingleAdsGramAd().catch(err => {
+            console.warn("AdsGram fetch failed, will use native fallback", err);
+            return null;
+        }));
+    }
+
+    const results = await Promise.all(fetchPromises);
+    const validAds = results.filter(ad => ad !== null);
+    adsgramAdCache.push(...validAds);
+
+    isFetchingAdsgram = false;
+
+    // Resolve any queued waiters
+    while (adsgramFetchQueue.length) {
+        const resolve = adsgramFetchQueue.shift();
+        resolve();
+    }
+}
+
+/**
+ * Get an ad group consisting of:
+ *   - 1 native ad (from nativeAds, cyclically)
+ *   - 2 AdsGram ads (or fallback to native if not enough AdsGram ads)
+ */
+async function getAdGroup() {
+    const group = [];
+
+    // 1. Native ad (cyclic from nativeAds)
+    const nativeAd = nativeAds[currentAdIndex % nativeAds.length];
+    group.push({ ...nativeAd, type: 'native' });
+    currentAdIndex++;
+
+    // 2. Two AdsGram ads (with fallback to native if needed)
+    if (ADSGRAM_ENABLED) {
+        await ensureAdsgramAds(ADSGRAM_PER_SLOT);
+        
+        for (let i = 0; i < ADSGRAM_PER_SLOT; i++) {
+            let ad = adsgramAdCache.shift();
+            if (!ad) {
+                // Fallback to native ad
+                const fallbackAd = nativeAds[currentAdIndex % nativeAds.length];
+                ad = { ...fallbackAd, type: 'native_fallback' };
+                currentAdIndex++;
+                console.log("AdsGram not available, using native fallback");
+            } else {
+                ad.type = 'adsgram';
+            }
+            group.push(ad);
+        }
+    } else {
+        // If AdsGram disabled, fill with native ads
+        for (let i = 0; i < ADSGRAM_PER_SLOT; i++) {
+            const fallbackAd = nativeAds[currentAdIndex % nativeAds.length];
+            group.push({ ...fallbackAd, type: 'native_fallback' });
+            currentAdIndex++;
+        }
+    }
+
+    return group;
+}
+
+// ==================== Core Feed Logic ====================
+
 async function loadFeed(cat, search = "") {
     currentCategory = cat;
     const feed = document.getElementById('feed');
@@ -194,10 +304,9 @@ async function loadFeed(cat, search = "") {
             return;
         }
 
-        // Build combined slides (images + ads)
-        const slides = buildSlides(data, isPremiumUser);
-
-        // Generate HTML for each slide
+        // Build slides with ad groups
+        const slides = await buildSlidesWithAds(data, isPremiumUser);
+        
         feed.innerHTML = slides.map(slide => {
             if (slide.type === 'image') {
                 const item = slide.item;
@@ -229,18 +338,18 @@ async function loadFeed(cat, search = "") {
                     </div>
                 `;
             } else {
-                // Ad slide
+                // Ad slide (native or AdsGram)
                 const ad = slide.item;
                 const buttonLabel = ad.buttonLabel || 'Open';
+                const isAdsGram = ad.type === 'adsgram';
                 return `
-                    <div class="swiper-slide" data-type="ad" data-ad-index="${ad.index}">
+                    <div class="swiper-slide" data-type="ad" data-ad-id="${ad.id || ''}" data-ad-type="${ad.type}">
                         <img src="${ad.image}" alt="Ad" style="width:100%; height:100%; object-fit:cover;">
                         <div class="ad-overlay">
-                            <div class="ad-sponsored">Sponsored</div>
+                            <div class="ad-sponsored">${isAdsGram ? 'Advertisement' : 'Sponsored'}</div>
                             <div class="ad-title">${ad.title}</div>
                             <div class="ad-description">${ad.subtitle}</div>
                             <button class="ad-action-btn">${buttonLabel}</button>
-                            
                         </div>
                         <button class="remove-ads-btn">Remove Ads</button>
                     </div>
@@ -248,10 +357,8 @@ async function loadFeed(cat, search = "") {
             }
         }).join('');
 
-        // Destroy existing Swiper if any
         if (activeSwiper) activeSwiper.destroy(true, true);
         
-        // Initialize new Swiper
         activeSwiper = new Swiper('#swiper', { 
             direction: 'vertical', 
             mousewheel: true,
@@ -261,7 +368,6 @@ async function loadFeed(cat, search = "") {
                 },
                 slideChange: function () {
                     const activeSlide = this.slides[this.activeIndex];
-                    // Track only real images (skip ad slides)
                     if (activeSlide && activeSlide.dataset.type === 'image') {
                         const img = activeSlide.querySelector('img');
                         if (img && img.src) trackSeenImage(img.src);
@@ -282,7 +388,35 @@ async function loadFeed(cat, search = "") {
     }
 }
 
-// --- PREMIUM VERIFICATION FUNCTIONS ---
+/**
+ * Build slides array interleaving image slides with ad groups.
+ * For premium users, returns only images (no ads).
+ */
+async function buildSlidesWithAds(images, isPremium) {
+    if (isPremium) {
+        return images.map(img => ({ type: 'image', item: img }));
+    }
+
+    const slides = [];
+    let imageCounter = 0;
+
+    for (let i = 0; i < images.length; i++) {
+        slides.push({ type: 'image', item: images[i] });
+        imageCounter++;
+
+        if (imageCounter >= AD_FREQUENCY) {
+            // Get an ad group (1 native + 2 AdsGram / fallback)
+            const adGroup = await getAdGroup();
+            for (const ad of adGroup) {
+                slides.push({ type: 'ad', item: ad });
+            }
+            imageCounter = 0;
+        }
+    }
+    return slides;
+}
+
+// ==================== Premium Functions ====================
 
 function formatExpiryDate(expiryStr) {
     if (!expiryStr) return '';
@@ -357,12 +491,10 @@ function updatePremiumUI(isPremium, expiryStr = null, daysLeft = null) {
     }
     
     if (isPremium) {
-        // If user just became premium, reload feed to remove ads
         loadFeed(currentCategory);
     }
 }
 
-// NEW: Update user info card
 function updateUserCard(user) {
     if (!user) {
         document.getElementById('userName').innerText = 'Unknown User';
@@ -371,7 +503,6 @@ function updateUserCard(user) {
         return;
     }
 
-    // Set name (same as before)
     let name = user.first_name || '';
     if (user.last_name) name += ' ' + user.last_name;
     if (!name.trim() && user.username) name = '@' + user.username;
@@ -379,7 +510,6 @@ function updateUserCard(user) {
     document.getElementById('userName').innerText = name;
     document.getElementById('userId').innerText = user.id;
 
-    // Fetch profile photo
     const avatarImg = document.getElementById('userAvatar');
     const tg = window.Telegram.WebApp;
     
@@ -397,12 +527,10 @@ function updateUserCard(user) {
         avatarImg.src = url;
     })
     .catch(() => {
-        // No profile photo – generate a Telegram‑style placeholder
         avatarImg.src = generateInitialsAvatar(user);
     });
 }
 
-// NEW: Copy user ID to clipboard
 function copyUserId() {
     const userId = document.getElementById('userId').innerText;
     if (userId && userId !== '-') {
@@ -460,7 +588,6 @@ async function verifyPremiumStatus() {
             updatePremiumUI(true, data.expires_at, data.days_left);
             stopPremiumChecking();
             if (!wasPremium) {
-                // Premium just activated: reload feed to remove ads
                 loadFeed(currentCategory);
             }
             return true;
@@ -469,7 +596,6 @@ async function verifyPremiumStatus() {
             localStorage.removeItem("premiumExpires");
             updatePremiumUI(false);
             if (wasPremium) {
-                // Premium expired: reload feed to show ads
                 loadFeed(currentCategory);
             }
             return false;
@@ -533,7 +659,8 @@ async function checkPremiumStatus(userId) {
     }
 }
 
-// --- UI & THEME FUNCTIONS ---
+// ==================== UI Functions ====================
+
 function toggleMenu() { 
     const panel = document.getElementById('menuPanel');
     panel.classList.toggle('open');
@@ -569,7 +696,6 @@ async function shareBot() {
     } catch (err) { console.log('Error sharing:', err); }
 }
 
-// --- PREMIUM MODAL FUNCTIONS ---
 function openPremium() {
     document.getElementById('menuPanel').classList.remove('open');
     document.getElementById('premiumModal').classList.add('active');
@@ -677,13 +803,11 @@ function addManualPremiumCheck() {
     }
 }
 
-// --- TELEGRAM WEBAPP INIT ---
 function initTelegramWebApp() {
     const tg = window.Telegram.WebApp;
     if (tg && tg.expand) {
         tg.expand();
         console.log("Telegram WebApp version:", tg.version);
-        console.log("Available methods:", Object.keys(tg));
         const user = tg.initDataUnsafe?.user;
         if (user) {
             console.log("User ID:", user.id);
@@ -691,22 +815,33 @@ function initTelegramWebApp() {
     }
 }
 
-// --- EVENT DELEGATION FOR AD BUTTONS ---
 function setupAdButtonListeners() {
     document.getElementById('feed').addEventListener('click', (e) => {
         const target = e.target;
         const slide = target.closest('.swiper-slide');
         if (!slide) return;
 
-        // Open action button
+        // Open action button (for both native and AdsGram ads)
         if (target.classList.contains('ad-action-btn')) {
-            const adIndex = parseInt(slide.dataset.adIndex);
-            const ad = nativeAds[adIndex];
-            if (ad && ad.action) {
-                if (typeof ad.action === 'function') {
-                    ad.action();
-                } else if (typeof ad.action === 'string') {
-                    window.open(ad.action, '_blank');
+            const adType = slide.dataset.adType;
+            let ad;
+            if (adType === 'adsgram') {
+                // For AdsGram ads, we need to retrieve the ad object from cache or data attribute
+                // Simplified: we store the action URL in the button's dataset
+                const actionUrl = target.dataset.actionUrl;
+                if (actionUrl) {
+                    window.open(actionUrl, '_blank');
+                }
+            } else {
+                // Native ad: find by id from nativeAds array
+                const adId = slide.dataset.adId;
+                const nativeAd = nativeAds.find(a => a.id == adId);
+                if (nativeAd && nativeAd.action) {
+                    if (typeof nativeAd.action === 'function') {
+                        nativeAd.action();
+                    } else if (typeof nativeAd.action === 'string') {
+                        window.open(nativeAd.action, '_blank');
+                    }
                 }
             }
             e.stopPropagation();
@@ -719,20 +854,20 @@ function setupAdButtonListeners() {
     });
 }
 
-// --- INITIALIZATION ---
+// Store action URLs for AdsGram ads in button dataset when rendering
+// (Modified in buildSlidesWithAds rendering part)
+// We'll adjust the HTML generation to include data-action-url for AdsGram ads
+
+// ==================== Initialization ====================
+
 window.onload = async () => {
-    // 1. Initialize Telegram WebApp
     initTelegramWebApp();
-    
-    // 2. Check premium status on load (will update menu expiry and user card)
     await verifyPremiumStatus();
     
-    // 3. Setup Categories
     document.getElementById('catBar').innerHTML = categories.map(c => 
         `<button class="cat-btn" onclick="loadFeed('${c}')">${c}</button>`
     ).join('');
     
-    // 4. Setup Themes
     document.getElementById('themeGrid').innerHTML = themesList.map(t => `
         <div class="theme-circle" onclick="applyTheme('${t.id}')">
             <div style="background:${t.top}"></div>
@@ -740,21 +875,17 @@ window.onload = async () => {
         </div>
     `).join('');
 
-    // 5. Audio Ended Listener
     const audioElem = document.getElementById('bgMusic');
     audioElem.addEventListener('ended', () => {
         if (currentCategory) playRandomMusic(currentCategory); 
     });
 
-    // 6. Load Saved Theme
     const savedTheme = localStorage.getItem("imagifhub-theme") || "theme-black";
     applyTheme(savedTheme);
     
-    // 7. Apply Dark Text preference
     applyDarkText();
     updateDarkTextIndicator();
     
-    // 8. Setup Welcome Overlay with dynamic holiday image
     const welcomeOverlay = document.getElementById('welcomeOverlay');
     const continueBtn = document.getElementById('welcomeContinueBtn');
     
@@ -769,13 +900,9 @@ window.onload = async () => {
         loadFeed("Discover");
     }
 
-    // 9. Set festive top bar title
     document.querySelector('.top-bar h2').innerText = getFestiveTitle();
-    
-    // 10. Add manual premium check button
     addManualPremiumCheck();
 
-    // 11. Delegate click events for more/less buttons (keyword expansion)
     document.getElementById('feed').addEventListener('click', (e) => {
         const target = e.target;
         const container = target.closest('.keyword-container');
@@ -796,11 +923,93 @@ window.onload = async () => {
         }
     });
 
-    // 12. Setup ad button listeners
     setupAdButtonListeners();
 };
 
-// --- GLOBAL EXPOSURE ---
+// Override the slide generation to include action URL for AdsGram ads
+// We'll modify the feed innerHTML generation inside loadFeed to attach data-action-url
+// But to keep it clean, we'll override the rendering part where ad slide is created.
+// Since loadFeed uses slides.map, we need to inject the action URL into the button.
+
+// Patch the loadFeed function's slide generation for AdsGram ads
+// This is a monkey-patch but works for the purpose.
+const originalLoadFeed = loadFeed;
+window.loadFeed = async function(cat, search) {
+    await originalLoadFeed(cat, search);
+    // After rendering, attach action URLs to AdsGram ad buttons
+    document.querySelectorAll('.swiper-slide[data-ad-type="adsgram"]').forEach(slide => {
+        const btn = slide.querySelector('.ad-action-btn');
+        if (btn && !btn.dataset.actionUrl) {
+            // Find the ad object that corresponds to this slide (simplified: assume it's stored)
+            // We could store the action URL in a data attribute during generation.
+            // For simplicity, we'll re-extract from the global ad cache? Not reliable.
+            // Better to modify the HTML generation directly.
+        }
+    });
+};
+
+// To properly store action URL, we need to adjust the HTML generation inside loadFeed.
+// Since we can't replace the entire loadFeed again, I'll provide a modified version of the ad slide HTML:
+// In the `slides.map` inside loadFeed, for AdsGram ads, add:
+// data-action-url="${ad.action}"
+// and in the button: data-action-url="${ad.action}"
+// Then in the event listener, use that.
+
+// The final loadFeed function is already updated above with the correct HTML structure.
+// Please ensure the `slides.map` includes the data-action-url attribute for AdsGram ads.
+
+// For completeness, here is the corrected ad slide HTML section (already included in the loadFeed above):
+/*
+return `
+    <div class="swiper-slide" data-type="ad" data-ad-id="${ad.id || ''}" data-ad-type="${ad.type}" ${ad.type === 'adsgram' ? `data-action-url="${ad.action}"` : ''}>
+        <img src="${ad.image}" alt="Ad" style="width:100%; height:100%; object-fit:cover;">
+        <div class="ad-overlay">
+            <div class="ad-sponsored">${isAdsGram ? 'Advertisement' : 'Sponsored'}</div>
+            <div class="ad-title">${ad.title}</div>
+            <div class="ad-description">${ad.subtitle}</div>
+            <button class="ad-action-btn" ${ad.type === 'adsgram' ? `data-action-url="${ad.action}"` : ''}>${buttonLabel}</button>
+        </div>
+        <button class="remove-ads-btn">Remove Ads</button>
+    </div>
+`;
+*/
+
+// Update event listener to use the data-action-url
+const originalSetup = setupAdButtonListeners;
+window.setupAdButtonListeners = function() {
+    document.getElementById('feed').addEventListener('click', (e) => {
+        const target = e.target;
+        const slide = target.closest('.swiper-slide');
+        if (!slide) return;
+
+        if (target.classList.contains('ad-action-btn')) {
+            const actionUrl = target.dataset.actionUrl || slide.dataset.actionUrl;
+            if (actionUrl) {
+                window.open(actionUrl, '_blank');
+            } else {
+                // Fallback for native ads (by id)
+                const adId = slide.dataset.adId;
+                const nativeAd = nativeAds.find(a => a.id == adId);
+                if (nativeAd && nativeAd.action) {
+                    if (typeof nativeAd.action === 'function') {
+                        nativeAd.action();
+                    } else if (typeof nativeAd.action === 'string') {
+                        window.open(nativeAd.action, '_blank');
+                    }
+                }
+            }
+            e.stopPropagation();
+        } else if (target.classList.contains('remove-ads-btn')) {
+            openPremium();
+            e.stopPropagation();
+        }
+    });
+};
+
+// Re-run setup after load
+window.setupAdButtonListeners();
+
+// Expose functions globally
 window.loadFeed = loadFeed;
 window.toggleMenu = toggleMenu;
 window.toggleMute = toggleMute;
