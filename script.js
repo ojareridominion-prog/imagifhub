@@ -697,6 +697,37 @@ async function checkPremiumStatus(userId) {
     }
 }
 
+function setupAdButtonListeners() {
+    document.getElementById('feed').addEventListener('click', (e) => {
+        const target = e.target;
+        const slide = target.closest('.swiper-slide');
+        if (!slide) return;
+
+        if (target.classList.contains('ad-action-btn')) {
+            // Try to get action URL from button or slide
+            const actionUrl = target.dataset.actionUrl || slide.dataset.actionUrl;
+            if (actionUrl) {
+                window.open(actionUrl, '_blank');
+            } else {
+                // Fallback for native ads that use a function
+                const adId = slide.dataset.adId;
+                const nativeAd = nativeAds.find(a => a.id == adId);
+                if (nativeAd && nativeAd.action) {
+                    if (typeof nativeAd.action === 'function') {
+                        nativeAd.action();
+                    } else if (typeof nativeAd.action === 'string') {
+                        window.open(nativeAd.action, '_blank');
+                    }
+                }
+            }
+            e.stopPropagation();
+        } else if (target.classList.contains('remove-ads-btn')) {
+            openPremium();
+            e.stopPropagation();
+        }
+    });
+}
+
 // ==================== UI Functions ====================
 
 function toggleMenu() { 
