@@ -158,7 +158,7 @@ async function fetchSingleAdsGramAd() {
 
         // Initialize the ad unit
         const ad = new window.Adsgram.MainAd({
-            blockId: "YOUR_ADSGRAM_BLOCK_ID",  // <-- REPLACE WITH YOUR ACTUAL BLOCK ID
+            blockId: "26828",  // <-- REPLACE WITH YOUR ACTUAL BLOCK ID
             container: container,
             onBannerLoaded: (data) => {
                 // data typically contains creativeUrl, title, description, cta, clickUrl
