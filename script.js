@@ -237,42 +237,81 @@ async function ensureAdsgramAds(count) {
  *   - 1 native ad (from nativeAds, cyclically)
  *   - 2 AdsGram ads (or fallback to native if not enough AdsGram ads)
  */
-async function getAdGroup() {
-    const group = [];
+// ==================== Ad Type Cycling ====================
+const AD_TYPE_CYCLE = ['native', 'adsgram', 'adsgram'];  // repeats: native, adsgram, adsgram
+let currentAdTypeIndex = 0;
 
-    // 1. Native ad (cyclic from nativeAds)
-    const nativeAd = nativeAds[currentAdIndex % nativeAds.length];
-    group.push({ ...nativeAd, type: 'native' });
-    currentAdIndex++;
+// Single ad cache for AdsGram (pre-fetch one at a time)
+let nextAdsgramAd = null;
+let fetchingAdsgram = false;
 
-    // 2. Two AdsGram ads (with fallback to native if needed)
-    if (ADSGRAM_ENABLED) {
-        await ensureAdsgramAds(ADSGRAM_PER_SLOT);
-        
-        for (let i = 0; i < ADSGRAM_PER_SLOT; i++) {
-            let ad = adsgramAdCache.shift();
-            if (!ad) {
-                // Fallback to native ad
-                const fallbackAd = nativeAds[currentAdIndex % nativeAds.length];
-                ad = { ...fallbackAd, type: 'native_fallback' };
-                currentAdIndex++;
-                console.log("AdsGram not available, using native fallback");
-            } else {
-                ad.type = 'adsgram';
-            }
-            group.push(ad);
-        }
+/**
+ * Fetch one AdsGram ad and store it in nextAdsgramAd.
+ * Returns a Promise that resolves when the ad is ready (or null if failed).
+ */
+async function prefetchAdsgramAd() {
+    if (fetchingAdsgram) return;
+    fetchingAdsgram = true;
+    try {
+        const ad = await fetchSingleAdsGramAd();
+        nextAdsgramAd = ad;
+    } catch (e) {
+        console.warn("AdsGram prefetch failed", e);
+        nextAdsgramAd = null;
+    } finally {
+        fetchingAdsgram = false;
+    }
+}
+
+/**
+ * Get the next ad based on the current type in the cycle.
+ * Returns a Promise that resolves to an ad object.
+ */
+async function getNextAd() {
+    const type = AD_TYPE_CYCLE[currentAdTypeIndex];
+    // Advance for next call
+    currentAdTypeIndex = (currentAdTypeIndex + 1) % AD_TYPE_CYCLE.length;
+
+    if (type === 'native') {
+        // Native ad from your array (cyclical)
+        const ad = nativeAds[currentAdIndex % nativeAds.length];
+        currentAdIndex++;
+        return { ...ad, type: 'native' };
     } else {
-        // If AdsGram disabled, fill with native ads
-        for (let i = 0; i < ADSGRAM_PER_SLOT; i++) {
-            const fallbackAd = nativeAds[currentAdIndex % nativeAds.length];
-            group.push({ ...fallbackAd, type: 'native_fallback' });
+        // AdsGram ad (with fallback to native if unavailable)
+        if (!ADSGRAM_ENABLED) {
+            // Fallback to native
+            const fallback = nativeAds[currentAdIndex % nativeAds.length];
             currentAdIndex++;
+            return { ...fallback, type: 'native_fallback' };
+        }
+
+        // Use cached AdsGram ad if available
+        let ad = nextAdsgramAd;
+        if (ad) {
+            nextAdsgramAd = null;
+            // Pre-fetch the next one in background
+            prefetchAdsgramAd();
+            return { ...ad, type: 'adsgram' };
+        } else {
+            // No cached ad: fetch synchronously (may delay, but fallback ensures ad is shown)
+            try {
+                ad = await fetchSingleAdsGramAd();
+                // Pre-fetch the next one
+                prefetchAdsgramAd();
+                return { ...ad, type: 'adsgram' };
+            } catch (e) {
+                console.warn("AdsGram fetch failed, using native fallback", e);
+                const fallback = nativeAds[currentAdIndex % nativeAds.length];
+                currentAdIndex++;
+                return { ...fallback, type: 'native_fallback' };
+            }
         }
     }
-
-    return group;
 }
+
+// Start pre-fetching the first AdsGram ad when the app loads
+setTimeout(() => prefetchAdsgramAd(), 2000);
 
 // ==================== Core Feed Logic ====================
 
