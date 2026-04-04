@@ -642,23 +642,34 @@ function initTelegramWebApp() {
 }
 
 // --- Ad Button Listeners (handles both native and AdsGram) ---
+// --- Ad Button Listeners (handles both native and AdsGram) ---
 function setupAdButtonListeners() {
     document.getElementById('feed').addEventListener('click', (e) => {
         const target = e.target;
         const slide = target.closest('.swiper-slide');
         if (!slide) return;
+
+        // Handle ad action button click
         if (target.classList.contains('ad-action-btn')) {
             const url = target.getAttribute('data-url');
             if (url && url.startsWith('http')) {
-                window.open(url, '_blank');
+                // Use Telegram's in-app browser if available
+                if (window.Telegram?.WebApp?.openLink) {
+                    window.Telegram.WebApp.openLink(url);
+                } else {
+                    window.open(url, '_blank');
+                }
             } else {
+                // For native ads that may have a function action
                 const adIndex = parseInt(slide.dataset.adIndex);
                 if (!isNaN(adIndex) && nativeAds[adIndex] && typeof nativeAds[adIndex].action === 'function') {
                     nativeAds[adIndex].action();
                 }
             }
             e.stopPropagation();
-        } else if (target.classList.contains('remove-ads-btn')) {
+        }
+        // Handle "Remove Ads" button
+        else if (target.classList.contains('remove-ads-btn')) {
             openPremium();
             e.stopPropagation();
         }
