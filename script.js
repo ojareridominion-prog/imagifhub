@@ -1,8 +1,8 @@
-// script.js - Full version with AdsGram integration
+// script.js - Full version with proper AdsGram interstitial ads
 import { musicLibrary, categories } from './music.js';
 import { nativeAds } from './ads.js';
 import { getHolidayImage, getFestiveTitle } from './welcome.js';
-import { fetchAdsgramAd } from './adsgram.js';
+import { showInterstitialAd } from './adsgram.js';
 
 const API_URL = "https://imagifhub.onrender.com";
 let activeSwiper = null;
@@ -12,7 +12,11 @@ let isPremiumUser = false;
 
 // Ad sequencing
 const AD_FREQUENCY = 3;           // Show ad after every 3 images
-let currentNativeAdIndex = 0;     // For cycling through nativeAds
+let imageCountSinceLastAd = 0;
+let adPending = false;
+
+// Native ad cycling (fallback)
+let currentNativeAdIndex = 0;
 
 // --- History tracking (unchanged) ---
 const SEEN_LIMIT = 20;
@@ -50,7 +54,7 @@ function updateDarkTextIndicator() {
     if (indicator) indicator.innerText = darkTextEnabled ? 'ON' : 'OFF';
 }
 
-// --- User Info Card & Avatar ---
+// --- User Info Card & Avatar (unchanged) ---
 function generateInitialsAvatar(user) {
     const canvas = document.createElement('canvas');
     canvas.width = 100;
@@ -118,7 +122,7 @@ function copyUserId() {
     }
 }
 
-// --- Theme handling ---
+// --- Theme handling (unchanged) ---
 const themesList = [
     {id: "theme-black",  top: "#000", bottom: "#000"},
     {id: "theme-white",  top: "#fff", bottom: "#eee"},
@@ -136,7 +140,7 @@ function applyTheme(themeId) {
     localStorage.setItem("imagifhub-theme", themeId);
 }
 
-// --- Music logic ---
+// --- Music logic (unchanged) ---
 function playRandomMusic(cat) {
     const audio = document.getElementById('bgMusic');
     const allSongs = musicLibrary[cat] || musicLibrary["Default"];
@@ -161,86 +165,57 @@ function toggleMute() {
     btn.innerText = audio.muted ? "🔇" : "🔊";
 }
 
-// --- PRELOAD ADSGRAM ADS (with timeout & fallback) ---
-async function preloadAdsgramAds(neededCount) {
-    const ads = [];
-    for (let i = 0; i < neededCount; i++) {
-        const ad = await fetchAdsgramAd();
-        ads.push(ad); // null if failed
-    }
-    return ads;
+// --- Insert a native ad slide (fallback) ---
+function insertNativeAdSlide() {
+    const nativeAd = nativeAds[currentNativeAdIndex % nativeAds.length];
+    currentNativeAdIndex++;
+    if (!nativeAd) return;
+
+    const feed = document.getElementById('feed');
+    const adHtml = `
+        <div class="swiper-slide native-ad" data-type="ad" data-ad-url="${nativeAd.action || ''}">
+            <img src="${nativeAd.image}" alt="Ad" style="width:100%; height:100%; object-fit:cover;">
+            <div class="ad-overlay">
+                <div class="ad-sponsored">Sponsored</div>
+                <div class="ad-title">${escapeHtml(nativeAd.title)}</div>
+                <div class="ad-description">${escapeHtml(nativeAd.subtitle)}</div>
+                <button class="ad-action-btn" data-url="${nativeAd.action || ''}">${escapeHtml(nativeAd.buttonLabel)}</button>
+            </div>
+            <button class="remove-ads-btn">Remove Ads</button>
+        </div>
+    `;
+    feed.insertAdjacentHTML('beforeend', adHtml);
+    if (activeSwiper) activeSwiper.update();
 }
 
-// --- BUILD SLIDES WITH MIXED ADS (native + AdsGram) ---
-function buildSlides(images, isPremium, adsgramAds) {
-    if (isPremium) {
-        return images.map(img => ({ type: 'image', item: img }));
+// --- Show ad (preferred: AdsGram interstitial, fallback: native slide) ---
+async function showAdAndContinue() {
+    if (isPremiumUser) return true;
+
+    // Try AdsGram interstitial first
+    const adCompleted = await showInterstitialAd();
+    if (adCompleted) {
+        console.log("[Ad] AdsGram interstitial completed");
+        return true;
+    } else {
+        // Fallback to native ad slide
+        console.log("[Ad] AdsGram failed, showing native ad slide");
+        insertNativeAdSlide();
+        // Wait for user to swipe past the native ad (they can click "Remove Ads" to go premium)
+        // The slide will be shown automatically; no need to block further swiping.
+        return true;
     }
-
-    const slides = [];
-    let imageCounter = 0;
-    let adCycleStep = 0;          // 0 = native, 1 = adsgram #1, 2 = adsgram #2, then reset
-    let adsgramIdx = 0;
-    let nativeIdx = currentNativeAdIndex;
-
-    for (let i = 0; i < images.length; i++) {
-        slides.push({ type: 'image', item: images[i] });
-        imageCounter++;
-
-        if (imageCounter >= AD_FREQUENCY) {
-            let adToUse = null;
-
-            if (adCycleStep === 0) {
-                // Native ad
-                const nativeAd = nativeAds[nativeIdx % nativeAds.length];
-                if (nativeAd) {
-                    adToUse = {
-                        type: 'native',
-                        item: { ...nativeAd, index: nativeIdx % nativeAds.length }
-                    };
-                }
-                nativeIdx++;
-                adCycleStep = 1;
-            } else {
-                // AdsGram ad (or fallback to native if null)
-                const cachedAd = adsgramAds[adsgramIdx];
-                if (cachedAd) {
-                    adToUse = {
-                        type: 'adsgram',
-                        item: {
-                            image: cachedAd.image,
-                            title: cachedAd.title,
-                            subtitle: cachedAd.subtitle,
-                            buttonLabel: cachedAd.buttonLabel,
-                            action: cachedAd.action,
-                        }
-                    };
-                } else {
-                    // Fallback to native ad
-                    const fallbackNative = nativeAds[nativeIdx % nativeAds.length];
-                    if (fallbackNative) {
-                        adToUse = {
-                            type: 'native',
-                            item: { ...fallbackNative, index: nativeIdx % nativeAds.length }
-                        };
-                    }
-                    nativeIdx++;
-                }
-                adsgramIdx++;
-                adCycleStep++;
-                if (adCycleStep > 2) adCycleStep = 0;
-            }
-
-            if (adToUse) slides.push(adToUse);
-            imageCounter = 0;
-        }
-    }
-
-    currentNativeAdIndex = nativeIdx;
-    return slides;
 }
 
-// --- LOAD FEED (updated) ---
+// --- BUILD SLIDES (only images, no pre-inserted ads) ---
+function buildSlides(images) {
+    return images.map(img => ({
+        type: 'image',
+        item: img
+    }));
+}
+
+// --- LOAD FEED (ads are inserted dynamically) ---
 async function loadFeed(cat, search = "") {
     currentCategory = cat;
     const feed = document.getElementById('feed');
@@ -268,53 +243,36 @@ async function loadFeed(cat, search = "") {
             return;
         }
 
-        // Preload 2 AdsGram ads (one for each slot in the cycle)
-        const adsgramAds = await preloadAdsgramAds(2);
-        const slides = buildSlides(data, isPremiumUser, adsgramAds);
+        // Reset ad counter
+        imageCountSinceLastAd = 0;
+        adPending = false;
 
+        const slides = buildSlides(data);
         feed.innerHTML = slides.map(slide => {
-            if (slide.type === 'image') {
-                const item = slide.item;
-                const keyword = item.Keyword || '';
-                const maxLength = 100;
-                let keywordHtml = '';
-                if (keyword.length > maxLength) {
-                    const truncated = keyword.substring(0, maxLength) + '...';
-                    keywordHtml = `
-                        <span class="keyword-short">${escapeHtml(truncated)}</span>
-                        <span class="keyword-full" style="display:none;">${escapeHtml(keyword)}</span>
-                        <button class="more-btn">more</button>
-                        <button class="less-btn" style="display:none;">less</button>
-                    `;
-                } else {
-                    keywordHtml = `<span>${escapeHtml(keyword)}</span>`;
-                }
-                return `
-                    <div class="swiper-slide" data-type="image">
-                        <img src="${item.url}" alt="${escapeHtml(item.category)}" style="width:100%; height:100%; object-fit:cover;">
-                        <div class="meta-overlay">
-                            <div class="category-tag">#${escapeHtml(item.category)}</div>
-                            <div class="keyword-container">${keywordHtml}</div>
-                        </div>
-                    </div>
+            const item = slide.item;
+            const keyword = item.Keyword || '';
+            const maxLength = 100;
+            let keywordHtml = '';
+            if (keyword.length > maxLength) {
+                const truncated = keyword.substring(0, maxLength) + '...';
+                keywordHtml = `
+                    <span class="keyword-short">${escapeHtml(truncated)}</span>
+                    <span class="keyword-full" style="display:none;">${escapeHtml(keyword)}</span>
+                    <button class="more-btn">more</button>
+                    <button class="less-btn" style="display:none;">less</button>
                 `;
             } else {
-                const ad = slide.item;
-                const buttonLabel = ad.buttonLabel || 'Open';
-                const adTypeClass = slide.type === 'native' ? 'native-ad' : 'adsgram-ad';
-                return `
-                    <div class="swiper-slide ${adTypeClass}" data-type="ad" data-ad-index="${ad.index || ''}" data-ad-url="${ad.action || ''}">
-                        <img src="${ad.image}" alt="Ad" style="width:100%; height:100%; object-fit:cover;">
-                        <div class="ad-overlay">
-                            <div class="ad-sponsored">Sponsored</div>
-                            <div class="ad-title">${escapeHtml(ad.title)}</div>
-                            <div class="ad-description">${escapeHtml(ad.subtitle)}</div>
-                            <button class="ad-action-btn" data-url="${ad.action || ''}">${escapeHtml(buttonLabel)}</button>
-                        </div>
-                        <button class="remove-ads-btn">Remove Ads</button>
-                    </div>
-                `;
+                keywordHtml = `<span>${escapeHtml(keyword)}</span>`;
             }
+            return `
+                <div class="swiper-slide" data-type="image">
+                    <img src="${item.url}" alt="${escapeHtml(item.category)}" style="width:100%; height:100%; object-fit:cover;">
+                    <div class="meta-overlay">
+                        <div class="category-tag">#${escapeHtml(item.category)}</div>
+                        <div class="keyword-container">${keywordHtml}</div>
+                    </div>
+                </div>
+            `;
         }).join('');
 
         if (activeSwiper) activeSwiper.destroy(true, true);
@@ -323,11 +281,25 @@ async function loadFeed(cat, search = "") {
             mousewheel: true,
             on: {
                 reachEnd: () => setTimeout(() => loadFeed(currentCategory), 1000),
-                slideChange: function () {
+                slideChange: async function () {
                     const activeSlide = this.slides[this.activeIndex];
                     if (activeSlide && activeSlide.dataset.type === 'image') {
                         const img = activeSlide.querySelector('img');
                         if (img && img.src) trackSeenImage(img.src);
+
+                        // Increment image counter and show ad if threshold reached (only if not premium)
+                        if (!isPremiumUser) {
+                            imageCountSinceLastAd++;
+                            if (imageCountSinceLastAd >= AD_FREQUENCY && !adPending) {
+                                adPending = true;
+                                imageCountSinceLastAd = 0;
+                                // Pause swiper temporarily? We'll just show ad and let user continue.
+                                // But showing an interstitial will block UI; after ad, we just reset flag.
+                                await showAdAndContinue();
+                                adPending = false;
+                                // No need to insert slide because interstitial takes over full screen.
+                            }
+                        }
                     }
                 },
                 init: function () {
@@ -344,7 +316,7 @@ async function loadFeed(cat, search = "") {
     }
 }
 
-// Helper to escape HTML
+// Helper to escape HTML (unchanged)
 function escapeHtml(str) {
     if (!str) return '';
     return str.replace(/[&<>]/g, function(m) {
@@ -355,7 +327,7 @@ function escapeHtml(str) {
     });
 }
 
-// --- PREMIUM FUNCTIONS (unchanged logic, but ensure isPremiumUser is updated) ---
+// --- PREMIUM FUNCTIONS (unchanged) ---
 function formatExpiryDate(expiryStr) {
     if (!expiryStr) return '';
     try {
@@ -518,7 +490,7 @@ async function checkPremiumStatus(userId) {
     }
 }
 
-// --- UI Functions ---
+// --- UI Functions (unchanged) ---
 function toggleMenu() {
     const panel = document.getElementById('menuPanel');
     panel.classList.toggle('open');
@@ -541,11 +513,11 @@ async function shareBot() {
         else {
             await navigator.clipboard.writeText(`${shareData.text} ${shareData.url}`);
             alert('Link & Text copied to clipboard!');
-        }
+   }
     } catch (err) { console.log('Error sharing:', err); }
 }
 
-// --- Premium Modal ---
+// --- Premium Modal (unchanged) ---
 function openPremium() {
     document.getElementById('menuPanel').classList.remove('open');
     document.getElementById('premiumModal').classList.add('active');
@@ -641,34 +613,24 @@ function initTelegramWebApp() {
     }
 }
 
-// --- Ad Button Listeners (handles both native and AdsGram) ---
-// --- Ad Button Listeners (handles both native and AdsGram) ---
+// --- Ad Button Listeners (handles native ad clicks) ---
 function setupAdButtonListeners() {
     document.getElementById('feed').addEventListener('click', (e) => {
         const target = e.target;
         const slide = target.closest('.swiper-slide');
         if (!slide) return;
 
-        // Handle ad action button click
         if (target.classList.contains('ad-action-btn')) {
             const url = target.getAttribute('data-url');
             if (url && url.startsWith('http')) {
-                // Use Telegram's in-app browser if available
                 if (window.Telegram?.WebApp?.openLink) {
                     window.Telegram.WebApp.openLink(url);
                 } else {
                     window.open(url, '_blank');
                 }
-            } else {
-                // For native ads that may have a function action
-                const adIndex = parseInt(slide.dataset.adIndex);
-                if (!isNaN(adIndex) && nativeAds[adIndex] && typeof nativeAds[adIndex].action === 'function') {
-                    nativeAds[adIndex].action();
-                }
             }
             e.stopPropagation();
         }
-        // Handle "Remove Ads" button
         else if (target.classList.contains('remove-ads-btn')) {
             openPremium();
             e.stopPropagation();
@@ -739,7 +701,7 @@ window.onload = async () => {
     setupAdButtonListeners();
 };
 
-// Expose functions globally for inline onclick attributes
+// Expose functions globally
 window.loadFeed = loadFeed;
 window.toggleMenu = toggleMenu;
 window.toggleMute = toggleMute;
