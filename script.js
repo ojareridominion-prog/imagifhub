@@ -444,11 +444,9 @@ async function buildSlidesWithAds(images, isPremium) {
         imageCounter++;
 
         if (imageCounter >= AD_FREQUENCY) {
-            // Get an ad group (1 native + 2 AdsGram / fallback)
-            const adGroup = await getAdGroup();
-            for (const ad of adGroup) {
-                slides.push({ type: 'ad', item: ad });
-            }
+            // Insert ONE ad (type determined by cycle)
+            const ad = await getNextAd();
+            slides.push({ type: 'ad', item: ad });
             imageCounter = 0;
         }
     }
