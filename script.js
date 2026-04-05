@@ -2,7 +2,6 @@
 import { musicLibrary, categories } from './music.js';
 import { nativeAds } from './ads.js';
 import { getHolidayImage, getFestiveTitle } from './welcome.js';
-import { showInterstitialAd } from './adsgram.js'; // <-- IMPORT ADSGRAM
 
 const API_URL = "https://imagifhub.onrender.com"; 
 let activeSwiper = null;
@@ -14,8 +13,7 @@ const SEEN_KEY = "imagifhub-seen-history";
 const PREMIUM_CHECK_INTERVAL = 30000; // 30 seconds
 let premiumCheckInterval = null;
 let isPremiumUser = false;               // <-- GLOBAL PREMIUM FLAG
-let currentAdIndex = 0;                 // <-- INDEX FOR ADS
-let globalAdCount = 0;                  // <-- TRACKS ADS SHOWN TO ALTERNATE
+let currentAdIndex = 0;                 // <-- INDEX FOR NATIVE ADS
 const AD_FREQUENCY = 3;                 // <-- SHOW AD AFTER EVERY 3 IMAGES
 
 // --- Dark Text State ---
@@ -52,7 +50,7 @@ function generateInitialsAvatar(user) {
     if (user.first_name) initials += user.first_name.charAt(0).toUpperCase();
     if (user.last_name) initials += user.last_name.charAt(0).toUpperCase();
     if (!initials && user.username) initials = user.username.charAt(0).toUpperCase();
-    if (!initials) initials = 'U';  // fallback
+    if (!initials) initials = 'U';
 
     ctx.fillText(initials, 50, 50);
 
@@ -139,7 +137,7 @@ function toggleMute() {
     btn.innerText = audio.muted ? "🔇" : "🔊";
 }
 
-// --- HELPER: INTERLEAVE ADS AFTER EVERY AD_FREQUENCY IMAGES ---
+// --- HELPER: INTERLEAVE NATIVE ADS AFTER EVERY AD_FREQUENCY IMAGES ---
 function buildSlides(images, isPremium) {
     if (isPremium) {
         // No ads for premium users
@@ -147,38 +145,20 @@ function buildSlides(images, isPremium) {
     }
 
     const slides = [];
-    let adCounter = 0;
+    let imageCounter = 0;
 
     for (let i = 0; i < images.length; i++) {
         slides.push({ type: 'image', item: images[i] });
-        adCounter++;
+        imageCounter++;
 
-        if (adCounter >= AD_FREQUENCY) {
-            // Check whether to show Native or AdsGram based on globalAdCount
-            if (globalAdCount % 2 === 0) {
-                // Native Ad
-                const ad = nativeAds[currentAdIndex % nativeAds.length];
-                slides.push({
-                    type: 'ad',
-                    item: { ...ad, index: currentAdIndex % nativeAds.length }
-                });
-                currentAdIndex++;
-            } else {
-                // AdsGram Ad
-                slides.push({
-                    type: 'adsgram',
-                    item: {
-                        title: "Support ImagifHub",
-                        subtitle: "Watch a short sponsored video to support the platform",
-                        buttonLabel: "Watch Video",
-                        // Beautiful clean placeholder image for the AdsGram UI slide
-                        image: "data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='800' viewBox='0 0 400 800'%3E%3Cdefs%3E%3ClinearGradient id='grad' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' style='stop-color:%232c3e50;stop-opacity:1' /%3E%3Cstop offset='100%25' style='stop-color:%23000000;stop-opacity:1' /%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='400' height='800' fill='url(%23grad)'/%3E%3Ctext x='50%25' y='40%25' font-size='60' fill='rgba(255,255,255,0.8)' font-family='sans-serif' text-anchor='middle' alignment-baseline='middle'%3E▶️%3C/text%3E%3C/svg%3E"
-                    }
-                });
-            }
-            
-            globalAdCount++;
-            adCounter = 0;
+        if (imageCounter % AD_FREQUENCY === 0) {
+            // Native Ad
+            const ad = nativeAds[currentAdIndex % nativeAds.length];
+            slides.push({
+                type: 'ad',
+                item: { ...ad, index: currentAdIndex % nativeAds.length }
+            });
+            currentAdIndex++;
         }
     }
     return slides;
@@ -213,7 +193,7 @@ async function loadFeed(cat, search = "") {
             return;
         }
 
-        // Build combined slides (images + ads)
+        // Build combined slides (images + native ads)
         const slides = buildSlides(data, isPremiumUser);
 
         // Generate HTML for each slide
@@ -259,23 +239,6 @@ async function loadFeed(cat, search = "") {
                             <div class="ad-title">${ad.title}</div>
                             <div class="ad-description">${ad.subtitle}</div>
                             <button class="ad-action-btn">${buttonLabel}</button>
-                            
-                        </div>
-                        <button class="remove-ads-btn">Remove Ads</button>
-                    </div>
-                `;
-            } else if (slide.type === 'adsgram') {
-                // AdsGram slide
-                const ad = slide.item;
-                return `
-                    <div class="swiper-slide" data-type="adsgram">
-                        <img src="${ad.image}" alt="AdsGram" style="width:100%; height:100%; object-fit:cover;">
-                        <div class="ad-overlay">
-                            <div class="ad-sponsored">Sponsored Video</div>
-                            <div class="ad-title">${ad.title}</div>
-                            <div class="ad-description">${ad.subtitle}</div>
-                            <button class="ad-action-btn adsgram-btn">${ad.buttonLabel}</button>
-                            
                         </div>
                         <button class="remove-ads-btn">Remove Ads</button>
                     </div>
@@ -296,7 +259,6 @@ async function loadFeed(cat, search = "") {
                 },
                 slideChange: function () {
                     const activeSlide = this.slides[this.activeIndex];
-                    // Track only real images (skip ad slides)
                     if (activeSlide && activeSlide.dataset.type === 'image') {
                         const img = activeSlide.querySelector('img');
                         if (img && img.src) trackSeenImage(img.src);
@@ -397,7 +359,7 @@ function updatePremiumUI(isPremium, expiryStr = null, daysLeft = null) {
     }
 }
 
-// NEW: Update user info card
+// Update user info card
 function updateUserCard(user) {
     if (!user) {
         document.getElementById('userName').innerText = 'Unknown User';
@@ -406,7 +368,6 @@ function updateUserCard(user) {
         return;
     }
 
-    // Set name (same as before)
     let name = user.first_name || '';
     if (user.last_name) name += ' ' + user.last_name;
     if (!name.trim() && user.username) name = '@' + user.username;
@@ -414,7 +375,6 @@ function updateUserCard(user) {
     document.getElementById('userName').innerText = name;
     document.getElementById('userId').innerText = user.id;
 
-    // Fetch profile photo
     const avatarImg = document.getElementById('userAvatar');
     const tg = window.Telegram.WebApp;
     
@@ -432,12 +392,10 @@ function updateUserCard(user) {
         avatarImg.src = url;
     })
     .catch(() => {
-        // No profile photo – generate a Telegram‑style placeholder
         avatarImg.src = generateInitialsAvatar(user);
     });
 }
 
-// NEW: Copy user ID to clipboard
 function copyUserId() {
     const userId = document.getElementById('userId').innerText;
     if (userId && userId !== '-') {
@@ -495,7 +453,6 @@ async function verifyPremiumStatus() {
             updatePremiumUI(true, data.expires_at, data.days_left);
             stopPremiumChecking();
             if (!wasPremium) {
-                // Premium just activated: reload feed to remove ads
                 loadFeed(currentCategory);
             }
             return true;
@@ -504,7 +461,6 @@ async function verifyPremiumStatus() {
             localStorage.removeItem("premiumExpires");
             updatePremiumUI(false);
             if (wasPremium) {
-                // Premium expired: reload feed to show ads
                 loadFeed(currentCategory);
             }
             return false;
@@ -516,7 +472,7 @@ async function verifyPremiumStatus() {
         isPremiumUser = isPremium;
         updatePremiumUI(isPremium, expiry, null);
         const user = window.Telegram.WebApp.initDataUnsafe?.user;
-   if (user) updateUserCard(user);
+        if (user) updateUserCard(user);
         return isPremium;
     }
 }
@@ -604,6 +560,7 @@ async function shareBot() {
     } catch (err) { console.log('Error sharing:', err); }
 }
 
+// --- PREMIUM MODAL FUNCTIONS ---
 // --- PREMIUM MODAL FUNCTIONS ---
 function openPremium() {
     document.getElementById('menuPanel').classList.remove('open');
@@ -718,7 +675,6 @@ function initTelegramWebApp() {
     if (tg && tg.expand) {
         tg.expand();
         console.log("Telegram WebApp version:", tg.version);
-        console.log("Available methods:", Object.keys(tg));
         const user = tg.initDataUnsafe?.user;
         if (user) {
             console.log("User ID:", user.id);
@@ -740,32 +696,7 @@ function setupAdButtonListeners() {
             return;
         }
 
-        // --- NEW: ADSGRAM ACTION BUTTON HANDLER ---
-        if (target.classList.contains('adsgram-btn')) {
-            const originalText = target.innerText;
-            target.innerText = "Loading Video...";
-            target.disabled = true;
-            
-            const success = await showInterstitialAd();
-            
-            if (success) {
-                target.innerText = "Thanks for watching!";
-                // Automatically scroll to next slide after a short delay
-                setTimeout(() => {
-                    if (activeSwiper) activeSwiper.slideNext();
-                }, 1000);
-            } else {
-                target.innerText = "Video unavailable / skipped";
-                setTimeout(() => {
-                    target.innerText = originalText;
-                    target.disabled = false;
-                }, 2000);
-            }
-            e.stopPropagation();
-            return;
-        }
-
-        // --- NATIVE AD ACTION BUTTON HANDLER ---
+        // Native Ad action button
         if (target.classList.contains('ad-action-btn')) {
             const adIndex = parseInt(slide.dataset.adIndex);
             if (!isNaN(adIndex)) {
@@ -785,18 +716,13 @@ function setupAdButtonListeners() {
 
 // --- INITIALIZATION ---
 window.onload = async () => {
-    // 1. Initialize Telegram WebApp
     initTelegramWebApp();
-    
-    // 2. Check premium status on load (will update menu expiry and user card)
     await verifyPremiumStatus();
     
-    // 3. Setup Categories
     document.getElementById('catBar').innerHTML = categories.map(c => 
         `<button class="cat-btn" onclick="loadFeed('${c}')">${c}</button>`
     ).join('');
     
-    // 4. Setup Themes
     document.getElementById('themeGrid').innerHTML = themesList.map(t => `
         <div class="theme-circle" onclick="applyTheme('${t.id}')">
             <div style="background:${t.top}"></div>
@@ -804,21 +730,17 @@ window.onload = async () => {
         </div>
     `).join('');
 
-    // 5. Audio Ended Listener
     const audioElem = document.getElementById('bgMusic');
     audioElem.addEventListener('ended', () => {
         if (currentCategory) playRandomMusic(currentCategory); 
     });
 
-    // 6. Load Saved Theme
     const savedTheme = localStorage.getItem("imagifhub-theme") || "theme-black";
     applyTheme(savedTheme);
     
-    // 7. Apply Dark Text preference
     applyDarkText();
     updateDarkTextIndicator();
     
-    // 8. Setup Welcome Overlay with dynamic holiday image
     const welcomeOverlay = document.getElementById('welcomeOverlay');
     const continueBtn = document.getElementById('welcomeContinueBtn');
     
@@ -833,13 +755,9 @@ window.onload = async () => {
         loadFeed("Discover");
     }
 
-    // 9. Set festive top bar title
     document.querySelector('.top-bar h2').innerText = getFestiveTitle();
-    
-    // 10. Add manual premium check button
     addManualPremiumCheck();
 
-    // 11. Delegate click events for more/less buttons (keyword expansion)
     document.getElementById('feed').addEventListener('click', (e) => {
         const target = e.target;
         const container = target.closest('.keyword-container');
@@ -860,7 +778,6 @@ window.onload = async () => {
         }
     });
 
-    // 12. Setup ad button listeners
     setupAdButtonListeners();
 };
 
