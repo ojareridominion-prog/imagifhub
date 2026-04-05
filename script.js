@@ -2,6 +2,7 @@
 import { musicLibrary, categories } from './music.js';
 import { nativeAds } from './ads.js';
 import { getHolidayImage, getFestiveTitle } from './welcome.js';
+import { showInterstitialAd } from './adsgram.js'; // <-- IMPORT ADSGRAM
 
 const API_URL = "https://imagifhub.onrender.com"; 
 let activeSwiper = null;
@@ -14,7 +15,8 @@ const PREMIUM_CHECK_INTERVAL = 30000; // 30 seconds
 let premiumCheckInterval = null;
 let isPremiumUser = false;               // <-- GLOBAL PREMIUM FLAG
 let currentAdIndex = 0;                 // <-- INDEX FOR ADS
-const AD_FREQUENCY = 3;                 // <-- SHOW AD AFTER EVERY 4 IMAGES
+let globalAdCount = 0;                  // <-- TRACKS ADS SHOWN TO ALTERNATE
+const AD_FREQUENCY = 3;                 // <-- SHOW AD AFTER EVERY 3 IMAGES
 
 // --- Dark Text State ---
 let darkTextEnabled = localStorage.getItem('imagifhub-darktext') === 'true';
@@ -152,13 +154,30 @@ function buildSlides(images, isPremium) {
         adCounter++;
 
         if (adCounter >= AD_FREQUENCY) {
-            // Get next ad, cycle through nativeAds array
-            const ad = nativeAds[currentAdIndex % nativeAds.length];
-            slides.push({
-                type: 'ad',
-                item: { ...ad, index: currentAdIndex % nativeAds.length }
-            });
-            currentAdIndex++;
+            // Check whether to show Native or AdsGram based on globalAdCount
+            if (globalAdCount % 2 === 0) {
+                // Native Ad
+                const ad = nativeAds[currentAdIndex % nativeAds.length];
+                slides.push({
+                    type: 'ad',
+                    item: { ...ad, index: currentAdIndex % nativeAds.length }
+                });
+                currentAdIndex++;
+            } else {
+                // AdsGram Ad
+                slides.push({
+                    type: 'adsgram',
+                    item: {
+                        title: "Support ImagifHub",
+                        subtitle: "Watch a short sponsored video to support the platform",
+                        buttonLabel: "Watch Video",
+                        // Beautiful clean placeholder image for the AdsGram UI slide
+                        image: "data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='800' viewBox='0 0 400 800'%3E%3Cdefs%3E%3ClinearGradient id='grad' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' style='stop-color:%232c3e50;stop-opacity:1' /%3E%3Cstop offset='100%25' style='stop-color:%23000000;stop-opacity:1' /%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='400' height='800' fill='url(%23grad)'/%3E%3Ctext x='50%25' y='40%25' font-size='60' fill='rgba(255,255,255,0.8)' font-family='sans-serif' text-anchor='middle' alignment-baseline='middle'%3E▶️%3C/text%3E%3C/svg%3E"
+                    }
+                });
+            }
+            
+            globalAdCount++;
             adCounter = 0;
         }
     }
@@ -228,8 +247,8 @@ async function loadFeed(cat, search = "") {
                         </div>
                     </div>
                 `;
-            } else {
-                // Ad slide
+            } else if (slide.type === 'ad') {
+                // Native Ad slide
                 const ad = slide.item;
                 const buttonLabel = ad.buttonLabel || 'Open';
                 return `
@@ -240,6 +259,22 @@ async function loadFeed(cat, search = "") {
                             <div class="ad-title">${ad.title}</div>
                             <div class="ad-description">${ad.subtitle}</div>
                             <button class="ad-action-btn">${buttonLabel}</button>
+                            
+                        </div>
+                        <button class="remove-ads-btn">Remove Ads</button>
+                    </div>
+                `;
+            } else if (slide.type === 'adsgram') {
+                // AdsGram slide
+                const ad = slide.item;
+                return `
+                    <div class="swiper-slide" data-type="adsgram">
+                        <img src="${ad.image}" alt="AdsGram" style="width:100%; height:100%; object-fit:cover;">
+                        <div class="ad-overlay">
+                            <div class="ad-sponsored">Sponsored Video</div>
+                            <div class="ad-title">${ad.title}</div>
+                            <div class="ad-description">${ad.subtitle}</div>
+                            <button class="ad-action-btn adsgram-btn">${ad.buttonLabel}</button>
                             
                         </div>
                         <button class="remove-ads-btn">Remove Ads</button>
@@ -481,7 +516,7 @@ async function verifyPremiumStatus() {
         isPremiumUser = isPremium;
         updatePremiumUI(isPremium, expiry, null);
         const user = window.Telegram.WebApp.initDataUnsafe?.user;
-        if (user) updateUserCard(user);
+   if (user) updateUserCard(user);
         return isPremium;
     }
 }
@@ -693,27 +728,56 @@ function initTelegramWebApp() {
 
 // --- EVENT DELEGATION FOR AD BUTTONS ---
 function setupAdButtonListeners() {
-    document.getElementById('feed').addEventListener('click', (e) => {
+    document.getElementById('feed').addEventListener('click', async (e) => {
         const target = e.target;
         const slide = target.closest('.swiper-slide');
         if (!slide) return;
 
-        // Open action button
-        if (target.classList.contains('ad-action-btn')) {
-            const adIndex = parseInt(slide.dataset.adIndex);
-            const ad = nativeAds[adIndex];
-            if (ad && ad.action) {
-                if (typeof ad.action === 'function') {
-                    ad.action();
-                } else if (typeof ad.action === 'string') {
-                    window.open(ad.action, '_blank');
-                }
+        // Remove Ads button
+        if (target.classList.contains('remove-ads-btn')) {
+            openPremium();
+            e.stopPropagation();
+            return;
+        }
+
+        // --- NEW: ADSGRAM ACTION BUTTON HANDLER ---
+        if (target.classList.contains('adsgram-btn')) {
+            const originalText = target.innerText;
+            target.innerText = "Loading Video...";
+            target.disabled = true;
+            
+            const success = await showInterstitialAd();
+            
+            if (success) {
+                target.innerText = "Thanks for watching!";
+                // Automatically scroll to next slide after a short delay
+                setTimeout(() => {
+                    if (activeSwiper) activeSwiper.slideNext();
+                }, 1000);
+            } else {
+                target.innerText = "Video unavailable / skipped";
+                setTimeout(() => {
+                    target.innerText = originalText;
+                    target.disabled = false;
+                }, 2000);
             }
             e.stopPropagation();
+            return;
         }
-        // Remove Ads button
-        else if (target.classList.contains('remove-ads-btn')) {
-            openPremium();
+
+        // --- NATIVE AD ACTION BUTTON HANDLER ---
+        if (target.classList.contains('ad-action-btn')) {
+            const adIndex = parseInt(slide.dataset.adIndex);
+            if (!isNaN(adIndex)) {
+                const ad = nativeAds[adIndex];
+                if (ad && ad.action) {
+                    if (typeof ad.action === 'function') {
+                        ad.action();
+                    } else if (typeof ad.action === 'string') {
+                        window.open(ad.action, '_blank');
+                    }
+                }
+            }
             e.stopPropagation();
         }
     });
