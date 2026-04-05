@@ -16,6 +16,9 @@ let isPremiumUser = false;               // <-- GLOBAL PREMIUM FLAG
 let currentAdIndex = 0;                 // <-- INDEX FOR NATIVE ADS
 const AD_FREQUENCY = 3;                 // <-- SHOW AD AFTER EVERY 3 IMAGES
 
+// --- Search state: prevents auto-refresh when search is active ---
+let activeSearchQuery = "";              // <-- non-empty when search mode is active
+
 // --- Dark Text State ---
 let darkTextEnabled = localStorage.getItem('imagifhub-darktext') === 'true';
 
@@ -167,6 +170,10 @@ function buildSlides(images, isPremium) {
 // --- CORE FEED LOGIC ---
 async function loadFeed(cat, search = "") {
     currentCategory = cat;
+    
+    // Track search state to disable auto-refresh when searching
+    activeSearchQuery = search || "";
+    
     const feed = document.getElementById('feed');
     const audio = document.getElementById('bgMusic');
     
@@ -255,6 +262,11 @@ async function loadFeed(cat, search = "") {
             mousewheel: true,
             on: {
                 reachEnd: function () {
+                    // Do NOT auto-refresh when search mode is active
+                    if (activeSearchQuery) {
+                        console.log("Search mode active — auto-refresh disabled");
+                        return;
+                    }
                     setTimeout(() => loadFeed(currentCategory), 1000);
                 },
                 slideChange: function () {
@@ -353,10 +365,7 @@ function updatePremiumUI(isPremium, expiryStr = null, daysLeft = null) {
         indicator.style.display = isPremium ? 'block' : 'none';
     }
     
-    if (isPremium) {
-        // If user just became premium, reload feed to remove ads
-        loadFeed(currentCategory);
-    }
+    // REMOVED: automatic loadFeed here — now handled only on actual status change in verifyPremiumStatus
 }
 
 // Update user info card
@@ -421,8 +430,13 @@ async function verifyPremiumStatus() {
             console.log("No initData available, using localStorage");
             const isPremium = localStorage.getItem("isPremium") === "true";
             const expiry = localStorage.getItem("premiumExpires");
+            const wasPremium = isPremiumUser;
             isPremiumUser = isPremium;
             updatePremiumUI(isPremium, expiry, null);
+            // Only reload feed if premium status actually changed
+            if (wasPremium !== isPremium) {
+                loadFeed(currentCategory);
+            }
             const user = tg.initDataUnsafe?.user;
             if (user) updateUserCard(user);
             return isPremium;
@@ -452,6 +466,7 @@ async function verifyPremiumStatus() {
             localStorage.setItem("premiumExpires", data.expires_at);
             updatePremiumUI(true, data.expires_at, data.days_left);
             stopPremiumChecking();
+            // Only reload feed if premium status changed (from false to true)
             if (!wasPremium) {
                 loadFeed(currentCategory);
             }
@@ -460,6 +475,7 @@ async function verifyPremiumStatus() {
             localStorage.removeItem("isPremium");
             localStorage.removeItem("premiumExpires");
             updatePremiumUI(false);
+            // Only reload feed if premium status changed (from true to false)
             if (wasPremium) {
                 loadFeed(currentCategory);
             }
@@ -469,8 +485,13 @@ async function verifyPremiumStatus() {
         console.log("Error verifying premium:", error);
         const isPremium = localStorage.getItem("isPremium") === "true";
         const expiry = localStorage.getItem("premiumExpires");
+        const wasPremium = isPremiumUser;
         isPremiumUser = isPremium;
         updatePremiumUI(isPremium, expiry, null);
+        // Only reload feed if premium status actually changed
+        if (wasPremium !== isPremium) {
+            loadFeed(currentCategory);
+        }
         const user = window.Telegram.WebApp.initDataUnsafe?.user;
         if (user) updateUserCard(user);
         return isPremium;
@@ -525,11 +546,12 @@ async function checkPremiumStatus(userId) {
 }
 
 // --- UI & THEME FUNCTIONS ---
+// --- UI & THEME FUNCTIONS ---
 function toggleMenu() { 
     const panel = document.getElementById('menuPanel');
     panel.classList.toggle('open');
     if (panel.classList.contains('open')) {
-        verifyPremiumStatus();
+        verifyPremiumStatus();  // This will no longer cause unwanted feed refreshes
     }
 }
 
@@ -560,7 +582,6 @@ async function shareBot() {
     } catch (err) { console.log('Error sharing:', err); }
 }
 
-// --- PREMIUM MODAL FUNCTIONS ---
 // --- PREMIUM MODAL FUNCTIONS ---
 function openPremium() {
     document.getElementById('menuPanel').classList.remove('open');
