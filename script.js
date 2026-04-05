@@ -199,6 +199,14 @@ async function loadFeed(cat, search = "") {
             feed.innerHTML = '<div class="swiper-slide" style="display:flex; align-items:center; justify-content:center;"><h3>No Images Found</h3></div>';
             return;
         }
+        
+        // After: const uniqueData = data.filter(item => !seenList.includes(item.url));
+// and after: if (uniqueData.length > 0) data = uniqueData;
+
+// Apply limit for non-premium users
+if (!isPremiumUser && data.length > 24) {
+    data = data.slice(0, 24);
+}
 
         // Build combined slides (images + native ads)
         const slides = buildSlides(data, isPremiumUser);
