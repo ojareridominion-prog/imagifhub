@@ -203,8 +203,8 @@ async function _loadFeedInternal(cat, search = "") {
         }
         
         // Apply limit for non-premium users
-        if (!isPremiumUser && data.length > 24) {
-            data = data.slice(0, 24);
+        if (!isPremiumUser && data.length > 26) {
+            data = data.slice(0, 26);
         }
 
         // Build combined slides (images + native ads)
