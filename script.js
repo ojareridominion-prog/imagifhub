@@ -2,6 +2,7 @@
 import { musicLibrary, categories } from './music.js';
 import { nativeAds } from './ads.js';
 import { getHolidayImage, getFestiveTitle } from './welcome.js';
+import { showMonetagInterstitial } from './monetag.js';
 
 const API_URL = "https://imagifhub.onrender.com"; 
 let activeSwiper = null;
@@ -15,6 +16,7 @@ let premiumCheckInterval = null;
 let isPremiumUser = false;               // <-- GLOBAL PREMIUM FLAG
 let currentAdIndex = 0;                 // <-- INDEX FOR NATIVE ADS
 const AD_FREQUENCY = 3;                 // <-- SHOW AD AFTER EVERY 3 IMAGES
+let isLoadingFeed = false;               // <-- PREVENT CONCURRENT FEED LOADS
 
 // --- Search state: prevents auto-refresh when search is active ---
 let activeSearchQuery = "";              // <-- non-empty when search mode is active
@@ -167,8 +169,8 @@ function buildSlides(images, isPremium) {
     return slides;
 }
 
-// --- CORE FEED LOGIC ---
-async function loadFeed(cat, search = "") {
+// ========== INTERNAL FEED LOADER (no ads) ==========
+async function _loadFeedInternal(cat, search = "") {
     currentCategory = cat;
     
     // Track search state to disable auto-refresh when searching
@@ -200,13 +202,10 @@ async function loadFeed(cat, search = "") {
             return;
         }
         
-        // After: const uniqueData = data.filter(item => !seenList.includes(item.url));
-// and after: if (uniqueData.length > 0) data = uniqueData;
-
-// Apply limit for non-premium users
-if (!isPremiumUser && data.length > 24) {
-    data = data.slice(0, 24);
-}
+        // Apply limit for non-premium users
+        if (!isPremiumUser && data.length > 24) {
+            data = data.slice(0, 24);
+        }
 
         // Build combined slides (images + native ads)
         const slides = buildSlides(data, isPremiumUser);
@@ -275,6 +274,7 @@ if (!isPremiumUser && data.length > 24) {
                         console.log("Search mode active — auto-refresh disabled");
                         return;
                     }
+                    // Auto-refresh: call public loadFeed (will show ad if non-premium)
                     setTimeout(() => loadFeed(currentCategory), 1000);
                 },
                 slideChange: function () {
@@ -297,6 +297,29 @@ if (!isPremiumUser && data.length > 24) {
     } catch(e) { 
         feed.innerHTML = '<div class="swiper-slide" style="display:flex; align-items:center; justify-content:center;"><h3>Connection Error</h3></div>'; 
     }
+}
+
+// ========== PUBLIC FEED LOADER (handles Monetag interstitial for non-premium) ==========
+async function loadFeed(cat, search = "", skipAd = false) {
+    // Prevent overlapping loads
+    if (isLoadingFeed) return;
+    
+    // Decide if we should show an ad
+    const isRefreshOrCategoryChange = !skipAd && !activeSearchQuery; 
+    const shouldShowAd = !isPremiumUser && isRefreshOrCategoryChange;
+    
+    if (shouldShowAd) {
+        isLoadingFeed = true;
+        try {
+            await showMonetagInterstitial();
+        } catch (e) {
+            console.warn('Monetag error, continuing anyway', e);
+        }
+        isLoadingFeed = false;
+    }
+    
+    // Now load the actual feed
+    await _loadFeedInternal(cat, search);
 }
 
 // --- PREMIUM VERIFICATION FUNCTIONS ---
@@ -372,8 +395,6 @@ function updatePremiumUI(isPremium, expiryStr = null, daysLeft = null) {
     if (indicator) {
         indicator.style.display = isPremium ? 'block' : 'none';
     }
-    
-    // REMOVED: automatic loadFeed here — now handled only on actual status change in verifyPremiumStatus
 }
 
 // Update user info card
@@ -443,7 +464,7 @@ async function verifyPremiumStatus() {
             updatePremiumUI(isPremium, expiry, null);
             // Only reload feed if premium status actually changed
             if (wasPremium !== isPremium) {
-                loadFeed(currentCategory);
+                _loadFeedInternal(currentCategory);
             }
             const user = tg.initDataUnsafe?.user;
             if (user) updateUserCard(user);
@@ -476,7 +497,7 @@ async function verifyPremiumStatus() {
             stopPremiumChecking();
             // Only reload feed if premium status changed (from false to true)
             if (!wasPremium) {
-                loadFeed(currentCategory);
+                _loadFeedInternal(currentCategory);
             }
             return true;
         } else {
@@ -485,7 +506,7 @@ async function verifyPremiumStatus() {
             updatePremiumUI(false);
             // Only reload feed if premium status changed (from true to false)
             if (wasPremium) {
-                loadFeed(currentCategory);
+                _loadFeedInternal(currentCategory);
             }
             return false;
         }
@@ -498,7 +519,7 @@ async function verifyPremiumStatus() {
         updatePremiumUI(isPremium, expiry, null);
         // Only reload feed if premium status actually changed
         if (wasPremium !== isPremium) {
-            loadFeed(currentCategory);
+            _loadFeedInternal(currentCategory);
         }
         const user = window.Telegram.WebApp.initDataUnsafe?.user;
         if (user) updateUserCard(user);
@@ -534,7 +555,7 @@ async function checkPremiumStatus(userId) {
             updatePremiumUI(true, data.expires_at, data.days_left);
             stopPremiumChecking();
             if (!wasPremium) {
-                loadFeed(currentCategory);
+                _loadFeedInternal(currentCategory);
             }
             const statusEl = document.getElementById('paymentStatus');
             if (statusEl) {
@@ -554,7 +575,6 @@ async function checkPremiumStatus(userId) {
 }
 
 // --- UI & THEME FUNCTIONS ---
-// --- UI & THEME FUNCTIONS ---
 function toggleMenu() { 
     const panel = document.getElementById('menuPanel');
     panel.classList.toggle('open');
@@ -571,7 +591,7 @@ function applyTheme(themeId) {
 
 function triggerSearch() {
     let q = prompt("Search images:");
-    if(q) loadFeed("Discover", q);
+    if(q) loadFeed("Discover", q, true);   // skipAd = true
 }
 
 async function shareBot() {
@@ -778,10 +798,10 @@ window.onload = async () => {
         
         continueBtn.addEventListener('click', () => {
             welcomeOverlay.classList.add('hidden');
-            loadFeed("Discover");
+            loadFeed("Discover", "", true);   // skip ad on first load
         });
     } else {
-        loadFeed("Discover");
+        loadFeed("Discover", "", true);       // skip ad on first load
     }
 
     document.querySelector('.top-bar h2').innerText = getFestiveTitle();
