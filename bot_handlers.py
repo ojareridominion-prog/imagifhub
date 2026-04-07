@@ -1,6 +1,7 @@
 import base64
 import logging
 import requests
+import urllib.parse
 from datetime import datetime, timedelta
 from aiogram import F
 from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton, PreCheckoutQuery, ContentType
@@ -13,7 +14,132 @@ from aiogram.types import LabeledPrice
 if not IMGBB_API_KEY:
     logging.warning("⚠️ IMGBB_API_KEY is not set in environment. Admin uploads will fail with 'forbidden' errors.")
 
-# Define states
+# ==================== ADSGRAM CONFIGURATION ====================
+AD_BLOCK_ID = "bot-27158"
+ADSGRAM_BASE_URL = "https://adsgram.ai/block"
+REWARD_URL_BASE = "https://imagifhub.onrender.com/adsgram-reward"
+
+# Rate limiting
+AD_COOLDOWN_SECONDS = 120          # 2 minutes between ads
+AD_MAX_PER_HOUR = 5                # Max 5 ads per hour
+AD_COMMAND_INTERVAL = 3            # Show ad every 3 commands
+
+# In-memory rate tracking (replace with Redis for multi-instance)
+_user_ad_tracker = {}   # user_id -> {"last_ad": timestamp, "hour_count": int, "command_count": int}
+
+def _can_send_ad(user_id: int) -> bool:
+    """Check if a user is allowed to see an ad (premium & rate limits)."""
+    now = datetime.utcnow().timestamp()
+    tracker = _user_ad_tracker.get(user_id, {})
+    
+    # Premium users never see ads
+    if is_user_premium_sync(user_id):
+        return False
+    
+    # Cooldown
+    last_ad = tracker.get("last_ad", 0)
+    if now - last_ad < AD_COOLDOWN_SECONDS:
+        return False
+    
+    # Hourly cap
+    hour_count = tracker.get("hour_count", 0)
+    if hour_count >= AD_MAX_PER_HOUR:
+        return False
+    
+    return True
+
+def _record_ad_sent(user_id: int):
+    """Update counters after an ad is sent."""
+    now = datetime.utcnow().timestamp()
+    tracker = _user_ad_tracker.get(user_id, {})
+    tracker["last_ad"] = now
+    tracker["hour_count"] = tracker.get("hour_count", 0) + 1
+    _user_ad_tracker[user_id] = tracker
+
+def _increment_command_counter(user_id: int) -> int:
+    """Increment the command counter and return the new count."""
+    tracker = _user_ad_tracker.get(user_id, {})
+    count = tracker.get("command_count", 0) + 1
+    tracker["command_count"] = count
+    _user_ad_tracker[user_id] = tracker
+    return count
+
+def _reset_command_counter(user_id: int):
+    """Reset the command counter after an ad is shown."""
+    if user_id in _user_ad_tracker:
+        _user_ad_tracker[user_id]["command_count"] = 0
+
+def is_user_premium_sync(user_id: int) -> bool:
+    """
+    Synchronous premium check (cached or direct DB lookup).
+    Reuses your existing logic.
+    """
+    try:
+        res = supabase.table("users").select("is_premium, premium_expires_at").eq("telegram_id", user_id).execute()
+        if not res.data:
+            return False
+        data = res.data[0]
+        is_premium = data.get("is_premium", False)
+        expires = data.get("premium_expires_at")
+        if is_premium and expires:
+            try:
+                exp_str = expires.replace('Z', '+00:00')
+                exp = datetime.fromisoformat(exp_str)
+                now = datetime.utcnow().replace(tzinfo=None)
+                if exp.tzinfo is not None:
+                    exp = exp.replace(tzinfo=None)
+                if exp > now:
+                    return True
+            except:
+                pass
+        return False
+    except:
+        return False
+
+async def maybe_send_ad(message: Message) -> bool:
+    """
+    Decide whether to send an ad to the user.
+    Returns True if an ad was sent, False otherwise.
+    """
+    user_id = message.from_user.id
+    
+    # Increment command counter
+    cmd_count = _increment_command_counter(user_id)
+    
+    # Check if it's time to show an ad (every N commands + rate limits)
+    if cmd_count % AD_COMMAND_INTERVAL == 0 and _can_send_ad(user_id):
+        # Build the AdsGram URL with reward callback
+        reward_url = f"{REWARD_URL_BASE}?user_id={user_id}"
+        encoded_reward = urllib.parse.quote(reward_url, safe='')
+        ad_url = f"{ADSGRAM_BASE_URL}/{AD_BLOCK_ID}?user_id={user_id}&reward_url={encoded_reward}"
+        
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="📢 Watch ad (supports us)", url=ad_url)],
+            [InlineKeyboardButton(text="🚫 Skip", callback_data="skip_ad")]
+        ])
+        
+        await message.answer(
+            "✨ **Support IMAGIFHUB** ✨\n\n"
+            "This bot is free thanks to our sponsors.\n"
+            "Please watch a short ad to keep the service alive.\n\n"
+            "*(Premium users never see ads – upgrade with /premium)*",
+            reply_markup=keyboard,
+            parse_mode="Markdown"
+        )
+        
+        # Record that we sent an ad
+        _record_ad_sent(user_id)
+        _reset_command_counter(user_id)
+        return True
+    
+    return False
+
+@dp.callback_query(F.data == "skip_ad")
+async def skip_ad_callback(call: CallbackQuery):
+    await call.answer("You can upgrade to premium to remove all ads.", show_alert=False)
+    await call.message.delete()
+
+# ==================== DEFINE STATES ====================
 class AdminUpload(StatesGroup):
     waiting_media = State()
     waiting_category = State()
@@ -95,6 +221,10 @@ async def on_successful_payment(message: Message):
 
 @dp.message(F.text == "/start")
 async def cmd_start(message: Message):
+    # Show ad if needed (returns True if ad was sent and we should stop further processing)
+    if await maybe_send_ad(message):
+        return   # ad message is already sent, don't show the usual start message
+
     # Optional: create user record on first start (so they exist in DB)
     telegram_id = message.from_user.id
     try:
@@ -123,6 +253,10 @@ async def cmd_start(message: Message):
 
 @dp.message(F.text == "/premium")
 async def cmd_premium(message: Message):
+    # Show ad if needed (but premium users will be skipped by maybe_send_ad anyway)
+    if await maybe_send_ad(message):
+        return
+
     telegram_id = message.from_user.id
     logging.info(f"Checking premium for user ID: {telegram_id}")
 
@@ -197,7 +331,6 @@ async def cmd_premium(message: Message):
     except Exception as e:
         logging.error(f"Premium check error: {e}", exc_info=True)
         await message.answer("❌ There was an error checking your premium status.\n\nPlease try again in a few moments.")
-
 
 @dp.callback_query(F.data == "get_premium")
 async def get_premium_callback(call: CallbackQuery):
