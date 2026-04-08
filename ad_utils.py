@@ -70,27 +70,35 @@ async def send_banner_ad(chat_id: int, user_id: int):
             logging.error(f"Failed to fetch ad: {e}")
             return
 
+    # 5. Convert relative image path to absolute URL
+    image_url = ad.get("image", "")
+    if image_url and not image_url.startswith(("http://", "https://")):
+        # Assume relative to base_url (e.g., "ads/channel.png")
+        image_url = f"{base_url}/{image_url.lstrip('/')}"
+        logging.info(f"Resolved image URL: {image_url}")
+
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text=ad.get("buttonLabel", "Learn More"), url=ad["action"])]
     ])
     caption = f"<b>{ad['title']}</b>\n{ad['subtitle']}"
     try:
-        if ad.get("image"):
-            await bot.send_photo(chat_id, photo=ad["image"],
+        if image_url:
+            await bot.send_photo(chat_id, photo=image_url,
                                  caption=f"✨ Sponsored ✨\n\n{caption}",
                                  parse_mode="HTML", reply_markup=keyboard)
         else:
+            # Fallback to text-only banner
             await bot.send_message(chat_id, text=f"✨ Sponsored ✨\n\n{caption}",
                                    parse_mode="HTML", reply_markup=keyboard)
     except Exception as e:
         logging.error(f"Failed to send ad: {e}")
         return
 
-    # 5. Update user tracking
+    # 6. Update user tracking
     new_count = ad_count_today + 1
     supabase.table("users").update({
         "ad_count_today": new_count,
         "last_ad_time": now.isoformat()
     }).eq("telegram_id", user_id).execute()
     logging.info(f"Ad sent to user {user_id}, count today: {new_count}")
-  
+    
