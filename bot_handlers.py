@@ -1,6 +1,8 @@
 import base64
 import logging
 import requests
+import aiohttp
+import json
 from datetime import datetime, timedelta
 from aiogram import F
 from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton, PreCheckoutQuery, ContentType
@@ -18,6 +20,67 @@ class AdminUpload(StatesGroup):
     waiting_media = State()
     waiting_category = State()
     waiting_keywords = State()
+
+# Cooldown dictionary: user_id -> last ad timestamp
+ad_cooldown = {}
+
+async def send_banner_ad(chat_id: int, user_id: int):
+    """Send one random banner ad to the user if they are not premium and cooldown passed."""
+    # Check if user is premium
+    try:
+        user_result = supabase.table("users").select("is_premium").eq("telegram_id", user_id).execute()
+        if user_result.data and user_result.data[0].get("is_premium") == True:
+            return  # Premium users skip ads
+    except:
+        pass
+
+    # Cooldown: only send one ad per hour per user (adjust as needed)
+    now = datetime.utcnow()
+    last_ad = ad_cooldown.get(user_id)
+    if last_ad and (now - last_ad) < timedelta(hours=1):
+        return
+
+    # Fetch a random ad from our API
+    import os
+    base_url = os.environ.get("RENDER_EXTERNAL_URL", "https://imagifhub.onrender.com")
+    async with aiohttp.ClientSession() as session:
+        try:
+            async with session.get(f"{base_url}/api/random-ad") as resp:
+                if resp.status == 200:
+                    ad = await resp.json()
+                else:
+                    return
+        except Exception as e:
+            logging.error(f"Failed to fetch ad: {e}")
+            return
+
+    # Build inline keyboard with the ad's action URL
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text=ad.get("buttonLabel", "Learn More"), url=ad["action"])]
+    ])
+
+    # Send the ad as a banner (no reply, just a message)
+    caption = f"<b>{ad['title']}</b>\n{ad['subtitle']}"
+    if ad.get("image"):
+        # Send photo + caption + button
+        await bot.send_photo(
+            chat_id=chat_id,
+            photo=ad["image"],
+            caption=caption,
+            parse_mode="HTML",
+            reply_markup=keyboard
+        )
+    else:
+        # Text‑only banner
+        await bot.send_message(
+            chat_id=chat_id,
+            text=f"✨ Sponsored ✨\n\n{caption}",
+            parse_mode="HTML",
+            reply_markup=keyboard
+        )
+
+    # Update cooldown
+    ad_cooldown[user_id] = now
 
 # ==================== PAYMENT HANDLERS ====================
 
@@ -110,6 +173,9 @@ async def cmd_start(message: Message):
             logging.info(f"👤 New user {telegram_id} created via /start")
     except Exception as e:
         logging.error(f"Error creating user on /start: {e}")
+
+    # Send banner ad (only if not premium, with cooldown)
+    await send_banner_ad(message.chat.id, telegram_id)
 
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="🚀 Let's Go!", web_app={"url": "https://ojareridominion-prog.github.io/imagifhub/"})],
