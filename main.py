@@ -12,6 +12,7 @@ from invoice import router as invoice_router
 from premium import router as premium_router
 from media import router as media_router
 from admin import router as admin_router
+from ads_router import router as ads_router   # <-- ADD THIS
 
 # Import bot handlers to register them with dispatcher
 import bot_handlers  # noqa
@@ -31,6 +32,7 @@ app.include_router(invoice_router)
 app.include_router(premium_router)
 app.include_router(media_router)
 app.include_router(admin_router)
+app.include_router(ads_router)          # <-- ADD THIS
 
 @app.get("/")
 async def root():
