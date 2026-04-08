@@ -1,0 +1,42 @@
+[
+    {
+        "id": "Temu",
+        "image": "ads/temu.png",
+        "title": "Temu",
+        "subtitle": "legitimate online marketplace",
+        "buttonLabel": "Shop Now",
+        "action": "https://temu.to/k/e3zj4ye9770"
+    },
+    {
+        "id": "Stake.com",
+        "image": "ads/stake.png",
+        "title": "Stake.com",
+        "subtitle": "The Global Giant of Crypto Gambling",
+        "buttonLabel": "Play Now",
+        "action": "https://stake.com/?c=hcYKazFc"
+    },
+    {
+        "id": "bitoshi africa",
+        "image": "ads/bitoshi.png",
+        "title": "Bitoshi africa",
+        "subtitle": "swap, buy, sell, send and receive crypto easily with bitoshi africa",
+        "buttonLabel": "Trade Crypto",
+        "action": "https://bitoshi.africa/ref?username=ojareri"
+    },
+    {
+        "id": "gemgala",
+        "image": "ads/gemgala.png",
+        "title": "gemgala",
+        "subtitle": "play games, chat and earn",
+        "buttonLabel": "Play Games",
+        "action": "https://getblock.me/u/24239713"
+    },
+    {
+        "id": "telegramchannel",
+        "image": "ads/channel.png",
+        "title": "Our channel",
+        "subtitle": "join our telegram channel and get the latest updates",
+        "buttonLabel": "Join",
+        "action": "https://t.me/imagifhub"
+    }
+]
