@@ -10,6 +10,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from config import bot, dp, supabase, ADMIN_ID, IMGBB_API_KEY, BOT_TOKEN, CATEGORIES
 from aiogram.types import LabeledPrice
+from ad_utils import send_banner_ad   # <-- NEW IMPORT
 
 # Warn if ImgBB API key is missing (for debugging)
 if not IMGBB_API_KEY:
@@ -20,67 +21,6 @@ class AdminUpload(StatesGroup):
     waiting_media = State()
     waiting_category = State()
     waiting_keywords = State()
-
-# Cooldown dictionary: user_id -> last ad timestamp
-ad_cooldown = {}
-
-async def send_banner_ad(chat_id: int, user_id: int):
-    """Send one random banner ad to the user if they are not premium and cooldown passed."""
-    # Check if user is premium
-    try:
-        user_result = supabase.table("users").select("is_premium").eq("telegram_id", user_id).execute()
-        if user_result.data and user_result.data[0].get("is_premium") == True:
-            return  # Premium users skip ads
-    except:
-        pass
-
-    # Cooldown: only send one ad per hour per user (adjust as needed)
-    now = datetime.utcnow()
-    last_ad = ad_cooldown.get(user_id)
-    if last_ad and (now - last_ad) < timedelta(hours=1):
-        return
-
-    # Fetch a random ad from our API
-    import os
-    base_url = os.environ.get("RENDER_EXTERNAL_URL", "https://imagifhub.onrender.com")
-    async with aiohttp.ClientSession() as session:
-        try:
-            async with session.get(f"{base_url}/api/random-ad") as resp:
-                if resp.status == 200:
-                    ad = await resp.json()
-                else:
-                    return
-        except Exception as e:
-            logging.error(f"Failed to fetch ad: {e}")
-            return
-
-    # Build inline keyboard with the ad's action URL
-    keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text=ad.get("buttonLabel", "Learn More"), url=ad["action"])]
-    ])
-
-    # Send the ad as a banner (no reply, just a message)
-    caption = f"<b>{ad['title']}</b>\n{ad['subtitle']}"
-    if ad.get("image"):
-        # Send photo + caption + button
-        await bot.send_photo(
-            chat_id=chat_id,
-            photo=ad["image"],
-            caption=caption,
-            parse_mode="HTML",
-            reply_markup=keyboard
-        )
-    else:
-        # Text‑only banner
-        await bot.send_message(
-            chat_id=chat_id,
-            text=f"✨ Sponsored ✨\n\n{caption}",
-            parse_mode="HTML",
-            reply_markup=keyboard
-        )
-
-    # Update cooldown
-    ad_cooldown[user_id] = now
 
 # ==================== PAYMENT HANDLERS ====================
 
@@ -174,7 +114,7 @@ async def cmd_start(message: Message):
     except Exception as e:
         logging.error(f"Error creating user on /start: {e}")
 
-    # Send banner ad (only if not premium, with cooldown)
+    # Send banner ad (only if not premium, with cooldown/daily limit)
     await send_banner_ad(message.chat.id, telegram_id)
 
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
@@ -259,11 +199,12 @@ async def cmd_premium(message: Message):
             parse_mode="HTML",
             reply_markup=keyboard
         )
-
     except Exception as e:
         logging.error(f"Premium check error: {e}", exc_info=True)
         await message.answer("❌ There was an error checking your premium status.\n\nPlease try again in a few moments.")
 
+    # Send banner ad after responding (only if user is not premium)
+    await send_banner_ad(message.chat.id, telegram_id)
 
 @dp.callback_query(F.data == "get_premium")
 async def get_premium_callback(call: CallbackQuery):
@@ -290,15 +231,20 @@ async def get_premium_callback(call: CallbackQuery):
         parse_mode="HTML",
         reply_markup=keyboard
     )
+    # Send ad after callback
+    await send_banner_ad(call.message.chat.id, call.from_user.id)
 
 @dp.callback_query(F.data == "back_to_premium")
 async def back_to_premium_callback(call: CallbackQuery):
     await call.answer()
     await cmd_premium(call.message)
+    # Send ad after returning to premium menu
+    await send_banner_ad(call.message.chat.id, call.from_user.id)
 
 @dp.callback_query(F.data == "renew_premium")
 async def renew_premium_callback(call: CallbackQuery):
     await get_premium_callback(call)
+    await send_banner_ad(call.message.chat.id, call.from_user.id)
 
 @dp.message(F.text.startswith("/start premium"))
 async def start_premium(message: Message):
