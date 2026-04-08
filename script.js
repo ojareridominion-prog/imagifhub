@@ -1,6 +1,5 @@
 // welcome.js - Holiday detection for welcome overlay
 import { musicLibrary, categories } from './music.js';
-import { nativeAds } from './ads.js';
 import { getHolidayImage, getFestiveTitle } from './welcome.js';
 import { showMonetagInterstitial } from './monetag.js';
 
@@ -17,6 +16,9 @@ let isPremiumUser = false;               // <-- GLOBAL PREMIUM FLAG
 let currentAdIndex = 0;                 // <-- INDEX FOR NATIVE ADS
 const AD_FREQUENCY = 3;                 // <-- SHOW AD AFTER EVERY 3 IMAGES
 let isLoadingFeed = false;               // <-- PREVENT CONCURRENT FEED LOADS
+
+// --- Ads array loaded from API ---
+let nativeAds = [];
 
 // --- Search state: prevents auto-refresh when search is active ---
 let activeSearchQuery = "";              // <-- non-empty when search mode is active
@@ -748,14 +750,10 @@ function setupAdButtonListeners() {
         // Native Ad action button
         if (target.classList.contains('ad-action-btn')) {
             const adIndex = parseInt(slide.dataset.adIndex);
-            if (!isNaN(adIndex)) {
+            if (!isNaN(adIndex) && nativeAds[adIndex]) {
                 const ad = nativeAds[adIndex];
-                if (ad && ad.action) {
-                    if (typeof ad.action === 'function') {
-                        ad.action();
-                    } else if (typeof ad.action === 'string') {
-                        window.open(ad.action, '_blank');
-                    }
+                if (ad.action) {
+                    window.open(ad.action, '_blank');
                 }
             }
             e.stopPropagation();
@@ -763,9 +761,27 @@ function setupAdButtonListeners() {
     });
 }
 
+// --- FETCH NATIVE ADS FROM API ---
+async function fetchNativeAds() {
+    try {
+        const response = await fetch(`${API_URL}/api/ads`);
+        if (response.ok) {
+            nativeAds = await response.json();
+            console.log(`Loaded ${nativeAds.length} native ads`);
+        } else {
+            console.warn('Failed to load ads, using empty array');
+            nativeAds = [];
+        }
+    } catch (e) {
+        console.error('Error fetching ads:', e);
+        nativeAds = [];
+    }
+}
+
 // --- INITIALIZATION ---
 window.onload = async () => {
     initTelegramWebApp();
+    await fetchNativeAds();
     await verifyPremiumStatus();
     
     document.getElementById('catBar').innerHTML = categories.map(c => 
