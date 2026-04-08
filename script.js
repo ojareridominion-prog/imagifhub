@@ -827,9 +827,11 @@ window.onload = async () => {
         welcomeOverlay.style.backgroundImage = `url('${getHolidayImage()}')`;
         
         continueBtn.addEventListener('click', () => {
-            welcomeOverlay.classList.add('hidden');
-            loadFeed("Discover", "", true);   // skip ad on first load
-        });
+    welcomeOverlay.classList.add('hidden');
+    triggerBotAd();                     // <-- ADD THIS LINE
+    loadFeed("Discover", "", true);
+});
+        
     } else {
         loadFeed("Discover", "", true);       // skip ad on first load
     }
