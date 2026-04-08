@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles  # <-- ADD THIS IMPORT
 import logging
 import os
 import threading
@@ -13,7 +14,7 @@ from premium import router as premium_router
 from media import router as media_router
 from admin import router as admin_router
 from ads_router import router as ads_router
-from ad_trigger import router as ad_trigger_router   # <-- NEW
+from ad_trigger import router as ad_trigger_router
 
 # Import bot handlers to register them with dispatcher
 import bot_handlers  # noqa
@@ -27,6 +28,13 @@ app.add_middleware(
     allow_headers=["*"]
 )
 
+# Mount static files for ads images (if the folder exists)
+if os.path.exists("ads"):
+    app.mount("/ads", StaticFiles(directory="ads"), name="ads")
+    logging.info("Mounted /ads static directory")
+else:
+    logging.warning("ads directory not found, static files not mounted")
+
 # Include routers
 app.include_router(webhook_router)
 app.include_router(invoice_router)
@@ -34,7 +42,7 @@ app.include_router(premium_router)
 app.include_router(media_router)
 app.include_router(admin_router)
 app.include_router(ads_router)
-app.include_router(ad_trigger_router)          # <-- NEW
+app.include_router(ad_trigger_router)
 
 @app.get("/")
 async def root():
