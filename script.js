@@ -26,6 +26,20 @@ let activeSearchQuery = "";              // <-- non-empty when search mode is ac
 // --- Dark Text State ---
 let darkTextEnabled = localStorage.getItem('imagifhub-darktext') === 'true';
 
+async function triggerBotAd() {
+    const tg = window.Telegram.WebApp;
+    if (!tg.initData) return;
+    try {
+        await fetch(`${API_URL}/api/trigger-ad`, {
+            method: 'POST',
+            headers: { 'X-Telegram-Init-Data': tg.initData }
+        });
+    } catch (e) {
+        console.warn("Ad trigger failed", e);
+    }
+}
+
+
 // Generate a data URL for a colored circle with initials (Telegram style)
 function generateInitialsAvatar(user) {
     const canvas = document.createElement('canvas');
