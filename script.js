@@ -17,13 +17,14 @@ let currentAdIndex = 0;                 // INDEX FOR NATIVE ADS
 const AD_FREQUENCY = 3;                 // SHOW AD AFTER EVERY 3 IMAGES
 let isLoadingFeed = false;               // PREVENT CONCURRENT FEED LOADS
 
-// --- New pagination & endless scroll variables ---
+// --- New random endless scroll variables ---
 let allImages = [];                      // Full list of loaded images (no ads)
-let currentOffset = 0;
-const PAGE_SIZE = 20;                    // Number of images per request
-let imagesShownSinceLastAd = 0;          // Counter for Monetag interstitial (every 15 images)
+let sessionSeenUrls = new Set();         // Tracks all URLs shown in current session
 let isLoadingMore = false;               // Prevent concurrent page loads
 let hasMoreImages = true;                // Whether more images exist on server
+const PAGE_SIZE = 30;                    // Number of images per request (30–40)
+const MAX_RETRIES = 3;                   // For duplicate filtering
+let imagesShownSinceLastAd = 0;          // Counter for Monetag interstitial (every 15 images)
 
 // --- Ads array loaded from API ---
 let nativeAds = [];
@@ -185,6 +186,40 @@ function buildSlides(images, isPremium) {
     return slides;
 }
 
+// --- LOADING SPINNER ---
+function showLoadingSpinner() {
+    let spinner = document.getElementById('loadingSpinner');
+    if (!spinner) {
+        spinner = document.createElement('div');
+        spinner.id = 'loadingSpinner';
+        spinner.innerHTML = '<div class="spinner"></div><p>Loading more...</p>';
+        spinner.style.cssText = `
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0,0,0,0.7);
+            backdrop-filter: blur(8px);
+            padding: 10px 20px;
+            border-radius: 40px;
+            color: white;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            z-index: 2000;
+            font-size: 14px;
+            pointer-events: none;
+        `;
+        document.body.appendChild(spinner);
+    }
+    spinner.style.display = 'flex';
+}
+
+function hideLoadingSpinner() {
+    const spinner = document.getElementById('loadingSpinner');
+    if (spinner) spinner.style.display = 'none';
+}
+
 // --- RENDER SLIDES INTO SWIPER (replaces entire feed) ---
 function renderSlides(slides) {
     const feed = document.getElementById('feed');
@@ -278,49 +313,70 @@ function renderSlides(slides) {
     });
 }
 
-// --- FETCH NEXT PAGE FROM BACKEND ---
-async function fetchMoreImages() {
+// --- FETCH RANDOM IMAGES FROM BACKEND (no duplicates within session) ---
+async function fetchRandomImages(retryCount = 0) {
     if (isLoadingMore) return [];
     isLoadingMore = true;
+
+    showLoadingSpinner();
+
     try {
-        const url = `${API_URL}/media?category=${encodeURIComponent(currentCategory)}&search=${activeSearchQuery}&offset=${currentOffset}&limit=${PAGE_SIZE}`;
+        const url = `${API_URL}/media/random?limit=${PAGE_SIZE}`;
         const res = await fetch(url);
         let newImages = await res.json();
-        
+
         if (!newImages || newImages.length === 0) {
             hasMoreImages = false;
             return [];
         }
-        
-        // Filter out already seen images (optional)
-        const seenList = getSeenList();
-        newImages = newImages.filter(img => !seenList.includes(img.url));
-        
-        if (newImages.length === 0) {
-            // No new unseen images – try to fetch more with increased offset
-            currentOffset += PAGE_SIZE;
-            return await fetchMoreImages(); // recursive attempt
+
+        // Filter out images already seen in this session OR in the last-20 history
+        const seenHistory = new Set(getSeenList());
+        const filtered = newImages.filter(img => 
+            !sessionSeenUrls.has(img.url) && !seenHistory.has(img.url)
+        );
+
+        // If we got fewer than 10 new images and we haven't retried too many times,
+        // fetch another batch (avoid infinite loop if DB is small)
+        if (filtered.length < 10 && retryCount < MAX_RETRIES) {
+            console.log(`Only ${filtered.length} new images, retrying... (${retryCount+1}/${MAX_RETRIES})`);
+            const more = await fetchRandomImages(retryCount + 1);
+            // Combine and deduplicate
+            const combined = [...filtered, ...more];
+            const uniqueCombined = [];
+            const seenSet = new Set();
+            for (const img of combined) {
+                if (!seenSet.has(img.url) && !sessionSeenUrls.has(img.url) && !seenHistory.has(img.url)) {
+                    seenSet.add(img.url);
+                    uniqueCombined.push(img);
+                }
+            }
+            return uniqueCombined;
         }
-        
-        currentOffset += newImages.length;
-        return newImages;
+
+        // Add new URLs to session tracker
+        filtered.forEach(img => sessionSeenUrls.add(img.url));
+        return filtered;
     } catch (e) {
-        console.error("Error fetching more images:", e);
+        console.error("Error fetching random images:", e);
         return [];
     } finally {
         isLoadingMore = false;
+        hideLoadingSpinner();
     }
 }
 
-// --- LOAD MORE IMAGES (append to existing feed) ---
+// --- LOAD MORE IMAGES (called on swipe to end) ---
 async function loadMoreImages() {
     if (isLoadingMore || !hasMoreImages) return;
-    const newImages = await fetchMoreImages();
+    
+    const newImages = await fetchRandomImages();
     if (newImages.length === 0) {
         hasMoreImages = false;
         return;
     }
     
+    // Append to existing allImages array
     allImages.push(...newImages);
     const slides = buildSlides(allImages, isPremiumUser);
     renderSlides(slides);
@@ -332,6 +388,13 @@ async function resetAndLoadFeed(cat, search = "", skipAd = false) {
     if (isLoadingFeed) return;
     isLoadingFeed = true;
     
+    // Reset session duplicate tracker and other state
+    sessionSeenUrls.clear();
+    hasMoreImages = true;
+    allImages = [];
+    imagesShownSinceLastAd = 0;
+    currentAdIndex = 0;
+    
     // Show Monetag interstitial only on category switch (skipAd = false) and not premium
     const shouldShowAd = !isPremiumUser && !skipAd && !activeSearchQuery;
     if (shouldShowAd) {
@@ -342,14 +405,9 @@ async function resetAndLoadFeed(cat, search = "", skipAd = false) {
         }
     }
     
-    // Reset state
+    // Update state
     activeSearchQuery = search || "";
     currentCategory = cat;
-    currentOffset = 0;
-    allImages = [];
-    imagesShownSinceLastAd = 0;
-    hasMoreImages = true;
-    currentAdIndex = 0;   // reset native ad rotation
     
     // Update category button active state
     document.querySelectorAll('.cat-btn').forEach(b => b.classList.toggle('active', b.innerText === cat));
@@ -360,12 +418,12 @@ async function resetAndLoadFeed(cat, search = "", skipAd = false) {
         playRandomMusic(cat);
     }
     
-    // Fetch first page
+    // Fetch first batch of random images
     const feed = document.getElementById('feed');
     feed.innerHTML = '<div class="swiper-slide" style="display:flex; align-items:center; justify-content:center;"><h3>Loading...</h3></div>';
     
     try {
-        const newImages = await fetchMoreImages();
+        const newImages = await fetchRandomImages();
         if (newImages.length === 0) {
             feed.innerHTML = '<div class="swiper-slide" style="display:flex; align-items:center; justify-content:center;"><h3>No Images Found</h3></div>';
             return;
@@ -490,7 +548,7 @@ function updateUserCard(user) {
     })
     .then(blob => {
         const url = URL.createObjectURL(blob);
-        avatarImg.src = url;
+     avatarImg.src = url;
     })
     .catch(() => {
         avatarImg.src = generateInitialsAvatar(user);
@@ -554,7 +612,7 @@ async function verifyPremiumStatus() {
         isPremiumUser = newPremiumStatus;
         
         if (data.premium) {
-     localStorage.setItem("isPremium", "true");
+            localStorage.setItem("isPremium", "true");
             localStorage.setItem("premiumExpires", data.expires_at);
             updatePremiumUI(true, data.expires_at, data.days_left);
             stopPremiumChecking();
@@ -744,8 +802,7 @@ async function goPremium() {
         statusEl.textContent = `❌ ${error.message}`;
         btn.disabled = false;
     }
-}
-
+        }
 function addManualPremiumCheck() {
     const premiumCard = document.querySelector('.premium-card');
     if (premiumCard) {
