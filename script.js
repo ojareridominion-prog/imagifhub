@@ -192,7 +192,7 @@ function showLoadingSpinner() {
     if (!spinner) {
         spinner = document.createElement('div');
         spinner.id = 'loadingSpinner';
-        spinner.innerHTML = '<div class="spinner"></div><p>Loading more...</p>';
+        spinner.innerHTML = '<div class="spinner"></div><p>Loading images...</p>';
         spinner.style.cssText = `
             position: fixed;
             bottom: 20px;
