@@ -28,11 +28,37 @@ async def get_media(category: str = "all", search: str = "", offset: int = 0, li
 @router.get("/media/random")
 async def get_random_media(limit: int = 30):
     """
-    Fetch random images from the database.
-    - limit: number of images to return (default 30)
-    - Uses Supabase's random ordering to ensure fresh results each call.
+    Fetch random images using random offset (more reliable than order('random()')).
     """
-    query = supabase.table('media_content').select('*').order('random()').limit(limit)
-    res = query.execute()
-    return res.data
+    try:
+        # First, get total count of images
+        count_res = supabase.table('media_content').select('id', count='exact').execute()
+        total_count = count_res.count
+        if not total_count or total_count == 0:
+            return []
+        
+        # If total_count is less than limit, just return all
+        if total_count <= limit:
+            res = supabase.table('media_content').select('*').limit(limit).execute()
+            return res.data
+        
+        # Pick a random starting offset
+        import random
+        max_offset = total_count - limit
+        random_offset = random.randint(0, max_offset)
+        
+        # Use deterministic order (by id) for consistent pagination
+        res = supabase.table('media_content') \
+            .select('*') \
+            .order('id', desc=False) \
+            .range(random_offset, random_offset + limit - 1) \
+            .execute()
+        
+        return res.data
+    except Exception as e:
+        # Log error on server side
+        print(f"Error in /media/random: {e}")
+        # Return empty list instead of crashing
+        return []
+        
     
