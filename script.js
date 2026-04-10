@@ -280,7 +280,7 @@ function renderSlides(slides) {
             reachEnd: async () => {
                 if (activeSearchQuery) return;
                 if (!hasMoreImages || isLoadingMore) return;
-                await loadMoreImages();
+                await loadMoreImages(true);   // preserve position when auto-loading
             },
             slideChange: function () {
                 const activeSlide = this.slides[this.activeIndex];
@@ -367,8 +367,13 @@ async function fetchRandomImages(retryCount = 0) {
 }
 
 // --- LOAD MORE IMAGES (called on swipe to end) ---
-async function loadMoreImages() {
+async function loadMoreImages(preservePosition = false) {
     if (isLoadingMore || !hasMoreImages) return;
+    
+    let previousIndex = null;
+    if (preservePosition && activeSwiper) {
+        previousIndex = activeSwiper.activeIndex;
+    }
     
     const newImages = await fetchRandomImages();
     if (newImages.length === 0) {
@@ -380,6 +385,11 @@ async function loadMoreImages() {
     allImages.push(...newImages);
     const slides = buildSlides(allImages, isPremiumUser);
     renderSlides(slides);
+    
+    if (preservePosition && previousIndex !== null && activeSwiper) {
+        // Restore position without animation
+        activeSwiper.slideTo(previousIndex, 0);
+    }
 }
 
 // --- RESET AND LOAD FIRST PAGE (category change or initial load) ---
@@ -694,7 +704,6 @@ async function checkPremiumStatus(userId) {
         return false;
     }
 }
-
 // --- UI & THEME FUNCTIONS ---
 function toggleMenu() { 
     const panel = document.getElementById('menuPanel');
