@@ -25,21 +25,32 @@ async def get_media(category: str = "all", search: str = "", offset: int = 0, li
     res = query.execute()
     return res.data
 
+# media.py – replace the existing /media/random endpoint
+
 @router.get("/media/random")
-async def get_random_media(limit: int = 30):
+async def get_random_media(limit: int = 30, category: str = None):
     """
-    Fetch random images using random offset (more reliable than order('random()')).
+    Fetch random images, optionally filtered by category.
+    - category "Discover" or None/empty → all images
+    - other categories → filter by that category
     """
     try:
-        # First, get total count of images
-        count_res = supabase.table('media_content').select('id', count='exact').execute()
+        # Build base query
+        query = supabase.table('media_content').select('*', count='exact')
+        
+        # Apply category filter if provided and not "Discover"
+        if category and category.lower() != "discover":
+            query = query.eq('category', category)
+        
+        # Get total count of filtered results
+        count_res = query.execute()
         total_count = count_res.count
         if not total_count or total_count == 0:
             return []
         
-        # If total_count is less than limit, just return all
+        # If total is less than limit, return all
         if total_count <= limit:
-            res = supabase.table('media_content').select('*').limit(limit).execute()
+            res = query.limit(limit).execute()
             return res.data
         
         # Pick a random starting offset
@@ -47,18 +58,13 @@ async def get_random_media(limit: int = 30):
         max_offset = total_count - limit
         random_offset = random.randint(0, max_offset)
         
-        # Use deterministic order (by id) for consistent pagination
-        res = supabase.table('media_content') \
-            .select('*') \
-            .order('id', desc=False) \
-            .range(random_offset, random_offset + limit - 1) \
-            .execute()
+        # Fetch paginated results (ordered by id for consistency)
+        res = query.order('id', desc=False) \
+                  .range(random_offset, random_offset + limit - 1) \
+                  .execute()
         
         return res.data
     except Exception as e:
-        # Log error on server side
         print(f"Error in /media/random: {e}")
-        # Return empty list instead of crashing
         return []
         
-    
