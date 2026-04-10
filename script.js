@@ -12,16 +12,24 @@ const SEEN_LIMIT = 20;
 const SEEN_KEY = "imagifhub-seen-history";
 const PREMIUM_CHECK_INTERVAL = 30000; // 30 seconds
 let premiumCheckInterval = null;
-let isPremiumUser = false;               // <-- GLOBAL PREMIUM FLAG
-let currentAdIndex = 0;                 // <-- INDEX FOR NATIVE ADS
-const AD_FREQUENCY = 3;                 // <-- SHOW AD AFTER EVERY 3 IMAGES
-let isLoadingFeed = false;               // <-- PREVENT CONCURRENT FEED LOADS
+let isPremiumUser = false;               // GLOBAL PREMIUM FLAG
+let currentAdIndex = 0;                 // INDEX FOR NATIVE ADS
+const AD_FREQUENCY = 3;                 // SHOW AD AFTER EVERY 3 IMAGES
+let isLoadingFeed = false;               // PREVENT CONCURRENT FEED LOADS
+
+// --- New pagination & endless scroll variables ---
+let allImages = [];                      // Full list of loaded images (no ads)
+let currentOffset = 0;
+const PAGE_SIZE = 20;                    // Number of images per request
+let imagesShownSinceLastAd = 0;          // Counter for Monetag interstitial (every 15 images)
+let isLoadingMore = false;               // Prevent concurrent page loads
+let hasMoreImages = true;                // Whether more images exist on server
 
 // --- Ads array loaded from API ---
 let nativeAds = [];
 
 // --- Search state: prevents auto-refresh when search is active ---
-let activeSearchQuery = "";              // <-- non-empty when search mode is active
+let activeSearchQuery = "";              // non-empty when search mode is active
 
 // --- Dark Text State ---
 let darkTextEnabled = localStorage.getItem('imagifhub-darktext') === 'true';
@@ -39,7 +47,6 @@ async function triggerBotAd() {
     }
 }
 
-
 // Generate a data URL for a colored circle with initials (Telegram style)
 function generateInitialsAvatar(user) {
     const canvas = document.createElement('canvas');
@@ -47,7 +54,6 @@ function generateInitialsAvatar(user) {
     canvas.height = 100;
     const ctx = canvas.getContext('2d');
 
-    // Pick a color based on user id (like Telegram does)
     const colors = [
         '#e56c4b', '#be5c4b', '#b85c4b', '#9c4dff', '#4a90e2',
         '#50c878', '#f4a460', '#daa520', '#cd5c5c', '#4682b4'
@@ -55,13 +61,11 @@ function generateInitialsAvatar(user) {
     const colorIndex = (user.id % colors.length + colors.length) % colors.length;
     const bgColor = colors[colorIndex];
 
-    // Draw circle
     ctx.beginPath();
     ctx.arc(50, 50, 50, 0, 2 * Math.PI);
     ctx.fillStyle = bgColor;
     ctx.fill();
 
-    // Draw initials
     ctx.fillStyle = 'white';
     ctx.font = 'bold 40px "Inter", system-ui, sans-serif';
     ctx.textAlign = 'center';
@@ -74,7 +78,6 @@ function generateInitialsAvatar(user) {
     if (!initials) initials = 'U';
 
     ctx.fillText(initials, 50, 50);
-
     return canvas.toDataURL('image/png');
 }
 
@@ -136,7 +139,6 @@ function playRandomMusic(cat) {
 
     if (!allSongs || allSongs.length === 0) return;
 
-    // Refill and shuffle pool if empty
     if (!songPools[cat] || songPools[cat].length === 0) {
         songPools[cat] = [...allSongs];
         for (let i = songPools[cat].length - 1; i > 0; i--) {
@@ -161,7 +163,6 @@ function toggleMute() {
 // --- HELPER: INTERLEAVE NATIVE ADS AFTER EVERY AD_FREQUENCY IMAGES ---
 function buildSlides(images, isPremium) {
     if (isPremium) {
-        // No ads for premium users
         return images.map(img => ({ type: 'image', item: img }));
     }
 
@@ -173,7 +174,6 @@ function buildSlides(images, isPremium) {
         imageCounter++;
 
         if (imageCounter % AD_FREQUENCY === 0) {
-            // Native Ad
             const ad = nativeAds[currentAdIndex % nativeAds.length];
             slides.push({
                 type: 'ad',
@@ -185,157 +185,204 @@ function buildSlides(images, isPremium) {
     return slides;
 }
 
-// ========== INTERNAL FEED LOADER (no ads) ==========
-async function _loadFeedInternal(cat, search = "") {
-    currentCategory = cat;
-    
-    // Track search state to disable auto-refresh when searching
-    activeSearchQuery = search || "";
-    
+// --- RENDER SLIDES INTO SWIPER (replaces entire feed) ---
+function renderSlides(slides) {
     const feed = document.getElementById('feed');
-    const audio = document.getElementById('bgMusic');
-    
-    feed.innerHTML = '<div class="swiper-slide" style="display:flex; align-items:center; justify-content:center;"><h3>Loading...</h3></div>';
-    
-    document.querySelectorAll('.cat-btn').forEach(b => b.classList.toggle('active', b.innerText === cat));
+    feed.innerHTML = slides.map(slide => {
+        if (slide.type === 'image') {
+            const item = slide.item;
+            const keyword = item.Keyword || '';
+            const maxLength = 100;
+            let keywordHtml = '';
+            
+            if (keyword.length > maxLength) {
+                const truncated = keyword.substring(0, maxLength) + '...';
+                keywordHtml = `
+                    <span class="keyword-short">${truncated}</span>
+                    <span class="keyword-full" style="display:none;">${keyword}</span>
+                    <button class="more-btn">more</button>
+                    <button class="less-btn" style="display:none;">less</button>
+                `;
+            } else {
+                keywordHtml = `<span>${keyword}</span>`;
+            }
 
-    if (audio.paused || currentCategory !== cat) {
-        playRandomMusic(cat);
-    }
+            return `
+                <div class="swiper-slide" data-type="image">
+                    <img src="${item.url}" alt="${item.category}" style="width:100%; height:100%; object-fit:cover;">
+                    <div class="meta-overlay">
+                        <div class="category-tag">#${item.category}</div>
+                        <div class="keyword-container">
+                            ${keywordHtml}
+                        </div>
+                    </div>
+                </div>
+            `;
+        } else if (slide.type === 'ad') {
+            const ad = slide.item;
+            const buttonLabel = ad.buttonLabel || 'Open';
+            return `
+                <div class="swiper-slide" data-type="ad" data-ad-index="${ad.index}">
+                    <img src="${ad.image}" alt="Ad" style="width:100%; height:100%; object-fit:cover;">
+                    <div class="ad-overlay">
+                        <div class="ad-sponsored">Sponsored</div>
+                        <div class="ad-title">${ad.title}</div>
+                        <div class="ad-description">${ad.subtitle}</div>
+                        <button class="ad-action-btn">${buttonLabel}</button>
+                    </div>
+                    <button class="remove-ads-btn">Remove Ads</button>
+                </div>
+            `;
+        }
+    }).join('');
 
+    // Re-initialize Swiper
+    if (activeSwiper) activeSwiper.destroy(true, true);
+    activeSwiper = new Swiper('#swiper', { 
+        direction: 'vertical', 
+        mousewheel: true,
+        on: {
+            reachEnd: async () => {
+                if (activeSearchQuery) return;
+                if (!hasMoreImages || isLoadingMore) return;
+                await loadMoreImages();
+            },
+            slideChange: function () {
+                const activeSlide = this.slides[this.activeIndex];
+                if (activeSlide && activeSlide.dataset.type === 'image') {
+                    const img = activeSlide.querySelector('img');
+                    if (img && img.src) trackSeenImage(img.src);
+                    
+                    // Increment image counter for Monetag ad (non‑premium only)
+                    if (!isPremiumUser) {
+                        imagesShownSinceLastAd++;
+                        if (imagesShownSinceLastAd >= 15) {
+                            imagesShownSinceLastAd = 0;
+                            // Pause swiper, show ad, resume
+                            this.allowTouchMove = false;
+                            showMonetagInterstitial().finally(() => {
+                                this.allowTouchMove = true;
+                            });
+                        }
+                    }
+                }
+            },
+            init: function() {
+                const activeSlide = this.slides[this.activeIndex];
+                if (activeSlide && activeSlide.dataset.type === 'image') {
+                    const img = activeSlide.querySelector('img');
+                    if (img && img.src) trackSeenImage(img.src);
+                }
+            }
+        }
+    });
+}
+
+// --- FETCH NEXT PAGE FROM BACKEND ---
+async function fetchMoreImages() {
+    if (isLoadingMore) return [];
+    isLoadingMore = true;
     try {
-        const res = await fetch(`${API_URL}/media?category=${encodeURIComponent(cat)}&search=${search}`);
-        let data = await res.json();
-
-        if (data && data.length > 0) {
-            const seenList = getSeenList();
-            const uniqueData = data.filter(item => !seenList.includes(item.url));
-            if (uniqueData.length > 0) data = uniqueData;
+        const url = `${API_URL}/media?category=${encodeURIComponent(currentCategory)}&search=${activeSearchQuery}&offset=${currentOffset}&limit=${PAGE_SIZE}`;
+        const res = await fetch(url);
+        let newImages = await res.json();
+        
+        if (!newImages || newImages.length === 0) {
+            hasMoreImages = false;
+            return [];
         }
         
-        if (!data || data.length === 0) {
-            feed.innerHTML = '<div class="swiper-slide" style="display:flex; align-items:center; justify-content:center;"><h3>No Images Found</h3></div>';
-            return;
+        // Filter out already seen images (optional)
+        const seenList = getSeenList();
+        newImages = newImages.filter(img => !seenList.includes(img.url));
+        
+        if (newImages.length === 0) {
+            // No new unseen images – try to fetch more with increased offset
+            currentOffset += PAGE_SIZE;
+            return await fetchMoreImages(); // recursive attempt
         }
         
-        // Apply limit for non-premium users
-        if (!isPremiumUser && data.length > 26) {
-            data = data.slice(0, 26);
-        }
-
-        // Build combined slides (images + native ads)
-        const slides = buildSlides(data, isPremiumUser);
-
-        // Generate HTML for each slide
-        feed.innerHTML = slides.map(slide => {
-            if (slide.type === 'image') {
-                const item = slide.item;
-                const keyword = item.Keyword || '';
-                const maxLength = 100;
-                let keywordHtml = '';
-                
-                if (keyword.length > maxLength) {
-                    const truncated = keyword.substring(0, maxLength) + '...';
-                    keywordHtml = `
-                        <span class="keyword-short">${truncated}</span>
-                        <span class="keyword-full" style="display:none;">${keyword}</span>
-                        <button class="more-btn">more</button>
-                        <button class="less-btn" style="display:none;">less</button>
-                    `;
-                } else {
-                    keywordHtml = `<span>${keyword}</span>`;
-                }
-
-                return `
-                    <div class="swiper-slide" data-type="image">
-                        <img src="${item.url}" alt="${item.category}" style="width:100%; height:100%; object-fit:cover;">
-                        <div class="meta-overlay">
-                            <div class="category-tag">#${item.category}</div>
-                            <div class="keyword-container">
-                                ${keywordHtml}
-                            </div>
-                        </div>
-                    </div>
-                `;
-            } else if (slide.type === 'ad') {
-                // Native Ad slide
-                const ad = slide.item;
-                const buttonLabel = ad.buttonLabel || 'Open';
-                return `
-                    <div class="swiper-slide" data-type="ad" data-ad-index="${ad.index}">
-                        <img src="${ad.image}" alt="Ad" style="width:100%; height:100%; object-fit:cover;">
-                        <div class="ad-overlay">
-                            <div class="ad-sponsored">Sponsored</div>
-                            <div class="ad-title">${ad.title}</div>
-                            <div class="ad-description">${ad.subtitle}</div>
-                            <button class="ad-action-btn">${buttonLabel}</button>
-                        </div>
-                        <button class="remove-ads-btn">Remove Ads</button>
-                    </div>
-                `;
-            }
-        }).join('');
-
-        // Destroy existing Swiper if any
-        if (activeSwiper) activeSwiper.destroy(true, true);
-        
-        // Initialize new Swiper
-        activeSwiper = new Swiper('#swiper', { 
-            direction: 'vertical', 
-            mousewheel: true,
-            on: {
-                reachEnd: function () {
-                    // Do NOT auto-refresh when search mode is active
-                    if (activeSearchQuery) {
-                        console.log("Search mode active — auto-refresh disabled");
-                        return;
-                    }
-                    // Auto-refresh: call public loadFeed (will show ad if non-premium)
-                    setTimeout(() => loadFeed(currentCategory), 1000);
-                },
-                slideChange: function () {
-                    const activeSlide = this.slides[this.activeIndex];
-                    if (activeSlide && activeSlide.dataset.type === 'image') {
-                        const img = activeSlide.querySelector('img');
-                        if (img && img.src) trackSeenImage(img.src);
-                    }
-                },
-                init: function() {
-                    const activeSlide = this.slides[this.activeIndex];
-                    if (activeSlide && activeSlide.dataset.type === 'image') {
-                        const img = activeSlide.querySelector('img');
-                        if (img && img.src) trackSeenImage(img.src);
-                    }
-                }
-            }
-        });
-        
-    } catch(e) { 
-        feed.innerHTML = '<div class="swiper-slide" style="display:flex; align-items:center; justify-content:center;"><h3>Connection Error</h3></div>'; 
+        currentOffset += newImages.length;
+        return newImages;
+    } catch (e) {
+        console.error("Error fetching more images:", e);
+        return [];
+    } finally {
+        isLoadingMore = false;
     }
 }
 
-// ========== PUBLIC FEED LOADER (handles Monetag interstitial for non-premium) ==========
-async function loadFeed(cat, search = "", skipAd = false) {
+// --- LOAD MORE IMAGES (append to existing feed) ---
+async function loadMoreImages() {
+    if (isLoadingMore || !hasMoreImages) return;
+    const newImages = await fetchMoreImages();
+    if (newImages.length === 0) {
+        hasMoreImages = false;
+        return;
+    }
+    
+    allImages.push(...newImages);
+    const slides = buildSlides(allImages, isPremiumUser);
+    renderSlides(slides);
+}
+
+// --- RESET AND LOAD FIRST PAGE (category change or initial load) ---
+async function resetAndLoadFeed(cat, search = "", skipAd = false) {
     // Prevent overlapping loads
     if (isLoadingFeed) return;
+    isLoadingFeed = true;
     
-    // Decide if we should show an ad
-    const isRefreshOrCategoryChange = !skipAd && !activeSearchQuery; 
-    const shouldShowAd = !isPremiumUser && isRefreshOrCategoryChange;
-    
+    // Show Monetag interstitial only on category switch (skipAd = false) and not premium
+    const shouldShowAd = !isPremiumUser && !skipAd && !activeSearchQuery;
     if (shouldShowAd) {
-        isLoadingFeed = true;
         try {
             await showMonetagInterstitial();
         } catch (e) {
             console.warn('Monetag error, continuing anyway', e);
         }
-        isLoadingFeed = false;
     }
     
-    // Now load the actual feed
-    await _loadFeedInternal(cat, search);
+    // Reset state
+    activeSearchQuery = search || "";
+    currentCategory = cat;
+    currentOffset = 0;
+    allImages = [];
+    imagesShownSinceLastAd = 0;
+    hasMoreImages = true;
+    currentAdIndex = 0;   // reset native ad rotation
+    
+    // Update category button active state
+    document.querySelectorAll('.cat-btn').forEach(b => b.classList.toggle('active', b.innerText === cat));
+    
+    // Music handling
+    const audio = document.getElementById('bgMusic');
+    if (audio.paused || currentCategory !== cat) {
+        playRandomMusic(cat);
+    }
+    
+    // Fetch first page
+    const feed = document.getElementById('feed');
+    feed.innerHTML = '<div class="swiper-slide" style="display:flex; align-items:center; justify-content:center;"><h3>Loading...</h3></div>';
+    
+    try {
+        const newImages = await fetchMoreImages();
+        if (newImages.length === 0) {
+            feed.innerHTML = '<div class="swiper-slide" style="display:flex; align-items:center; justify-content:center;"><h3>No Images Found</h3></div>';
+            return;
+        }
+        allImages = newImages;
+        const slides = buildSlides(allImages, isPremiumUser);
+        renderSlides(slides);
+    } catch (e) {
+        feed.innerHTML = '<div class="swiper-slide" style="display:flex; align-items:center; justify-content:center;"><h3>Connection Error</h3></div>';
+    } finally {
+        isLoadingFeed = false;
+    }
+}
+
+// --- PUBLIC FEED LOADER (called by category buttons, search, etc.) ---
+async function loadFeed(cat, search = "", skipAd = false) {
+    await resetAndLoadFeed(cat, search, skipAd);
 }
 
 // --- PREMIUM VERIFICATION FUNCTIONS ---
@@ -480,7 +527,7 @@ async function verifyPremiumStatus() {
             updatePremiumUI(isPremium, expiry, null);
             // Only reload feed if premium status actually changed
             if (wasPremium !== isPremium) {
-                _loadFeedInternal(currentCategory);
+                resetAndLoadFeed(currentCategory);
             }
             const user = tg.initDataUnsafe?.user;
             if (user) updateUserCard(user);
@@ -507,13 +554,13 @@ async function verifyPremiumStatus() {
         isPremiumUser = newPremiumStatus;
         
         if (data.premium) {
-            localStorage.setItem("isPremium", "true");
+     localStorage.setItem("isPremium", "true");
             localStorage.setItem("premiumExpires", data.expires_at);
             updatePremiumUI(true, data.expires_at, data.days_left);
             stopPremiumChecking();
             // Only reload feed if premium status changed (from false to true)
             if (!wasPremium) {
-                _loadFeedInternal(currentCategory);
+                resetAndLoadFeed(currentCategory);
             }
             return true;
         } else {
@@ -522,7 +569,7 @@ async function verifyPremiumStatus() {
             updatePremiumUI(false);
             // Only reload feed if premium status changed (from true to false)
             if (wasPremium) {
-                _loadFeedInternal(currentCategory);
+                resetAndLoadFeed(currentCategory);
             }
             return false;
         }
@@ -535,7 +582,7 @@ async function verifyPremiumStatus() {
         updatePremiumUI(isPremium, expiry, null);
         // Only reload feed if premium status actually changed
         if (wasPremium !== isPremium) {
-            _loadFeedInternal(currentCategory);
+            resetAndLoadFeed(currentCategory);
         }
         const user = window.Telegram.WebApp.initDataUnsafe?.user;
         if (user) updateUserCard(user);
@@ -571,7 +618,7 @@ async function checkPremiumStatus(userId) {
             updatePremiumUI(true, data.expires_at, data.days_left);
             stopPremiumChecking();
             if (!wasPremium) {
-                _loadFeedInternal(currentCategory);
+                resetAndLoadFeed(currentCategory);
             }
             const statusEl = document.getElementById('paymentStatus');
             if (statusEl) {
@@ -595,7 +642,7 @@ function toggleMenu() {
     const panel = document.getElementById('menuPanel');
     panel.classList.toggle('open');
     if (panel.classList.contains('open')) {
-        verifyPremiumStatus();  // This will no longer cause unwanted feed refreshes
+        verifyPremiumStatus();
     }
 }
 
@@ -754,14 +801,12 @@ function setupAdButtonListeners() {
         const slide = target.closest('.swiper-slide');
         if (!slide) return;
 
-        // Remove Ads button
         if (target.classList.contains('remove-ads-btn')) {
             openPremium();
             e.stopPropagation();
             return;
         }
 
-        // Native Ad action button
         if (target.classList.contains('ad-action-btn')) {
             const adIndex = parseInt(slide.dataset.adIndex);
             if (!isNaN(adIndex) && nativeAds[adIndex]) {
@@ -827,13 +872,12 @@ window.onload = async () => {
         welcomeOverlay.style.backgroundImage = `url('${getHolidayImage()}')`;
         
         continueBtn.addEventListener('click', () => {
-    welcomeOverlay.classList.add('hidden');
-    triggerBotAd();                     // <-- ADD THIS LINE
-    loadFeed("Discover", "", true);
-});
-        
+            welcomeOverlay.classList.add('hidden');
+            triggerBotAd();
+            loadFeed("Discover", "", true);
+        });
     } else {
-        loadFeed("Discover", "", true);       // skip ad on first load
+        loadFeed("Discover", "", true);
     }
 
     document.querySelector('.top-bar h2').innerText = getFestiveTitle();
