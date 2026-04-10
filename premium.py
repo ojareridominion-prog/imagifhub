@@ -5,6 +5,7 @@ import json
 import urllib.parse
 import logging
 import httpx
+import os   # <-- ADDED for admin token check
 from config import supabase, bot, BOT_TOKEN
 from utils import get_user_id_from_init_data
 
@@ -245,4 +246,25 @@ async def get_user_photo(request: Request):
     except Exception as e:
         logging.error(f"Error fetching user photo: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
-        
+
+# ==================== NEW ADMIN ENDPOINT: FORCE EXPIRE PREMIUM USERS ====================
+
+@router.post("/api/admin/force-expire")
+async def force_expire_premiums(request: Request):
+    """
+    Admin-only: manually trigger expiry update.
+    Requires Bearer token set in Authorization header.
+    """
+    auth = request.headers.get("Authorization", "")
+    if not auth.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Missing admin token")
+    token = auth.replace("Bearer ", "").strip()
+    admin_token = os.environ.get("ADMIN_TOKEN", "")
+    if token != admin_token:
+        raise HTTPException(status_code=401, detail="Invalid admin token")
+    
+    # Import here to avoid circular import
+    from premium_expiry_checker import update_expired_premiums
+    count = await update_expired_premiums()
+    return {"updated": count, "message": f"Expired {count} premium users"}
+    
