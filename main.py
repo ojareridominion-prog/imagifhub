@@ -1,9 +1,10 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles  # <-- ADD THIS IMPORT
+from fastapi.staticfiles import StaticFiles
 import logging
 import os
 import threading
+import asyncio          # <-- ADDED
 import ping
 from config import bot, dp
 
@@ -18,6 +19,9 @@ from ad_trigger import router as ad_trigger_router
 
 # Import bot handlers to register them with dispatcher
 import bot_handlers  # noqa
+
+# Import premium expiry checker
+from premium_expiry_checker import run_expiry_checker   # <-- ADDED
 
 app = FastAPI()
 
@@ -68,4 +72,8 @@ async def set_webhook_on_startup():
     thread = threading.Thread(target=start_pinger, daemon=True)
     thread.start()
     logging.info("Background pinger started")
+
+    # Start premium expiry checker (async background task)
+    asyncio.create_task(run_expiry_checker(interval_hours=6))
+    logging.info("Premium expiry checker started")
     
