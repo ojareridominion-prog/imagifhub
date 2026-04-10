@@ -314,14 +314,20 @@ function renderSlides(slides) {
 }
 
 // --- FETCH RANDOM IMAGES FROM BACKEND (no duplicates within session) ---
-async function fetchRandomImages(retryCount = 0) {
+// MODIFIED: now accepts a category parameter (defaults to currentCategory)
+async function fetchRandomImages(category = currentCategory, retryCount = 0) {
     if (isLoadingMore) return [];
     isLoadingMore = true;
 
     showLoadingSpinner();
 
     try {
-        const url = `${API_URL}/media/random?limit=${PAGE_SIZE}`;
+        // Build URL with optional category filter
+        let url = `${API_URL}/media/random?limit=${PAGE_SIZE}`;
+        if (category && category !== "Discover") {
+            url += `&category=${encodeURIComponent(category)}`;
+        }
+
         const res = await fetch(url);
         let newImages = await res.json();
 
@@ -340,7 +346,7 @@ async function fetchRandomImages(retryCount = 0) {
         // fetch another batch (avoid infinite loop if DB is small)
         if (filtered.length < 10 && retryCount < MAX_RETRIES) {
             console.log(`Only ${filtered.length} new images, retrying... (${retryCount+1}/${MAX_RETRIES})`);
-            const more = await fetchRandomImages(retryCount + 1);
+            const more = await fetchRandomImages(category, retryCount + 1);
             // Combine and deduplicate
             const combined = [...filtered, ...more];
             const uniqueCombined = [];
@@ -367,6 +373,7 @@ async function fetchRandomImages(retryCount = 0) {
 }
 
 // --- LOAD MORE IMAGES (called on swipe to end) ---
+// MODIFIED: passes currentCategory to fetchRandomImages
 async function loadMoreImages(preservePosition = false) {
     if (isLoadingMore || !hasMoreImages) return;
     
@@ -375,7 +382,7 @@ async function loadMoreImages(preservePosition = false) {
         previousIndex = activeSwiper.activeIndex;
     }
     
-    const newImages = await fetchRandomImages();
+    const newImages = await fetchRandomImages(currentCategory);
     if (newImages.length === 0) {
         hasMoreImages = false;
         return;
@@ -393,6 +400,7 @@ async function loadMoreImages(preservePosition = false) {
 }
 
 // --- RESET AND LOAD FIRST PAGE (category change or initial load) ---
+// MODIFIED: passes cat to fetchRandomImages
 async function resetAndLoadFeed(cat, search = "", skipAd = false) {
     // Prevent overlapping loads
     if (isLoadingFeed) return;
@@ -433,7 +441,7 @@ async function resetAndLoadFeed(cat, search = "", skipAd = false) {
     feed.innerHTML = '<div class="swiper-slide" style="display:flex; align-items:center; justify-content:center;"><h3>Loading...</h3></div>';
     
     try {
-        const newImages = await fetchRandomImages();
+        const newImages = await fetchRandomImages(cat);
         if (newImages.length === 0) {
             feed.innerHTML = '<div class="swiper-slide" style="display:flex; align-items:center; justify-content:center;"><h3>No Images Found</h3></div>';
             return;
@@ -543,7 +551,6 @@ function updateUserCard(user) {
     if (!name.trim()) name = `User ${user.id}`;
     document.getElementById('userName').innerText = name;
     document.getElementById('userId').innerText = user.id;
-
     const avatarImg = document.getElementById('userAvatar');
     const tg = window.Telegram.WebApp;
     
@@ -558,7 +565,7 @@ function updateUserCard(user) {
     })
     .then(blob => {
         const url = URL.createObjectURL(blob);
-     avatarImg.src = url;
+        avatarImg.src = url;
     })
     .catch(() => {
         avatarImg.src = generateInitialsAvatar(user);
@@ -811,7 +818,7 @@ async function goPremium() {
         statusEl.textContent = `❌ ${error.message}`;
         btn.disabled = false;
     }
-        }
+}
 function addManualPremiumCheck() {
     const premiumCard = document.querySelector('.premium-card');
     if (premiumCard) {
@@ -924,7 +931,6 @@ window.onload = async () => {
     audioElem.addEventListener('ended', () => {
         if (currentCategory) playRandomMusic(currentCategory); 
     });
-
     const savedTheme = localStorage.getItem("imagifhub-theme") || "theme-black";
     applyTheme(savedTheme);
     
