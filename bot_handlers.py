@@ -35,25 +35,46 @@ async def on_pre_checkout_query(pre_checkout_query: PreCheckoutQuery):
 
 @dp.message(F.content_type == ContentType.SUCCESSFUL_PAYMENT)
 async def on_successful_payment(message: Message):
-    """Handle successful payment – grant premium access"""
+    """Handle successful payment – grant or extend premium access."""
     try:
         payment = message.successful_payment
         telegram_id = message.from_user.id
-        expires_at = datetime.utcnow() + timedelta(days=30)
+        now = datetime.utcnow()
+        new_expiry = now + timedelta(days=30)
 
         logging.info(f"💰 Successful payment from user {telegram_id}, amount={payment.total_amount} {payment.currency}")
 
-        # --- STEP 1: Upsert user (create if not exists, set premium) ---
+        # --- STEP 1: Get existing user (if any) ---
+        user_result = supabase.table("users").select("premium_expires_at").eq("telegram_id", telegram_id).execute()
+        
+        if user_result.data:
+            current_expiry_str = user_result.data[0].get("premium_expires_at")
+            if current_expiry_str:
+                try:
+                    # Parse existing expiry
+                    if current_expiry_str.endswith('Z'):
+                        current_expiry_str = current_expiry_str.replace('Z', '+00:00')
+                    current_expiry = datetime.fromisoformat(current_expiry_str)
+                    if current_expiry.tzinfo:
+                        current_expiry = current_expiry.replace(tzinfo=None)
+                    # If current expiry is still in the future, extend from that date
+                    if current_expiry > now:
+                        new_expiry = current_expiry + timedelta(days=30)
+                        logging.info(f"Extending premium for user {telegram_id} from {current_expiry} to {new_expiry}")
+                except Exception as e:
+                    logging.warning(f"Could not parse existing expiry, using 30 days from now: {e}")
+        
+        # --- STEP 2: Upsert user (set premium and expiry) ---
         user_data = {
             "telegram_id": telegram_id,
             "is_premium": True,
-            "premium_expires_at": expires_at.isoformat(),
+            "premium_expires_at": new_expiry.isoformat(),
             "updated_at": datetime.utcnow().isoformat()
         }
         supabase.table("users").upsert(user_data).execute()
-        logging.info(f"✅ User {telegram_id} upserted with premium until {expires_at.isoformat()}")
+        logging.info(f"✅ User {telegram_id} premium activated/updated until {new_expiry.isoformat()}")
 
-        # --- STEP 2: Insert payment record (now foreign key is satisfied) ---
+        # --- STEP 3: Insert payment record ---
         payment_record = {
             "telegram_id": telegram_id,
             "provider": "telegram_stars",
@@ -69,7 +90,7 @@ async def on_successful_payment(message: Message):
         # Notify user
         await message.answer(
             "🎉 Payment successful! You are now an IMAGIFHUB Premium member!\n\n"
-            "✅ Your premium access is active for 30 days.\n"
+            f"✅ Your premium access is active until {new_expiry.strftime('%Y-%m-%d')}.\n"
             "✅ Ads have been removed from your experience.\n\n"
             "To refresh your premium status in the app:\n"
             "1. Close and reopen the IMAGIFHUB Mini App\n"
