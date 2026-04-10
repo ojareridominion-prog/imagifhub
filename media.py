@@ -20,7 +20,7 @@ async def get_media(category: str = "all", search: str = "", offset: int = 0, li
         query = query.ilike('Keyword', f'%{search}%')
     
     # Deterministic order for pagination
-    query = query.order('id', desc=False).range(offset, offset + limit - 1)
+    query = query.order('seq_id', desc=False).range(offset, offset + limit - 1)
     
     res = query.execute()
     return res.data
