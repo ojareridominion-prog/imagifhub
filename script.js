@@ -80,19 +80,25 @@ function grantTempPremium() {
 }
 
 async function showRewardedAdWrapper() {
-    // Call the function from monetag.js
+    console.log("[WatchAd] Button clicked, showing rewarded ad...");
     const success = await showRewardedAd();
+    console.log(`[WatchAd] Ad result: ${success}`);
     if (success) {
         let count = getTempAdCount();
         count++;
         setTempAdCount(count);
+        console.log(`[WatchAd] New count: ${count}/3`);
         updateWatchAdCard();
         
         if (count >= 3) {
+            console.log("[WatchAd] Threshold reached, granting 1h premium");
             grantTempPremium();
         }
+    } else {
+        console.log("[WatchAd] Ad not completed, count unchanged");
     }
 }
+
 
 function updateWatchAdCard() {
     const card = document.getElementById('watchAdsCard');
