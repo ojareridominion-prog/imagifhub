@@ -87,6 +87,8 @@
         </div>
 
         <a href="#" class="menu-link" onclick="openCopyright()">⚖️ Copyright Policy</a>
+        <!-- NEW PRIVACY POLICY LINK -->
+        <a href="#" class="menu-link" onclick="openPrivacy()">🔒 Privacy Policy</a>
         <div class="menu-link" onclick="toggleDarkText()" style="display:flex; justify-content:space-between; align-items:center;">
             <span>🌙 Dark Text</span>
             <span id="darkTextIndicator">OFF</span>
@@ -130,6 +132,7 @@
         </div>
     </div>
 
+    <!-- COPYRIGHT MODAL (UPDATED WITH PIXABAY STATEMENT) -->
     <div id="copyrightModal" class="modal-overlay">
         <div class="copyright-card">
             <h2 style="margin-top:0;">⚖️ ImagifHub: Intellectual Property Policy</h2>
@@ -140,10 +143,13 @@
                 • AI-Generated Art: Original visuals created via Generative AI models.<br>
                 • User-Contributed Content: (If applicable) Content uploaded by our community.</p>
 
-                <p><strong>2. Respect for Copyright</strong><br>
+                <p><strong>2. Background Music</strong><br>
+                All background music played in the mini app is sourced from <a href="https://pixabay.com/music/" target="_blank">Pixabay Music</a>, which offers royalty‑free tracks under the Pixabay Content License. No copyrighted music is used.</p>
+
+                <p><strong>3. Respect for Copyright</strong><br>
                 We respect the intellectual property rights of others. It is our policy to respond to any claim that Content posted on the Service infringes the copyright or other intellectual property infringement of any person.</p>
 
-                <p><strong>3. DMCA & Takedown Requests</strong><br>
+                <p><strong>4. DMCA & Takedown Requests</strong><br>
                 If you are a copyright owner, or authorized on behalf of one, and you believe that a copyrighted work has been used in a way that constitutes copyright infringement, please submit your claim via telegram to <a href="https://t.me/ojareridominion" target="_blank">support</a> with the subject line: "Copyright Takedown Request."<br>
                 Please include the following in your request:<br>
                 • A description of the copyrighted work you claim has been infringed.<br>
@@ -151,10 +157,53 @@
                 • Your contact information (Email and Phone Number).<br>
                 • A statement that you have a good-faith belief that the use is not authorized by the copyright owner.</p>
 
-                <p><strong>4. Disclaimer</strong><br>
+                <p><strong>5. Disclaimer</strong><br>
                 ImagifHub does not claim ownership of the trademarked characters or brands that may appear in user-generated prompts or historical search results. We make every effort to remove copyrighted material from our mini app.</p>
             </div>
             <button class="btn-close" onclick="closeCopyright()">Close</button>
+        </div>
+    </div>
+
+    <!-- NEW PRIVACY POLICY MODAL -->
+    <div id="privacyModal" class="modal-overlay">
+        <div class="copyright-card">
+            <h2 style="margin-top:0;">🔒 Privacy Policy</h2>
+            <div class="copyright-content scrollable">
+                <p><strong>Data We Collect</strong><br>
+                When you use ImagifHub, we may collect the following information:</p>
+                <ul>
+                    <li><strong>Telegram User Data:</strong> Your Telegram user ID, username, first name, last name (if provided), and profile photo (if accessible).</li>
+                    <li><strong>Premium Status:</strong> Whether you have purchased a premium subscription, along with the expiration date of your premium access.</li>
+                    <li><strong>Payment Records:</strong> Transaction IDs, amount paid, currency, and timestamp of successful payments (for premium purchases).</li>
+                    <li><strong>Ad Interaction:</strong> Number of ads watched per day and the timestamp of the last ad viewed (used to enforce cooldown and daily limits).</li>
+                    <li><strong>Usage Data:</strong> Categories you browse, search queries, and image view history (stored locally on your device).</li>
+                </ul>
+
+                <p><strong>How We Use Your Data</strong><br>
+                Your information is used solely to:</p>
+                <ul>
+                    <li>Provide and maintain the core functionality of the mini app.</li>
+                    <li>Manage premium subscriptions and deliver ad‑free experiences to paying users.</li>
+                    <li>Serve relevant ads and limit ad frequency to respect your experience.</li>
+                    <li>Improve content discovery and app performance.</li>
+                    <li>Respond to support inquiries or copyright claims.</li>
+                </ul>
+
+                <p><strong>Data Sharing</strong><br>
+                We do <strong>not</strong> sell or rent your personal data to third parties. We may share limited data (e.g., user ID) with our payment provider (Telegram Stars) to complete transactions. Aggregated, anonymized statistics may be used for internal analytics.</p>
+
+                <p><strong>Data Retention</strong><br>
+                Your Telegram user data is retained as long as you use the app. Premium records are kept for financial and legal compliance. You may request deletion of your data by contacting support.</p>
+
+                <p><strong>Your Rights</strong><br>
+                You have the right to access, correct, or delete your personal data. To exercise these rights, please contact us via Telegram <a href="https://t.me/ojareridominion" target="_blank">@ojareridominion</a>.</p>
+
+                <p><strong>Changes to This Policy</strong><br>
+                We may update this Privacy Policy from time to time. Continued use of the app constitutes acceptance of the revised policy.</p>
+
+                <p><em>Last updated: April 2026</em></p>
+            </div>
+            <button class="btn-close" onclick="closePrivacy()">Close</button>
         </div>
     </div>
 
