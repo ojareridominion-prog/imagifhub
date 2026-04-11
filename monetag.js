@@ -95,9 +95,12 @@ export async function showMonetagInterstitial() {
 // ==================== REWARDED AD (zone 10836319) ====================
 let rewardedReady = false;
 let rewardedLoading = false;
+let rewardedPromiseQueue = null;
 
 function loadRewardedSDK() {
-    return new Promise((resolve) => {
+    if (rewardedPromiseQueue) return rewardedPromiseQueue;
+    
+    rewardedPromiseQueue = new Promise((resolve) => {
         if (window.show_10836319) {
             rewardedReady = true;
             resolve(true);
@@ -130,9 +133,11 @@ function loadRewardedSDK() {
         };
         document.head.appendChild(script);
     });
+    return rewardedPromiseQueue;
 }
 
 export async function showRewardedAd() {
+    console.log("[Rewarded] Attempting to show ad...");
     const loaded = await loadRewardedSDK();
     if (!loaded || !window.show_10836319) {
         console.warn("Rewarded ad SDK not available");
@@ -141,23 +146,25 @@ export async function showRewardedAd() {
 
     return new Promise((resolve) => {
         let resolved = false;
-        const timeoutMs = 10000; // 10 seconds for rewarded ad
+        const timeoutMs = 15000; // 15 seconds timeout
 
         const done = (success = true) => {
             if (resolved) return;
             resolved = true;
+            console.log(`[Rewarded] Ad finished with success=${success}`);
             resolve(success);
         };
 
-        // Set a timeout in case the ad never completes
         const timer = setTimeout(() => {
-            console.log('Rewarded ad timeout');
+            console.log('Rewarded ad timeout – no completion detected');
             done(false);
         }, timeoutMs);
 
         try {
+            // Monetag's show_10836319 returns a Promise
             window.show_10836319()
                 .then(() => {
+                    console.log("[Rewarded] Ad completed successfully");
                     clearTimeout(timer);
                     done(true);
                 })
@@ -172,4 +179,4 @@ export async function showRewardedAd() {
             done(false);
         }
     });
-    }
+}
