@@ -243,6 +243,19 @@ function openCopyright() {
 function closeCopyright() {
     document.getElementById('copyrightModal').classList.remove('active');
 }
+// Add after the closeCopyright() function (or anywhere before the global exposure)
+
+function openPrivacy() {
+    document.getElementById('menuPanel').classList.remove('open');
+    document.getElementById('privacyModal').classList.add('active');
+}
+
+function closePrivacy() {
+    document.getElementById('privacyModal').classList.remove('active');
+}
+
+// Then, inside the global exposure section (window.* = ...), add:
+
 
 // --- HISTORY TRACKING ---
 function getSeenList() {
@@ -1134,3 +1147,6 @@ window.toggleDarkText = toggleDarkText;
 window.openCopyright = openCopyright;
 window.closeCopyright = closeCopyright;
 window.copyUserId = copyUserId;
+window.openPrivacy = openPrivacy;
+window.closePrivacy = closePrivacy;
+
