@@ -146,7 +146,7 @@ export async function showRewardedAd() {
 
     return new Promise((resolve) => {
         let resolved = false;
-        const timeoutMs = 15000; // 15 seconds timeout
+        const timeoutMs = 30000; // 30 seconds timeout
 
         const done = (success = true) => {
             if (resolved) return;
