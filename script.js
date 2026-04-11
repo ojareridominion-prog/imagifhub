@@ -1108,35 +1108,27 @@ window.onload = async () => {
     updateDarkTextIndicator();
     
     // Watch Ad button listener
-    // Watch Ad button listener – add inside window.onload
-const watchAdBtn = document.getElementById('watchAdBtn');
+    const watchAdBtn = document.getElementById('watchAdBtn');
 if (watchAdBtn) {
-    // Remove any existing listeners to avoid duplicates
-    const newBtn = watchAdBtn.cloneNode(true);
-    watchAdBtn.parentNode.replaceChild(newBtn, watchAdBtn);
-    
-    newBtn.addEventListener('click', async (e) => {
+    watchAdBtn.addEventListener('click', async (e) => {
         e.preventDefault();
         console.log("[WatchAd] Button clicked");
-        
-        // Disable button briefly to prevent double-click
-        newBtn.disabled = true;
-        newBtn.innerText = "⏳ Loading ad...";
+        if (watchAdBtn.disabled) return;
+        watchAdBtn.disabled = true;
+        watchAdBtn.innerText = "⏳ Loading ad...";
         
         try {
             await showRewardedAdWrapper();
+        } catch (err) {
+            console.error("[WatchAd] Error:", err);
         } finally {
-            newBtn.disabled = false;
-            // Restore text if not in temp premium mode
+            watchAdBtn.disabled = false;
             const tempExpiry = getTempPremiumExpiry();
-            if (!tempExpiry) {
-                newBtn.innerText = "🎥 Watch Ad";
-            } else {
-                newBtn.innerText = "🎥 Watch Ad";
-            }
+            watchAdBtn.innerText = tempExpiry ? "🎥 Watch Ad" : "🎥 Watch Ad";
         }
     });
 }
+    
     
     const welcomeOverlay = document.getElementById('welcomeOverlay');
     const continueBtn = document.getElementById('welcomeContinueBtn');
