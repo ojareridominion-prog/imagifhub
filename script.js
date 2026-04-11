@@ -65,45 +65,45 @@ function setTempAdCount(count) {
     localStorage.setItem(TEMP_AD_COUNT_KEY, Math.min(count, 3));
 }
 
-function grantTempPremium() {
-    const expiry = new Date();
-    expiry.setHours(expiry.getHours() + 1);
-    setTempPremiumExpiry(expiry);
-    setTempAdCount(0);
+async function grantTempPremium() {
+    const tg = window.Telegram.WebApp;
+    if (!tg.initData) {
+        console.error("No initData available");
+        return false;
+    }
     
-    // Reload premium status to activate ad-free mode
-    verifyPremiumStatus().then(() => {
-        resetAndLoadFeed(currentCategory);
-    });
-    updateWatchAdCard();
-    startTempPremiumCountdown();
-}
-
-async function showRewardedAdWrapper() {
-    console.log("[WatchAd] Button clicked, showing rewarded ad...");
-    const success = await showRewardedAd();
-    console.log(`[WatchAd] Ad result: ${success}`);
-    if (success) {
-        let count = getTempAdCount();
-        count++;
-        setTempAdCount(count);
-        console.log(`[WatchAd] New count: ${count}/3`);
-        updateWatchAdCard();
+    try {
+        const response = await fetch(`${API_URL}/api/grant-temp-premium`, {
+            method: 'POST',
+            headers: {
+                'X-Telegram-Init-Data': tg.initData
+            }
+        });
         
-        if (count >= 3) {
-            console.log("[WatchAd] Threshold reached, granting 1h premium");
-            grantTempPremium();
+        if (!response.ok) {
+            throw new Error("Failed to grant temp premium");
         }
-    } else {
-        console.log("[WatchAd] Ad not completed, count unchanged");
-        // Optionally show a message to the user
-        const tg = window.Telegram.WebApp;
-        if (tg && tg.showAlert) {
-            tg.showAlert("Ad not completed. Please watch the full ad to earn reward.");
-        }
+        
+        const data = await response.json();
+        console.log("Temp premium granted, expires:", data.expires_at);
+        
+        // Also store locally for immediate UI feedback
+        const expiryDate = new Date(data.expires_at);
+        setTempPremiumExpiry(expiryDate);
+        setTempAdCount(0);
+        
+        // Reload premium status to activate ad-free mode
+        await verifyPremiumStatus();
+        resetAndLoadFeed(currentCategory);
+        updateWatchAdCard();
+        startTempPremiumCountdown();
+        
+        return true;
+    } catch (e) {
+        console.error("Error granting temp premium:", e);
+        return false;
     }
 }
-
 
 function updateWatchAdCard() {
     const card = document.getElementById('watchAdsCard');
@@ -464,16 +464,18 @@ function renderSlides(slides) {
 }
 
 // --- FETCH RANDOM IMAGES FROM BACKEND (no duplicates within session) ---
-async function fetchRandomImages(category = currentCategory, retryCount = 0) {
+async function fetchRandomImages(category = currentCategory, search = "", retryCount = 0) {
     if (isLoadingMore) return [];
     isLoadingMore = true;
-
     showLoadingSpinner();
 
     try {
         let url = `${API_URL}/media/random?limit=${PAGE_SIZE}`;
         if (category && category !== "Discover") {
             url += `&category=${encodeURIComponent(category)}`;
+        }
+        if (search && search.trim()) {
+            url += `&search=${encodeURIComponent(search.trim())}`;
         }
 
         const res = await fetch(url);
@@ -491,7 +493,7 @@ async function fetchRandomImages(category = currentCategory, retryCount = 0) {
 
         if (filtered.length < 10 && retryCount < MAX_RETRIES) {
             console.log(`Only ${filtered.length} new images, retrying... (${retryCount+1}/${MAX_RETRIES})`);
-            const more = await fetchRandomImages(category, retryCount + 1);
+            const more = await fetchRandomImages(category, search, retryCount + 1);
             const combined = [...filtered, ...more];
             const uniqueCombined = [];
             const seenSet = new Set();
@@ -524,7 +526,7 @@ async function loadMoreImages(preservePosition = false) {
         previousIndex = activeSwiper.activeIndex;
     }
     
-    const newImages = await fetchRandomImages(currentCategory);
+    const newImages = await fetchRandomImages(currentCategory, activeSearchQuery);
     if (newImages.length === 0) {
         hasMoreImages = false;
         return;
@@ -573,7 +575,7 @@ async function resetAndLoadFeed(cat, search = "", skipAd = false) {
     feed.innerHTML = '<div class="swiper-slide" style="display:flex; align-items:center; justify-content:center;"><h3>Loading...</h3></div>';
     
     try {
-        const newImages = await fetchRandomImages(cat);
+        const newImages = await fetchRandomImages(cat, activeSearchQuery);
         if (newImages.length === 0) {
             feed.innerHTML = '<div class="swiper-slide" style="display:flex; align-items:center; justify-content:center;"><h3>No Images Found</h3></div>';
             return;
@@ -747,7 +749,6 @@ async function verifyPremiumStatus() {
             const user = tg.initDataUnsafe?.user;
             if (user) updateUserCard(user);
         }
-        
         // Check temporary premium
         const tempExpiry = getTempPremiumExpiry();
         const tempActive = tempExpiry !== null;
@@ -855,7 +856,7 @@ async function checkPremiumStatus(userId) {
         console.log("Error checking premium status:", error);
         return false;
     }
-            }
+}
 // --- UI & THEME FUNCTIONS ---
 function toggleMenu() { 
     const panel = document.getElementById('menuPanel');
@@ -999,7 +1000,6 @@ function addManualPremiumCheck() {
         premiumCard.appendChild(checkBtn);
     }
 }
-
 // --- TELEGRAM WEBAPP INIT ---
 function initTelegramWebApp() {
     const tg = window.Telegram.WebApp;
@@ -1149,4 +1149,3 @@ window.closeCopyright = closeCopyright;
 window.copyUserId = copyUserId;
 window.openPrivacy = openPrivacy;
 window.closePrivacy = closePrivacy;
-
