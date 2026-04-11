@@ -1084,12 +1084,35 @@ window.onload = async () => {
     updateDarkTextIndicator();
     
     // Watch Ad button listener
-    const watchAdBtn = document.getElementById('watchAdBtn');
-    if (watchAdBtn) {
-        watchAdBtn.addEventListener('click', async () => {
+    // Watch Ad button listener – add inside window.onload
+const watchAdBtn = document.getElementById('watchAdBtn');
+if (watchAdBtn) {
+    // Remove any existing listeners to avoid duplicates
+    const newBtn = watchAdBtn.cloneNode(true);
+    watchAdBtn.parentNode.replaceChild(newBtn, watchAdBtn);
+    
+    newBtn.addEventListener('click', async (e) => {
+        e.preventDefault();
+        console.log("[WatchAd] Button clicked");
+        
+        // Disable button briefly to prevent double-click
+        newBtn.disabled = true;
+        newBtn.innerText = "⏳ Loading ad...";
+        
+        try {
             await showRewardedAdWrapper();
-        });
-    }
+        } finally {
+            newBtn.disabled = false;
+            // Restore text if not in temp premium mode
+            const tempExpiry = getTempPremiumExpiry();
+            if (!tempExpiry) {
+                newBtn.innerText = "🎥 Watch Ad";
+            } else {
+                newBtn.innerText = "🎥 Watch Ad";
+            }
+        }
+    });
+}
     
     const welcomeOverlay = document.getElementById('welcomeOverlay');
     const continueBtn = document.getElementById('welcomeContinueBtn');
