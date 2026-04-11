@@ -1,7 +1,7 @@
 // welcome.js - Holiday detection for welcome overlay
 import { musicLibrary, categories } from './music.js';
 import { getHolidayImage, getFestiveTitle } from './welcome.js';
-import { showMonetagInterstitial } from './monetag.js';
+import { showMonetagInterstitial, showRewardedAd } from './monetag.js';
 
 const API_URL = "https://imagifhub.onrender.com"; 
 let activeSwiper = null;
@@ -12,7 +12,8 @@ const SEEN_LIMIT = 20;
 const SEEN_KEY = "imagifhub-seen-history";
 const PREMIUM_CHECK_INTERVAL = 30000; // 30 seconds
 let premiumCheckInterval = null;
-let isPremiumUser = false;               // GLOBAL PREMIUM FLAG
+let isPremiumUser = false;               // GLOBAL PREMIUM FLAG (paid OR temporary)
+let paidPremiumActive = false;           // Track paid premium separately
 let currentAdIndex = 0;                 // INDEX FOR NATIVE ADS
 const AD_FREQUENCY = 3;                 // SHOW AD AFTER EVERY 3 IMAGES
 let isLoadingFeed = false;               // PREVENT CONCURRENT FEED LOADS
@@ -34,6 +35,131 @@ let activeSearchQuery = "";              // non-empty when search mode is active
 
 // --- Dark Text State ---
 let darkTextEnabled = localStorage.getItem('imagifhub-darktext') === 'true';
+
+// ==================== TEMPORARY PREMIUM (WATCH ADS) ====================
+let tempPremiumInterval = null;
+const TEMP_PREMIUM_KEY = "imagifhub_temp_premium_expiry";
+const TEMP_AD_COUNT_KEY = "imagifhub_temp_ad_count";
+
+function getTempPremiumExpiry() {
+    const expiry = localStorage.getItem(TEMP_PREMIUM_KEY);
+    if (!expiry) return null;
+    const expiryDate = new Date(expiry);
+    return expiryDate > new Date() ? expiryDate : null;
+}
+
+function setTempPremiumExpiry(expiryDate) {
+    if (expiryDate) {
+        localStorage.setItem(TEMP_PREMIUM_KEY, expiryDate.toISOString());
+    } else {
+        localStorage.removeItem(TEMP_PREMIUM_KEY);
+    }
+}
+
+function getTempAdCount() {
+    const count = parseInt(localStorage.getItem(TEMP_AD_COUNT_KEY) || "0");
+    return Math.min(count, 3);
+}
+
+function setTempAdCount(count) {
+    localStorage.setItem(TEMP_AD_COUNT_KEY, Math.min(count, 3));
+}
+
+function grantTempPremium() {
+    const expiry = new Date();
+    expiry.setHours(expiry.getHours() + 1);
+    setTempPremiumExpiry(expiry);
+    setTempAdCount(0);
+    
+    // Reload premium status to activate ad-free mode
+    verifyPremiumStatus().then(() => {
+        resetAndLoadFeed(currentCategory);
+    });
+    updateWatchAdCard();
+    startTempPremiumCountdown();
+}
+
+async function showRewardedAdWrapper() {
+    // Call the function from monetag.js
+    const success = await showRewardedAd();
+    if (success) {
+        let count = getTempAdCount();
+        count++;
+        setTempAdCount(count);
+        updateWatchAdCard();
+        
+        if (count >= 3) {
+            grantTempPremium();
+        }
+    }
+}
+
+function updateWatchAdCard() {
+    const card = document.getElementById('watchAdsCard');
+    const progressDiv = document.getElementById('watchAdsProgress');
+    const timerDiv = document.getElementById('tempPremiumTimer');
+    const watchBtn = document.getElementById('watchAdBtn');
+    
+    if (!card) return;
+    
+    // If user has paid premium (and no temp premium active), hide the card
+    if (paidPremiumActive && getTempPremiumExpiry() === null) {
+        card.style.display = 'none';
+        return;
+    }
+    card.style.display = 'block';
+    
+    const tempExpiry = getTempPremiumExpiry();
+    if (tempExpiry) {
+        // Temporary premium active
+        progressDiv.innerText = "✨ 1-Hour Premium Active ✨";
+        if (watchBtn) watchBtn.style.display = 'none';
+        // Timer is updated by startTempPremiumCountdown
+    } else {
+        const count = getTempAdCount();
+        progressDiv.innerText = `${count}/3 ads watched`;
+        if (watchBtn) watchBtn.style.display = 'block';
+        if (timerDiv) timerDiv.innerText = '';
+    }
+}
+
+function startTempPremiumCountdown() {
+    if (tempPremiumInterval) clearInterval(tempPremiumInterval);
+    
+    const updateTimer = () => {
+        const expiry = getTempPremiumExpiry();
+        const timerDiv = document.getElementById('tempPremiumTimer');
+        if (!timerDiv) return;
+        
+        if (!expiry) {
+            if (timerDiv) timerDiv.innerText = '';
+            if (tempPremiumInterval) clearInterval(tempPremiumInterval);
+            // Re-evaluate premium status after expiry
+            if (isPremiumUser && !getTempPremiumExpiry() && !paidPremiumActive) {
+                verifyPremiumStatus().then(() => resetAndLoadFeed(currentCategory));
+            }
+            return;
+        }
+        
+        const now = new Date();
+        const diffMs = expiry - now;
+        if (diffMs <= 0) {
+            setTempPremiumExpiry(null);
+            updateWatchAdCard();
+            verifyPremiumStatus().then(() => resetAndLoadFeed(currentCategory));
+            if (tempPremiumInterval) clearInterval(tempPremiumInterval);
+            return;
+        }
+        
+        const minutes = Math.floor(diffMs / 60000);
+        const seconds = Math.floor((diffMs % 60000) / 1000);
+        timerDiv.innerText = `⏱️ ${minutes}m ${seconds}s left`;
+    };
+    
+    updateTimer();
+    tempPremiumInterval = setInterval(updateTimer, 1000);
+}
+// ==================== END TEMPORARY PREMIUM ====================
 
 async function triggerBotAd() {
     const tg = window.Telegram.WebApp;
@@ -314,7 +440,6 @@ function renderSlides(slides) {
 }
 
 // --- FETCH RANDOM IMAGES FROM BACKEND (no duplicates within session) ---
-// MODIFIED: now accepts a category parameter (defaults to currentCategory)
 async function fetchRandomImages(category = currentCategory, retryCount = 0) {
     if (isLoadingMore) return [];
     isLoadingMore = true;
@@ -322,7 +447,6 @@ async function fetchRandomImages(category = currentCategory, retryCount = 0) {
     showLoadingSpinner();
 
     try {
-        // Build URL with optional category filter
         let url = `${API_URL}/media/random?limit=${PAGE_SIZE}`;
         if (category && category !== "Discover") {
             url += `&category=${encodeURIComponent(category)}`;
@@ -336,18 +460,14 @@ async function fetchRandomImages(category = currentCategory, retryCount = 0) {
             return [];
         }
 
-        // Filter out images already seen in this session OR in the last-20 history
         const seenHistory = new Set(getSeenList());
         const filtered = newImages.filter(img => 
             !sessionSeenUrls.has(img.url) && !seenHistory.has(img.url)
         );
 
-        // If we got fewer than 10 new images and we haven't retried too many times,
-        // fetch another batch (avoid infinite loop if DB is small)
         if (filtered.length < 10 && retryCount < MAX_RETRIES) {
             console.log(`Only ${filtered.length} new images, retrying... (${retryCount+1}/${MAX_RETRIES})`);
             const more = await fetchRandomImages(category, retryCount + 1);
-            // Combine and deduplicate
             const combined = [...filtered, ...more];
             const uniqueCombined = [];
             const seenSet = new Set();
@@ -360,7 +480,6 @@ async function fetchRandomImages(category = currentCategory, retryCount = 0) {
             return uniqueCombined;
         }
 
-        // Add new URLs to session tracker
         filtered.forEach(img => sessionSeenUrls.add(img.url));
         return filtered;
     } catch (e) {
@@ -373,7 +492,6 @@ async function fetchRandomImages(category = currentCategory, retryCount = 0) {
 }
 
 // --- LOAD MORE IMAGES (called on swipe to end) ---
-// MODIFIED: passes currentCategory to fetchRandomImages
 async function loadMoreImages(preservePosition = false) {
     if (isLoadingMore || !hasMoreImages) return;
     
@@ -388,32 +506,26 @@ async function loadMoreImages(preservePosition = false) {
         return;
     }
     
-    // Append to existing allImages array
     allImages.push(...newImages);
     const slides = buildSlides(allImages, isPremiumUser);
     renderSlides(slides);
     
     if (preservePosition && previousIndex !== null && activeSwiper) {
-        // Restore position without animation
         activeSwiper.slideTo(previousIndex, 0);
     }
 }
 
 // --- RESET AND LOAD FIRST PAGE (category change or initial load) ---
-// MODIFIED: passes cat to fetchRandomImages
 async function resetAndLoadFeed(cat, search = "", skipAd = false) {
-    // Prevent overlapping loads
     if (isLoadingFeed) return;
     isLoadingFeed = true;
     
-    // Reset session duplicate tracker and other state
     sessionSeenUrls.clear();
     hasMoreImages = true;
     allImages = [];
     imagesShownSinceLastAd = 0;
     currentAdIndex = 0;
     
-    // Show Monetag interstitial only on category switch (skipAd = false) and not premium
     const shouldShowAd = !isPremiumUser && !skipAd && !activeSearchQuery;
     if (shouldShowAd) {
         try {
@@ -423,20 +535,16 @@ async function resetAndLoadFeed(cat, search = "", skipAd = false) {
         }
     }
     
-    // Update state
     activeSearchQuery = search || "";
     currentCategory = cat;
     
-    // Update category button active state
     document.querySelectorAll('.cat-btn').forEach(b => b.classList.toggle('active', b.innerText === cat));
     
-    // Music handling
     const audio = document.getElementById('bgMusic');
     if (audio.paused || currentCategory !== cat) {
         playRandomMusic(cat);
     }
     
-    // Fetch first batch of random images
     const feed = document.getElementById('feed');
     feed.innerHTML = '<div class="swiper-slide" style="display:flex; align-items:center; justify-content:center;"><h3>Loading...</h3></div>';
     
@@ -456,12 +564,11 @@ async function resetAndLoadFeed(cat, search = "", skipAd = false) {
     }
 }
 
-// --- PUBLIC FEED LOADER (called by category buttons, search, etc.) ---
 async function loadFeed(cat, search = "", skipAd = false) {
     await resetAndLoadFeed(cat, search, skipAd);
 }
 
-// --- PREMIUM VERIFICATION FUNCTIONS ---
+// --- PREMIUM VERIFICATION FUNCTIONS (modified to include temporary premium) ---
 
 function formatExpiryDate(expiryStr) {
     if (!expiryStr) return '';
@@ -536,7 +643,6 @@ function updatePremiumUI(isPremium, expiryStr = null, daysLeft = null) {
     }
 }
 
-// Update user info card
 function updateUserCard(user) {
     if (!user) {
         document.getElementById('userName').innerText = 'Unknown User';
@@ -593,75 +699,89 @@ async function verifyPremiumStatus() {
         const tg = window.Telegram.WebApp;
         const initData = tg.initData;
         
-        if (!initData) {
-            console.log("No initData available, using localStorage");
-            const isPremium = localStorage.getItem("isPremium") === "true";
-            const expiry = localStorage.getItem("premiumExpires");
-            const wasPremium = isPremiumUser;
-            isPremiumUser = isPremium;
-            updatePremiumUI(isPremium, expiry, null);
-            // Only reload feed if premium status actually changed
-            if (wasPremium !== isPremium) {
-                resetAndLoadFeed(currentCategory);
+        let paidPremium = false;
+        let expiry = null;
+        let daysLeft = null;
+        
+        if (initData) {
+            const response = await fetch(`${API_URL}/api/user-data`, {
+                headers: { 'X-Telegram-Init-Data': initData }
+            });
+            const data = await response.json();
+            if (data.user) updateUserCard(data.user);
+            else {
+                const user = tg.initDataUnsafe?.user;
+                if (user) updateUserCard(user);
             }
-            const user = tg.initDataUnsafe?.user;
-            if (user) updateUserCard(user);
-            return isPremium;
-        }
-        
-        const response = await fetch(`${API_URL}/api/user-data`, {
-            headers: {
-                'X-Telegram-Init-Data': initData
-            }
-        });
-        
-        const data = await response.json();
-        
-        if (data.user) {
-            updateUserCard(data.user);
+            paidPremium = data.premium === true;
+            expiry = data.expires_at;
+            daysLeft = data.days_left;
         } else {
+            console.log("No initData available, using localStorage");
+            paidPremium = localStorage.getItem("isPremium") === "true";
+            expiry = localStorage.getItem("premiumExpires");
             const user = tg.initDataUnsafe?.user;
             if (user) updateUserCard(user);
         }
         
-        const newPremiumStatus = data.premium === true;
+        // Check temporary premium
+        const tempExpiry = getTempPremiumExpiry();
+        const tempActive = tempExpiry !== null;
+        
+        // Combine: user is premium if paid OR temp active
+        const newPremiumStatus = paidPremium || tempActive;
         const wasPremium = isPremiumUser;
+        
+        paidPremiumActive = paidPremium;  // store for UI decisions
         isPremiumUser = newPremiumStatus;
         
-        if (data.premium) {
+        if (paidPremium) {
             localStorage.setItem("isPremium", "true");
-            localStorage.setItem("premiumExpires", data.expires_at);
-            updatePremiumUI(true, data.expires_at, data.days_left);
-            stopPremiumChecking();
-            // Only reload feed if premium status changed (from false to true)
-            if (!wasPremium) {
-                resetAndLoadFeed(currentCategory);
-            }
-            return true;
+            if (expiry) localStorage.setItem("premiumExpires", expiry);
+            updatePremiumUI(true, expiry, daysLeft);
+            stopPremiumChecking(); // stop periodic checks for paid premium
+            // Hide watch-ads card if no temp premium active
+            if (!tempActive) updateWatchAdCard();
+        } else if (tempActive) {
+            // Temporary premium active – treat as premium but without expiry display
+            updatePremiumUI(true, null, null);
+            // Show watch-ads card with countdown
+            updateWatchAdCard();
+            startTempPremiumCountdown();
         } else {
             localStorage.removeItem("isPremium");
             localStorage.removeItem("premiumExpires");
             updatePremiumUI(false);
-            // Only reload feed if premium status changed (from true to false)
-            if (wasPremium) {
-                resetAndLoadFeed(currentCategory);
-            }
-            return false;
+            updateWatchAdCard();
         }
+        
+        // Only reload feed if premium status changed
+        if (wasPremium !== isPremiumUser) {
+            resetAndLoadFeed(currentCategory);
+        }
+        return isPremiumUser;
     } catch (error) {
         console.log("Error verifying premium:", error);
-        const isPremium = localStorage.getItem("isPremium") === "true";
-        const expiry = localStorage.getItem("premiumExpires");
-        const wasPremium = isPremiumUser;
-        isPremiumUser = isPremium;
-        updatePremiumUI(isPremium, expiry, null);
-        // Only reload feed if premium status actually changed
-        if (wasPremium !== isPremium) {
+        const paid = localStorage.getItem("isPremium") === "true";
+        const tempExpiry = getTempPremiumExpiry();
+        const tempActive = tempExpiry !== null;
+        const newStatus = paid || tempActive;
+        const was = isPremiumUser;
+        isPremiumUser = newStatus;
+        paidPremiumActive = paid;
+        if (was !== newStatus) {
             resetAndLoadFeed(currentCategory);
+        }
+        updatePremiumUI(paid, null, null);
+        if (tempActive) {
+            updateWatchAdCard();
+            startTempPremiumCountdown();
+        } else {
+            updateWatchAdCard();
         }
         const user = window.Telegram.WebApp.initDataUnsafe?.user;
         if (user) updateUserCard(user);
-        return isPremium;
+        return newStatus;
     }
 }
 
@@ -688,6 +808,7 @@ async function checkPremiumStatus(userId) {
         if (data.is_premium) {
             const wasPremium = isPremiumUser;
             isPremiumUser = true;
+            paidPremiumActive = true;
             localStorage.setItem("isPremium", "true");
             localStorage.setItem("premiumExpires", data.expires_at);
             updatePremiumUI(true, data.expires_at, data.days_left);
@@ -710,7 +831,7 @@ async function checkPremiumStatus(userId) {
         console.log("Error checking premium status:", error);
         return false;
     }
-}
+            }
 // --- UI & THEME FUNCTIONS ---
 function toggleMenu() { 
     const panel = document.getElementById('menuPanel');
@@ -728,7 +849,7 @@ function applyTheme(themeId) {
 
 function triggerSearch() {
     let q = prompt("Search images:");
-    if(q) loadFeed("Discover", q, true);   // skipAd = true
+    if(q) loadFeed("Discover", q, true);
 }
 
 async function shareBot() {
@@ -819,6 +940,7 @@ async function goPremium() {
         btn.disabled = false;
     }
 }
+
 function addManualPremiumCheck() {
     const premiumCard = document.querySelector('.premium-card');
     if (premiumCard) {
@@ -910,7 +1032,7 @@ async function fetchNativeAds() {
     }
 }
 
-// --- INITIALIZATION ---
+// --- INITIALIZATION (with watch ad button listener)---
 window.onload = async () => {
     initTelegramWebApp();
     await fetchNativeAds();
@@ -936,6 +1058,14 @@ window.onload = async () => {
     
     applyDarkText();
     updateDarkTextIndicator();
+    
+    // Watch Ad button listener
+    const watchAdBtn = document.getElementById('watchAdBtn');
+    if (watchAdBtn) {
+        watchAdBtn.addEventListener('click', async () => {
+            await showRewardedAdWrapper();
+        });
+    }
     
     const welcomeOverlay = document.getElementById('welcomeOverlay');
     const continueBtn = document.getElementById('welcomeContinueBtn');
