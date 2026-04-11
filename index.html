@@ -10,10 +10,8 @@
 
     <meta name="6a97888e-site-verification" content="dcdb9b639fb5730ac14653a93bf9469c">
     
-    
-    <!-- monetag SDK -->
+    <!-- Monetag SDK – Interstitial (zone 10836321) -->
     <script>
-    // Preload Monetag SDK quietly
     (function() {
         const script = document.createElement('script');
         script.src = 'https://libtl.com/sdk.js';
@@ -23,13 +21,23 @@
         document.head.appendChild(script);
     })();
     </script>
-    
+
+    <!-- Monetag SDK – Rewarded Interstitial (zone 10836319) -->
+    <script>
+    (function() {
+        const script = document.createElement('script');
+        script.src = 'https://libtl.com/sdk.js';
+        script.setAttribute('data-zone', '10836319');
+        script.setAttribute('data-sdk', 'show_10836319');
+        script.async = true;
+        document.head.appendChild(script);
+    })();
+    </script>
     
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.css"/>
     <script src="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.js"></script>
     
     <style>
-        /* ... (keep all existing styles, no changes needed) ... */
         :root { 
             --bg: #000; 
             --text: #fff; 
@@ -46,7 +54,12 @@
         .cat-btn { padding:6px 15px; border-radius:20px; background:#333; font-size:12px; white-space:nowrap; border:none; color:#fff; cursor:pointer; }
         .cat-btn.active { background:var(--accent); font-weight: bold; }
 
-        .menu-panel { position:fixed; left:-100%; width:85%; height:100%; background:var(--bar); z-index:2000; transition:0.4s; padding-top:60px; box-shadow: 5px 0 15px rgba(0,0,0,0.5); }
+        /* MENU PANEL – now scrollable */
+        .menu-panel { 
+            position:fixed; left:-100%; width:85%; height:100%; background:var(--bar); 
+            z-index:2000; transition:0.4s; padding-top:60px; box-shadow: 5px 0 15px rgba(0,0,0,0.5);
+            overflow-y: auto;   /* <-- scrollable */
+        }
         .menu-panel.open { left:0; }
         .menu-link { padding:15px 25px; border-bottom:1px solid rgba(255,255,255,0.05); display:block; text-decoration:none; color:var(--text); font-weight:500; cursor:pointer; }
         
@@ -451,17 +464,16 @@
         }
 
         .spinner {
-    width: 20px;
-    height: 20px;
-    border: 2px solid rgba(255,255,255,0.3);
-    border-top-color: white;
-    border-radius: 50%;
-    animation: spin 0.6s linear infinite;
-}
-@keyframes spin {
-    to { transform: rotate(360deg); }
-}
-        
+            width: 20px;
+            height: 20px;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 0.6s linear infinite;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
     </style>
 </head>
 <body>
@@ -476,17 +488,11 @@
 
     <div class="cat-bar" id="catBar"></div>
 
+    <!-- MENU PANEL – reordered, scrollable, with watch-ads card -->
     <div id="menuPanel" class="menu-panel">
         <a href="#" class="menu-link" onclick="toggleMenu()" style="color:var(--accent)">✕ Close Menu</a>
         
-        <div class="premium-box">
-            <div style="font-weight: bold; font-size: 18px;">IMAGIF PREMIUM ⭐</div>
-            <div id="premiumExpiryDisplay" style="font-size: 11px; opacity: 0.9; margin-top: 5px;">
-                Enjoy ad-free smooth scrolling
-            </div>
-            <button class="premium-btn-menu" onclick="openPremium()">UPGRADE NOW</button>
-        </div>
-
+        <!-- USER INFO CARD (moved to top) -->
         <div class="user-info-card" id="userInfoCard">
             <div class="user-avatar">
                 <img id="userAvatar" src="assets/default-avatar.png" alt="User">
@@ -500,13 +506,28 @@
             </div>
         </div>
 
+        <!-- PAID PREMIUM CARD -->
+        <div class="premium-box">
+            <div style="font-weight: bold; font-size: 18px;">IMAGIF PREMIUM ⭐</div>
+            <div id="premiumExpiryDisplay" style="font-size: 11px; opacity: 0.9; margin-top: 5px;">
+                Enjoy ad-free smooth scrolling
+            </div>
+            <button class="premium-btn-menu" onclick="openPremium()">UPGRADE NOW</button>
+        </div>
+
+        <!-- WATCH ADS CARD (temporary premium) -->
+        <div id="watchAdsCard" class="premium-box" style="background: linear-gradient(45deg, #ff8c00, #ff4d4d); margin-top: 10px;">
+            <div style="font-weight: bold; font-size: 16px;">🎬 Watch Ads → 1h Premium</div>
+            <div id="watchAdsProgress" style="font-size: 14px; margin: 8px 0;">0/3 ads watched</div>
+            <div id="tempPremiumTimer" style="font-size: 12px; opacity: 0.9;"></div>
+            <button id="watchAdBtn" class="premium-btn-menu" style="background: white; color: #ff8c00; margin-top: 8px;">🎥 Watch Ad</button>
+        </div>
+
         <a href="#" class="menu-link" onclick="openCopyright()">⚖️ Copyright Policy</a>
-        
         <div class="menu-link" onclick="toggleDarkText()" style="display:flex; justify-content:space-between; align-items:center;">
             <span>🌙 Dark Text</span>
             <span id="darkTextIndicator">OFF</span>
         </div>
-        
         <a href="#" class="menu-link" onclick="shareBot()">🔗 Share Bot with Friends</a>
         <a href="https://t.me/imagifhub" class="menu-link">📢 Join Official Channel</a>
         <a href="https://t.me/ojareridominion" class="menu-link">💬 Support</a>
