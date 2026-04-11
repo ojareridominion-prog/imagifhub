@@ -134,6 +134,30 @@ function updateWatchAdCard() {
     }
 }
 
+async function showRewardedAdWrapper() {
+    console.log("[WatchAd] Button clicked, showing rewarded ad...");
+    const success = await showRewardedAd();
+    console.log(`[WatchAd] Ad result: ${success}`);
+    if (success) {
+        let count = getTempAdCount();
+        count++;
+        setTempAdCount(count);
+        console.log(`[WatchAd] New count: ${count}/3`);
+        updateWatchAdCard();
+        
+        if (count >= 3) {
+            console.log("[WatchAd] Threshold reached, granting 1h premium via backend");
+            await grantTempPremium();
+        }
+    } else {
+        console.log("[WatchAd] Ad not completed, count unchanged");
+        const tg = window.Telegram.WebApp;
+        if (tg && tg.showAlert) {
+            tg.showAlert("Ad not completed. Please watch the full ad to earn reward.");
+        }
+    }
+}
+
 function startTempPremiumCountdown() {
     if (tempPremiumInterval) clearInterval(tempPremiumInterval);
     
