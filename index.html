@@ -56,10 +56,21 @@
 
         /* MENU PANEL – now scrollable */
         .menu-panel { 
-            position:fixed; left:-100%; width:85%; height:100%; background:var(--bar); 
-            z-index:2000; transition:0.4s; padding-top:60px; box-shadow: 5px 0 15px rgba(0,0,0,0.5);
-            overflow-y: auto;   /* <-- scrollable */
+    position: fixed; 
+    left: -100%; 
+    width: 85%; 
+    height: 100%; 
+    max-height: 100vh;
+    background: var(--bar); 
+    z-index: 2000; 
+    transition: 0.4s; 
+    padding-top: 60px; 
+    padding-bottom: 30px;   /* extra space at bottom */
+    box-shadow: 5px 0 15px rgba(0,0,0,0.5);
+    overflow-y: auto; 
+    -webkit-overflow-scrolling: touch; /* smooth scroll on iOS */
         }
+        
         .menu-panel.open { left:0; }
         .menu-link { padding:15px 25px; border-bottom:1px solid rgba(255,255,255,0.05); display:block; text-decoration:none; color:var(--text); font-weight:500; cursor:pointer; }
         
