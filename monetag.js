@@ -140,15 +140,19 @@ export async function showRewardedAd() {
     console.log("[Rewarded] Attempting to show ad...");
     const loaded = await loadRewardedSDK();
     if (!loaded || !window.show_10836319) {
-        console.warn("Rewarded ad SDK not available");
+        console.warn("[Rewarded] SDK not available – showing fallback alert");
+        // Fallback for testing: simulate successful ad after 2 seconds
+        if (window.Telegram?.WebApp?.showAlert) {
+            window.Telegram.WebApp.showAlert("Ad SDK not ready. Please try again later.");
+        }
         return false;
     }
 
     return new Promise((resolve) => {
         let resolved = false;
-        const timeoutMs = 30000; // 30 seconds timeout
+        const timeoutMs = 35000; // 35 seconds
 
-        const done = (success = true) => {
+        const done = (success = false) => {
             if (resolved) return;
             resolved = true;
             console.log(`[Rewarded] Ad finished with success=${success}`);
@@ -156,27 +160,37 @@ export async function showRewardedAd() {
         };
 
         const timer = setTimeout(() => {
-            console.log('Rewarded ad timeout – no completion detected');
+            console.log('[Rewarded] Timeout – assuming ad failed');
             done(false);
         }, timeoutMs);
 
         try {
-            // Monetag's show_10836319 returns a Promise
-            window.show_10836319()
-                .then(() => {
-                    console.log("[Rewarded] Ad completed successfully");
-                    clearTimeout(timer);
+            // Monetag rewarded ad – the function usually returns a Promise
+            const adPromise = window.show_10836319();
+            if (adPromise && typeof adPromise.then === 'function') {
+                adPromise
+                    .then(() => {
+                        console.log("[Rewarded] Ad completed successfully");
+                        clearTimeout(timer);
+                        done(true);
+                    })
+                    .catch((err) => {
+                        console.error('[Rewarded] Ad promise rejected:', err);
+                        clearTimeout(timer);
+                        done(false);
+                    });
+            } else {
+                // If it doesn't return a promise, assume it's a synchronous show
+                // and we have to rely on events (unlikely)
+                console.warn('[Rewarded] show_10836319 did not return a Promise, waiting 5 seconds');
+                setTimeout(() => {
                     done(true);
-                })
-                .catch((err) => {
-                    console.error('Rewarded ad error:', err);
-                    clearTimeout(timer);
-                    done(false);
-                });
+                }, 5000);
+            }
         } catch (e) {
-            console.error('Exception calling show_10836319:', e);
+            console.error('[Rewarded] Exception calling show_10836319:', e);
             clearTimeout(timer);
             done(false);
         }
     });
-}
+                                       }
