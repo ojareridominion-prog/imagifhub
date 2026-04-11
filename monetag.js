@@ -1,9 +1,10 @@
 // monetag.js - Monetag interstitial wrapper with Promise & fallback
+// plus rewarded ad support
 
 let monetagReady = false;
 let monetagLoading = false;
 
-// Load Monetag SDK dynamically
+// Load Monetag SDK dynamically (interstitial)
 function loadMonetagSDK() {
     return new Promise((resolve) => {
         if (window.show_10836321) {
@@ -12,7 +13,6 @@ function loadMonetagSDK() {
             return;
         }
         if (monetagLoading) {
-            // wait for existing load
             const checkInterval = setInterval(() => {
                 if (window.show_10836321) {
                     clearInterval(checkInterval);
@@ -43,18 +43,15 @@ function loadMonetagSDK() {
 
 // Show interstitial and wait for it to be closed (or timeout)
 export async function showMonetagInterstitial() {
-    // Only for non-premium – check will be done by caller
-    // Wait for SDK
     const loaded = await loadMonetagSDK();
     if (!loaded || !window.show_10836321) {
-        return; // fallback silently
+        return;
     }
 
     return new Promise((resolve) => {
         let resolved = false;
-        const timeoutMs = 5000; // 5 seconds max wait
+        const timeoutMs = 5000;
 
-        // Function to clean up and resolve
         const done = () => {
             if (resolved) return;
             resolved = true;
@@ -64,7 +61,6 @@ export async function showMonetagInterstitial() {
             resolve();
         };
 
-        // When user returns to the page (ad overlay closed)
         const onFocus = () => done();
         const onVisibility = () => {
             if (document.visibilityState === 'visible') done();
@@ -73,18 +69,16 @@ export async function showMonetagInterstitial() {
         window.addEventListener('focus', onFocus);
         window.addEventListener('visibilitychange', onVisibility);
 
-        // Fallback timeout
         const timer = setTimeout(() => {
             console.log('Monetag ad timeout – loading feed anyway');
             done();
         }, timeoutMs);
 
-        // Show the ad
         try {
             window.show_10836321({
                 type: 'inApp',
                 inAppSettings: {
-                    frequency: 1,      // show on every call (SDK may still enforce its own cap)
+                    frequency: 1,
                     capping: 0,
                     interval: 30,
                     timeout: 5,
@@ -96,4 +90,86 @@ export async function showMonetagInterstitial() {
             done();
         }
     });
-                                }
+}
+
+// ==================== REWARDED AD (zone 10836319) ====================
+let rewardedReady = false;
+let rewardedLoading = false;
+
+function loadRewardedSDK() {
+    return new Promise((resolve) => {
+        if (window.show_10836319) {
+            rewardedReady = true;
+            resolve(true);
+            return;
+        }
+        if (rewardedLoading) {
+            const checkInterval = setInterval(() => {
+                if (window.show_10836319) {
+                    clearInterval(checkInterval);
+                    rewardedReady = true;
+                    resolve(true);
+                }
+            }, 100);
+            return;
+        }
+        rewardedLoading = true;
+        const script = document.createElement('script');
+        script.src = 'https://libtl.com/sdk.js';
+        script.setAttribute('data-zone', '10836319');
+        script.setAttribute('data-sdk', 'show_10836319');
+        script.async = true;
+        script.onload = () => {
+            rewardedReady = true;
+            resolve(true);
+        };
+        script.onerror = () => {
+            console.warn('Monetag rewarded SDK failed to load');
+            rewardedReady = false;
+            resolve(false);
+        };
+        document.head.appendChild(script);
+    });
+}
+
+export async function showRewardedAd() {
+    const loaded = await loadRewardedSDK();
+    if (!loaded || !window.show_10836319) {
+        console.warn("Rewarded ad SDK not available");
+        return false;
+    }
+
+    return new Promise((resolve) => {
+        let resolved = false;
+        const timeoutMs = 10000; // 10 seconds for rewarded ad
+
+        const done = (success = true) => {
+            if (resolved) return;
+            resolved = true;
+            resolve(success);
+        };
+
+        // Set a timeout in case the ad never completes
+        const timer = setTimeout(() => {
+            console.log('Rewarded ad timeout');
+            done(false);
+        }, timeoutMs);
+
+        try {
+            window.show_10836319()
+                .then(() => {
+                    clearTimeout(timer);
+                    done(true);
+                })
+                .catch((err) => {
+                    console.error('Rewarded ad error:', err);
+                    clearTimeout(timer);
+                    done(false);
+                });
+        } catch (e) {
+            console.error('Exception calling show_10836319:', e);
+            clearTimeout(timer);
+            done(false);
+        }
+    });
+    }
