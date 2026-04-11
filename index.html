@@ -268,13 +268,13 @@
         .user-info-card {
             margin: 15px;
             padding: 15px;
-            background: #f0f0f0;
             border-radius: 12px;
             display: flex;
             align-items: center;
             gap: 15px;
-            backdrop-filter: none;
-            border: 1px solid rgba(0,0,0,0.1);
+    background: rgba(255, 255, 255, 0.1);   /* translucent – works on any background */
+    backdrop-filter: blur(8px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
         }
 
         .user-avatar {
