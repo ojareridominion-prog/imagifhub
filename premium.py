@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Request, HTTPException
 from fastapi.responses import Response
-from datetime import datetime
+from datetime import datetime, timedelta
 import json
 import urllib.parse
 import logging
@@ -267,4 +267,57 @@ async def force_expire_premiums(request: Request):
     from premium_expiry_checker import update_expired_premiums
     count = await update_expired_premiums()
     return {"updated": count, "message": f"Expired {count} premium users"}
+
+# ==================== NEW ENDPOINT: GRANT TEMPORARY PREMIUM (1 HOUR) ====================
+
+@router.post("/api/grant-temp-premium")
+async def grant_temp_premium(request: Request):
+    """
+    Grant 1 hour of temporary premium (e.g., after watching 3 ads).
+    Does not override a longer existing paid premium.
+    """
+    init_data = request.headers.get("X-Telegram-Init-Data", "")
+    if not init_data:
+        raise HTTPException(status_code=401, detail="Missing init data")
     
+    user_id = get_user_id_from_init_data(init_data)
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Invalid user")
+    
+    try:
+        # Get current user data (if any)
+        result = supabase.table("users").select("premium_expires_at").eq("telegram_id", user_id).execute()
+        
+        now = datetime.utcnow()
+        new_expiry = now + timedelta(hours=1)
+        
+        # If user already has a valid premium that expires later than new_expiry, keep it
+        if result.data and result.data[0].get("premium_expires_at"):
+            current_expiry_str = result.data[0]["premium_expires_at"]
+            try:
+                if current_expiry_str.endswith('Z'):
+                    current_expiry_str = current_expiry_str.replace('Z', '+00:00')
+                current_expiry = datetime.fromisoformat(current_expiry_str)
+                if current_expiry.tzinfo:
+                    current_expiry = current_expiry.replace(tzinfo=None)
+                if current_expiry > now and current_expiry > new_expiry:
+                    new_expiry = current_expiry  # keep existing longer expiry
+            except:
+                pass
+        
+        # Upsert user with temp premium
+        user_data = {
+            "telegram_id": user_id,
+            "is_premium": True,
+            "premium_expires_at": new_expiry.isoformat(),
+            "updated_at": now.isoformat()
+        }
+        supabase.table("users").upsert(user_data).execute()
+        
+        logging.info(f"Temporary premium granted to user {user_id} until {new_expiry.isoformat()}")
+        return {"success": True, "expires_at": new_expiry.isoformat()}
+        
+    except Exception as e:
+        logging.error(f"Error granting temp premium: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error")
+        
