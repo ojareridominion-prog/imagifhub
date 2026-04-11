@@ -96,6 +96,11 @@ async function showRewardedAdWrapper() {
         }
     } else {
         console.log("[WatchAd] Ad not completed, count unchanged");
+        // Optionally show a message to the user
+        const tg = window.Telegram.WebApp;
+        if (tg && tg.showAlert) {
+            tg.showAlert("Ad not completed. Please watch the full ad to earn reward.");
+        }
     }
 }
 
