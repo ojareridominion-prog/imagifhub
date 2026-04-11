@@ -59,16 +59,17 @@
     position: fixed; 
     left: -100%; 
     width: 85%; 
-    height: 100%; 
+    height: 100vh;          /* force exact viewport height */
     max-height: 100vh;
     background: var(--bar); 
     z-index: 2000; 
     transition: 0.4s; 
     padding-top: 60px; 
-    padding-bottom: 500px;   /* increased bottom padding */
+    padding-bottom: 120px;  /* sufficient for theme selector */
     box-shadow: 5px 0 15px rgba(0,0,0,0.5);
     overflow-y: auto; 
     -webkit-overflow-scrolling: touch;
+    box-sizing: border-box; /* include padding in height */
         }
         
         .menu-panel.open { left:0; }
