@@ -28,11 +28,12 @@ async def get_media(category: str = "all", search: str = "", offset: int = 0, li
 # media.py – replace the existing /media/random endpoint
 
 @router.get("/media/random")
-async def get_random_media(limit: int = 30, category: str = None):
+async def get_random_media(limit: int = 30, category: str = None, search: str = None):
     """
-    Fetch random images, optionally filtered by category.
+    Fetch random images, optionally filtered by category or search keyword.
     - category "Discover" or None/empty → all images
     - other categories → filter by that category
+    - search → filter by Keyword (case-insensitive partial match)
     """
     try:
         # Build base query
@@ -41,6 +42,10 @@ async def get_random_media(limit: int = 30, category: str = None):
         # Apply category filter if provided and not "Discover"
         if category and category.lower() != "discover":
             query = query.eq('category', category)
+        
+        # Apply search filter if provided
+        if search and search.strip():
+            query = query.ilike('Keyword', f'%{search.strip()}%')
         
         # Get total count of filtered results
         count_res = query.execute()
@@ -54,7 +59,6 @@ async def get_random_media(limit: int = 30, category: str = None):
             return res.data
         
         # Pick a random starting offset
-        import random
         max_offset = total_count - limit
         random_offset = random.randint(0, max_offset)
         
