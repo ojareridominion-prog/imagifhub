@@ -2,6 +2,7 @@
 import { state } from './state.js';
 import { resetAndLoadFeed } from './feedManager.js';
 import { showRewardedAd } from './adsManager.js';
+import { generateInitialsAvatar } from './utils.js';   // <-- ADDED
 
 const API_URL = "https://imagifhub.onrender.com";
 const TEMP_PREMIUM_KEY = "imagifhub_temp_premium_expiry";
@@ -263,4 +264,4 @@ function updateUserCard(user) {
         .then(response => response.ok ? response.blob() : Promise.reject())
         .then(blob => { avatarImg.src = URL.createObjectURL(blob); })
         .catch(() => { avatarImg.src = generateInitialsAvatar(user); });
-              }
+}
