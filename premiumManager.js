@@ -2,7 +2,7 @@
 import { state } from './state.js';
 import { resetAndLoadFeed } from './feedManager.js';
 import { showRewardedAd } from './adsManager.js';
-import { generateInitialsAvatar } from './utils.js';   // <-- ADDED
+import { generateInitialsAvatar } from './utils.js';
 
 const API_URL = "https://imagifhub.onrender.com";
 const TEMP_PREMIUM_KEY = "imagifhub_temp_premium_expiry";
@@ -122,16 +122,25 @@ export function startTempPremiumCountdown() {
     tempPremiumInterval = setInterval(updateTimer, 1000);
 }
 
-function updatePremiumUI(isPremium, expiryStr = null, daysLeft = null) {
+// UPDATED: accepts isTemp flag to differentiate paid vs temporary premium
+function updatePremiumUI(isPremium, expiryStr = null, daysLeft = null, isTemp = false) {
     const premiumBtn = document.querySelector('.premium-btn-menu');
     const expiryDisplay = document.getElementById('premiumExpiryDisplay');
     if (premiumBtn) {
         if (isPremium) {
-            premiumBtn.innerText = "⭐ PREMIUM ACTIVE";
-            premiumBtn.style.background = "#4CAF50";
-            premiumBtn.style.color = "white";
-            premiumBtn.disabled = true;
-            premiumBtn.onclick = null;
+            if (isTemp) {
+                premiumBtn.innerText = "⏱️ TEMP PREMIUM (1h)";
+                premiumBtn.style.background = "#ff8c00";   // orange for temporary
+                premiumBtn.style.color = "white";
+                premiumBtn.disabled = true;
+                premiumBtn.onclick = null;
+            } else {
+                premiumBtn.innerText = "⭐ PREMIUM ACTIVE";
+                premiumBtn.style.background = "#4CAF50";   // green for paid
+                premiumBtn.style.color = "white";
+                premiumBtn.disabled = true;
+                premiumBtn.onclick = null;
+            }
         } else {
             premiumBtn.innerText = "UPGRADE NOW";
             premiumBtn.style.background = "white";
@@ -141,14 +150,29 @@ function updatePremiumUI(isPremium, expiryStr = null, daysLeft = null) {
         }
     }
     if (expiryDisplay) {
-        if (isPremium) expiryDisplay.innerText = daysLeft ? `${daysLeft} days left` : (expiryStr ? formatExpiryDate(expiryStr) : "Premium active");
-        else expiryDisplay.innerText = "Enjoy ad-free smooth scrolling";
+        if (isPremium) {
+            if (isTemp) {
+                expiryDisplay.innerText = "⏳ 1‑hour trial – see timer below";
+            } else if (daysLeft !== null) {
+                expiryDisplay.innerText = `${daysLeft} days left`;
+            } else if (expiryStr) {
+                expiryDisplay.innerText = formatExpiryDate(expiryStr);
+            } else {
+                expiryDisplay.innerText = "Premium active";
+            }
+        } else {
+            expiryDisplay.innerText = "Enjoy ad-free smooth scrolling";
+        }
     }
     const buyBtn = document.getElementById('btnBuy');
     if (buyBtn) {
-        if (isPremium) {
+        if (isPremium && !isTemp) {
             buyBtn.innerText = "⭐ PREMIUM ACTIVE";
             buyBtn.style.background = "#4CAF50";
+            buyBtn.disabled = true;
+        } else if (isPremium && isTemp) {
+            buyBtn.innerText = "⏱️ TEMP ACTIVE";
+            buyBtn.style.background = "#ff8c00";
             buyBtn.disabled = true;
         } else {
             buyBtn.innerText = "Go Premium";
@@ -205,13 +229,16 @@ export async function verifyPremiumStatus() {
         const wasPremium = state.isPremiumUser;
         state.paidPremiumActive = paidPremium;
         state.isPremiumUser = newPremiumStatus;
+        
+        const isTemp = tempActive && !paidPremium;   // temporary premium only if no paid premium
+        
         if (paidPremium) {
             localStorage.setItem("isPremium", "true");
             if (expiry) localStorage.setItem("premiumExpires", expiry);
-            updatePremiumUI(true, expiry, daysLeft);
+            updatePremiumUI(true, expiry, daysLeft, false);   // paid = false for isTemp
             if (!tempActive) updateWatchAdCard();
         } else if (tempActive) {
-            updatePremiumUI(true, null, null);
+            updatePremiumUI(true, null, null, true);          // temporary premium
             updateWatchAdCard();
             startTempPremiumCountdown();
         } else {
@@ -231,8 +258,9 @@ export async function verifyPremiumStatus() {
         const was = state.isPremiumUser;
         state.isPremiumUser = newStatus;
         state.paidPremiumActive = paid;
+        const isTemp = tempActive && !paid;
         if (was !== newStatus) resetAndLoadFeed(state.currentCategory);
-        updatePremiumUI(paid, null, null);
+        updatePremiumUI(newStatus, null, null, isTemp);
         if (tempActive) {
             updateWatchAdCard();
             startTempPremiumCountdown();
@@ -264,4 +292,4 @@ function updateUserCard(user) {
         .then(response => response.ok ? response.blob() : Promise.reject())
         .then(blob => { avatarImg.src = URL.createObjectURL(blob); })
         .catch(() => { avatarImg.src = generateInitialsAvatar(user); });
-}
+            }
