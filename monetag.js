@@ -1,15 +1,16 @@
-// monetag.js - Monetag interstitial wrapper with Promise & fallback
+// monetag.js - Monetag interstitial (simplified, no auto-repeat)
 // plus rewarded ad support
 
 let monetagReady = false;
 let monetagLoading = false;
-let interstitialShowing = false;   // prevent concurrent calls
+let interstitialShowing = false;
 
 // Load Monetag SDK dynamically (interstitial)
 function loadMonetagSDK() {
     return new Promise((resolve) => {
         if (window.show_10836321) {
             monetagReady = true;
+            console.log("[Monetag] SDK already loaded");
             resolve(true);
             return;
         }
@@ -18,6 +19,7 @@ function loadMonetagSDK() {
                 if (window.show_10836321) {
                     clearInterval(checkInterval);
                     monetagReady = true;
+                    console.log("[Monetag] SDK loaded (waited)");
                     resolve(true);
                 }
             }, 100);
@@ -31,10 +33,11 @@ function loadMonetagSDK() {
         script.async = true;
         script.onload = () => {
             monetagReady = true;
+            console.log("[Monetag] SDK loaded from script");
             resolve(true);
         };
         script.onerror = () => {
-            console.warn('Monetag SDK failed to load');
+            console.warn('[Monetag] SDK failed to load');
             monetagReady = false;
             resolve(false);
         };
@@ -42,62 +45,91 @@ function loadMonetagSDK() {
     });
 }
 
-// Show interstitial and wait for it to be closed (or timeout)
+// Show interstitial – simple call, no extra settings
 export async function showMonetagInterstitial() {
-    // Avoid overlapping ad requests
-    if (interstitialShowing) return;
+    console.log("[Monetag] showMonetagInterstitial called");
+    
+    if (interstitialShowing) {
+        console.log("[Monetag] Ad already showing, skipping");
+        return;
+    }
     interstitialShowing = true;
 
     const loaded = await loadMonetagSDK();
     if (!loaded || !window.show_10836321) {
+        console.warn("[Monetag] SDK not ready, aborting");
         interstitialShowing = false;
         return;
     }
 
     return new Promise((resolve) => {
         let resolved = false;
-        const timeoutMs = 5000;
-
-        const done = () => {
-            if (resolved) return;
-            resolved = true;
-            window.removeEventListener('focus', onFocus);
-            window.removeEventListener('visibilitychange', onVisibility);
-            clearTimeout(timer);
-            interstitialShowing = false;
-            resolve();
-        };
-
-        const onFocus = () => done();
-        const onVisibility = () => {
-            if (document.visibilityState === 'visible') done();
-        };
-
-        window.addEventListener('focus', onFocus);
-        window.addEventListener('visibilitychange', onVisibility);
-
-        const timer = setTimeout(() => {
-            console.log('Monetag ad timeout – loading feed anyway');
-            done();
-        }, timeoutMs);
+        // Force release lock after 5 seconds to prevent blocking
+        const safetyTimer = setTimeout(() => {
+            if (!resolved) {
+                console.log("[Monetag] Safety timeout – releasing lock");
+                resolved = true;
+                interstitialShowing = false;
+                resolve();
+            }
+        }, 5000);
 
         try {
-            window.show_10836321({
-                type: 'inApp',
-                inAppSettings: {
-                    frequency: 1,   // effectively disable automatic frequency
-                    capping: 0,
-                    interval: 998,         // no automatic interval (was 30)
-                    timeout: 5,
-                    everyPage: false
-                }
-            });
+            // Call the Monetag interstitial WITHOUT any parameters (default)
+            console.log("[Monetag] Calling window.show_10836321()");
+            const result = window.show_10836321();
+
+            // If it returns a promise, wait for it
+            if (result && typeof result.then === 'function') {
+                result
+                    .then(() => {
+                        console.log("[Monetag] Ad promise resolved (closed)");
+                        if (!resolved) {
+                            clearTimeout(safetyTimer);
+                            resolved = true;
+                            interstitialShowing = false;
+                            resolve();
+                        }
+                    })
+                    .catch((err) => {
+                        console.error("[Monetag] Ad promise rejected:", err);
+                        if (!resolved) {
+                            clearTimeout(safetyTimer);
+                            resolved = true;
+                            interstitialShowing = false;
+                            resolve();
+                        }
+                    });
+            } else {
+                // No promise returned – assume ad showed and will close on its own
+                console.log("[Monetag] No promise returned, waiting 3 seconds then releasing");
+                setTimeout(() => {
+                    if (!resolved) {
+                        clearTimeout(safetyTimer);
+                        resolved = true;
+                        interstitialShowing = false;
+                        resolve();
+                    }
+                }, 3000);
+            }
         } catch (e) {
-            console.error('Monetag show error:', e);
-            done();
+            console.error("[Monetag] Exception calling show_10836321:", e);
+            if (!resolved) {
+                clearTimeout(safetyTimer);
+                resolved = true;
+                interstitialShowing = false;
+                resolve();
+            }
         }
     });
 }
+
+// Expose a manual test function on window (for debugging)
+window.testMonetagAd = async () => {
+    console.log("Manual test: showing Monetag ad");
+    await showMonetagInterstitial();
+    console.log("Manual test: ad finished");
+};
 
 // ==================== REWARDED AD (zone 10836319) ====================
 let rewardedReady = false;
@@ -148,7 +180,6 @@ export async function showRewardedAd() {
     const loaded = await loadRewardedSDK();
     if (!loaded || !window.show_10836319) {
         console.warn("[Rewarded] SDK not available – showing fallback alert");
-        // Fallback for testing: simulate successful ad after 2 seconds
         if (window.Telegram?.WebApp?.showAlert) {
             window.Telegram.WebApp.showAlert("Ad SDK not ready. Please try again later.");
         }
@@ -157,7 +188,7 @@ export async function showRewardedAd() {
 
     return new Promise((resolve) => {
         let resolved = false;
-        const timeoutMs = 35000; // 35 seconds
+        const timeoutMs = 35000;
 
         const done = (success = false) => {
             if (resolved) return;
@@ -172,7 +203,6 @@ export async function showRewardedAd() {
         }, timeoutMs);
 
         try {
-            // Monetag rewarded ad – the function usually returns a Promise
             const adPromise = window.show_10836319();
             if (adPromise && typeof adPromise.then === 'function') {
                 adPromise
@@ -187,8 +217,6 @@ export async function showRewardedAd() {
                         done(false);
                     });
             } else {
-                // If it doesn't return a promise, assume it's a synchronous show
-                // and we have to rely on events (unlikely)
                 console.warn('[Rewarded] show_10836319 did not return a Promise, waiting 5 seconds');
                 setTimeout(() => {
                     done(true);
@@ -200,4 +228,4 @@ export async function showRewardedAd() {
             done(false);
         }
     });
-                        }
+}
