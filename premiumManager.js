@@ -1,7 +1,7 @@
 // premiumManager.js
 import { state } from './state.js';
 import { resetAndLoadFeed } from './feedManager.js';
-import { showRewardedAd } from './adsManager.js';
+import { showMultipleRewardedAds } from './monetag.js';   // CHANGED: import multi‑ad function
 import { generateInitialsAvatar } from './utils.js';
 
 const API_URL = "https://imagifhub.onrender.com";
@@ -53,8 +53,9 @@ async function grantTempPremium() {
     }
 }
 
+// REPLACED: now shows 2 rewarded ads in a row
 export async function showRewardedAdWrapper() {
-    const success = await showRewardedAd();
+    const success = await showMultipleRewardedAds(2);   // 2 ads consecutively
     if (success) {
         let count = getTempAdCount();
         count++;
@@ -63,7 +64,7 @@ export async function showRewardedAdWrapper() {
         if (count >= 3) await grantTempPremium();
     } else {
         const tg = window.Telegram.WebApp;
-        if (tg && tg.showAlert) tg.showAlert("Ad not completed. Please watch the full ad to earn reward.");
+        if (tg && tg.showAlert) tg.showAlert("You must watch both ads completely to earn the reward.");
     }
 }
 
@@ -292,4 +293,4 @@ function updateUserCard(user) {
         .then(response => response.ok ? response.blob() : Promise.reject())
         .then(blob => { avatarImg.src = URL.createObjectURL(blob); })
         .catch(() => { avatarImg.src = generateInitialsAvatar(user); });
-            }
+                    }
