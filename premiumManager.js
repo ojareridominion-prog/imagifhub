@@ -1,7 +1,7 @@
 // premiumManager.js
 import { state } from './state.js';
 import { resetAndLoadFeed } from './feedManager.js';
-import { showMultipleRewardedAds } from './monetag.js';   // CHANGED: import multi‑ad function
+import { showRewardedAd } from './monetag.js';
 import { generateInitialsAvatar } from './utils.js';
 
 const API_URL = "https://imagifhub.onrender.com";
@@ -53,9 +53,8 @@ async function grantTempPremium() {
     }
 }
 
-// REPLACED: now shows 2 rewarded ads in a row
 export async function showRewardedAdWrapper() {
-    const success = await showMultipleRewardedAds(2);   // 2 ads consecutively
+    const success = await showRewardedAd();
     if (success) {
         let count = getTempAdCount();
         count++;
@@ -64,7 +63,7 @@ export async function showRewardedAdWrapper() {
         if (count >= 3) await grantTempPremium();
     } else {
         const tg = window.Telegram.WebApp;
-        if (tg && tg.showAlert) tg.showAlert("You must watch both ads completely to earn the reward.");
+        if (tg && tg.showAlert) tg.showAlert("Ad not completed. Please watch the full ad to earn reward.");
     }
 }
 
@@ -123,7 +122,6 @@ export function startTempPremiumCountdown() {
     tempPremiumInterval = setInterval(updateTimer, 1000);
 }
 
-// UPDATED: accepts isTemp flag to differentiate paid vs temporary premium
 function updatePremiumUI(isPremium, expiryStr = null, daysLeft = null, isTemp = false) {
     const premiumBtn = document.querySelector('.premium-btn-menu');
     const expiryDisplay = document.getElementById('premiumExpiryDisplay');
@@ -131,13 +129,13 @@ function updatePremiumUI(isPremium, expiryStr = null, daysLeft = null, isTemp = 
         if (isPremium) {
             if (isTemp) {
                 premiumBtn.innerText = "⏱️ TEMP PREMIUM (1h)";
-                premiumBtn.style.background = "#ff8c00";   // orange for temporary
+                premiumBtn.style.background = "#ff8c00";
                 premiumBtn.style.color = "white";
                 premiumBtn.disabled = true;
                 premiumBtn.onclick = null;
             } else {
                 premiumBtn.innerText = "⭐ PREMIUM ACTIVE";
-                premiumBtn.style.background = "#4CAF50";   // green for paid
+                premiumBtn.style.background = "#4CAF50";
                 premiumBtn.style.color = "white";
                 premiumBtn.disabled = true;
                 premiumBtn.onclick = null;
@@ -231,15 +229,15 @@ export async function verifyPremiumStatus() {
         state.paidPremiumActive = paidPremium;
         state.isPremiumUser = newPremiumStatus;
         
-        const isTemp = tempActive && !paidPremium;   // temporary premium only if no paid premium
+        const isTemp = tempActive && !paidPremium;
         
         if (paidPremium) {
             localStorage.setItem("isPremium", "true");
             if (expiry) localStorage.setItem("premiumExpires", expiry);
-            updatePremiumUI(true, expiry, daysLeft, false);   // paid = false for isTemp
+            updatePremiumUI(true, expiry, daysLeft, false);
             if (!tempActive) updateWatchAdCard();
         } else if (tempActive) {
-            updatePremiumUI(true, null, null, true);          // temporary premium
+            updatePremiumUI(true, null, null, true);
             updateWatchAdCard();
             startTempPremiumCountdown();
         } else {
@@ -293,4 +291,4 @@ function updateUserCard(user) {
         .then(response => response.ok ? response.blob() : Promise.reject())
         .then(blob => { avatarImg.src = URL.createObjectURL(blob); })
         .catch(() => { avatarImg.src = generateInitialsAvatar(user); });
-                    }
+}
