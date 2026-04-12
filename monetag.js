@@ -87,7 +87,7 @@ export async function showMonetagInterstitial() {
                 inAppSettings: {
                     frequency: 1,   // effectively disable automatic frequency
                     capping: 0,
-                    interval: 999,         // no automatic interval (was 30)
+                    interval: 9999,         // no automatic interval (was 30)
                     timeout: 5,
                     everyPage: false
                 }
