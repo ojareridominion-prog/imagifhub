@@ -3,7 +3,7 @@ import { musicLibrary, categories } from './music.js';
 import { getHolidayImage, getFestiveTitle } from './welcome.js';
 import { state } from './state.js';
 import { playRandomMusic, toggleMute } from './musicManager.js';
-import { fetchNativeAds, setupAdButtonListeners, showRewardedAdWrapper } from './adsManager.js';
+import { fetchNativeAds, setupAdButtonListeners } from './adsManager.js';   // removed showRewardedAdWrapper
 import { verifyPremiumStatus, updateWatchAdCard, startTempPremiumCountdown, showRewardedAdWrapper as premiumRewardedWrapper } from './premiumManager.js';
 import { loadFeed, resetAndLoadFeed } from './feedManager.js';
 import { toggleMenu, applyTheme, triggerSearch, shareBot, openPremium, closePremium, openCopyright, closeCopyright, openPrivacy, closePrivacy, copyUserId, toggleDarkText, initUI } from './uiManager.js';
