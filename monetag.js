@@ -229,3 +229,37 @@ export async function showRewardedAd() {
         }
     });
 }
+
+// ==================== NEW: SHOW MULTIPLE REWARDED ADS ====================
+/**
+ * Show multiple rewarded ads one after another.
+ * @param {number} count - number of ads to show (default 2)
+ * @returns {Promise<boolean>} - true only if ALL ads completed successfully
+ */
+export async function showMultipleRewardedAds(count = 2) {
+    console.log(`[Rewarded] Starting ${count} ad(s) sequence`);
+    
+    for (let i = 1; i <= count; i++) {
+        // Optional: notify user via Telegram popup
+        if (window.Telegram?.WebApp?.showPopup) {
+            window.Telegram.WebApp.showPopup({
+                title: "Ad Progress",
+                message: `Please watch ad ${i} of ${count}`,
+                buttons: [{ type: "ok" }]
+            }, () => {});
+        }
+        
+        const success = await showRewardedAd();
+        if (!success) {
+            console.log(`[Rewarded] Ad ${i} failed – aborting sequence`);
+            if (window.Telegram?.WebApp?.showAlert) {
+                window.Telegram.WebApp.showAlert(`Ad ${i} was not completed. Please watch the full ad to earn premium.`);
+            }
+            return false;
+        }
+        console.log(`[Rewarded] Ad ${i} completed`);
+    }
+    
+    console.log(`[Rewarded] All ${count} ads completed – reward granted`);
+    return true;
+}
