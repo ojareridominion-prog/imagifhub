@@ -3,6 +3,7 @@
 
 let monetagReady = false;
 let monetagLoading = false;
+let interstitialShowing = false;   // prevent concurrent calls
 
 // Load Monetag SDK dynamically (interstitial)
 function loadMonetagSDK() {
@@ -43,8 +44,13 @@ function loadMonetagSDK() {
 
 // Show interstitial and wait for it to be closed (or timeout)
 export async function showMonetagInterstitial() {
+    // Avoid overlapping ad requests
+    if (interstitialShowing) return;
+    interstitialShowing = true;
+
     const loaded = await loadMonetagSDK();
     if (!loaded || !window.show_10836321) {
+        interstitialShowing = false;
         return;
     }
 
@@ -58,6 +64,7 @@ export async function showMonetagInterstitial() {
             window.removeEventListener('focus', onFocus);
             window.removeEventListener('visibilitychange', onVisibility);
             clearTimeout(timer);
+            interstitialShowing = false;
             resolve();
         };
 
@@ -78,9 +85,9 @@ export async function showMonetagInterstitial() {
             window.show_10836321({
                 type: 'inApp',
                 inAppSettings: {
-                    frequency: 1,
+                    frequency: 999999,   // effectively disable automatic frequency
                     capping: 0,
-                    interval: 30,
+                    interval: 0,         // no automatic interval (was 30)
                     timeout: 5,
                     everyPage: false
                 }
@@ -193,4 +200,4 @@ export async function showRewardedAd() {
             done(false);
         }
     });
-                                       }
+}
