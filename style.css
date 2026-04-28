@@ -6,36 +6,154 @@
 }
 body { margin:0; background:var(--bg); color:var(--text); font-family: 'Inter', system-ui, -apple-system, sans-serif; overflow:hidden; transition: 0.3s; }
 
-/* --- Layout Components --- */
-.top-bar { position:fixed; top:0; width:100%; height:56px; background:var(--bar); display:flex; align-items:center; z-index:1000; border-bottom:1px solid rgba(255,255,255,0.1); }
-.cat-bar { position:fixed; top:56px; width:100%; height:48px; background:var(--bar); overflow-x:auto; display:flex; align-items:center; gap:10px; padding:0 12px; z-index:900; scrollbar-width: none; }
-.cat-bar::-webkit-scrollbar { display: none; }
-
-.cat-btn { padding:6px 15px; border-radius:20px; background:#333; font-size:12px; white-space:nowrap; border:none; color:#fff; cursor:pointer; }
-.cat-btn.active { background:var(--accent); font-weight: bold; }
-
-/* MENU PANEL – now scrollable */
-.menu-panel { 
-    position: fixed; 
-    left: -100%; 
-    width: 85%; 
-    height: 100vh;          /* force exact viewport height */
-    max-height: 100vh;
-    background: var(--bar); 
-    z-index: 2000; 
-    transition: 0.4s; 
-    padding-top: 60px; 
-    padding-bottom: 120px;  /* sufficient for theme selector */
-    box-shadow: 5px 0 15px rgba(0,0,0,0.5);
-    overflow-y: auto; 
-    -webkit-overflow-scrolling: touch;
-    box-sizing: border-box; /* include padding in height */
+/* --- Glassmorphism Base --- */
+.glass {
+    backdrop-filter: blur(12px);
+    background: rgba(0, 0, 0, 0.45);
+    border-bottom: 1px solid rgba(255,255,255,0.1);
 }
 
-.menu-panel.open { left:0; }
+/* --- Layout Components with Glassmorphism --- */
+.top-bar { 
+    position:fixed; top:0; width:100%; height:56px; 
+    display:flex; align-items:center; z-index:1000; 
+    backdrop-filter: blur(12px);
+    background: rgba(0, 0, 0, 0.45);
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+}
+.cat-bar { 
+    position:fixed; top:56px; width:100%; height:48px; 
+    overflow-x:auto; display:flex; align-items:center; gap:10px; padding:0 12px; 
+    z-index:900; scrollbar-width: none; 
+    backdrop-filter: blur(12px);
+    background: rgba(0, 0, 0, 0.45);
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+}
+.cat-bar::-webkit-scrollbar { display: none; }
+
+.cat-btn { padding:6px 15px; border-radius:20px; background:rgba(51,51,51,0.7); font-size:12px; white-space:nowrap; border:none; color:#fff; cursor:pointer; backdrop-filter: blur(4px); }
+.cat-btn.active { background:var(--accent); font-weight: bold; }
+
+/* Menu Overlay (blur background) */
+.menu-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(8px);
+    z-index: 1999;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.3s ease, visibility 0.3s ease;
+}
+.menu-overlay.active {
+    opacity: 1;
+    visibility: visible;
+}
+
+/* MENU PANEL – glassmorphism, fade transition */
+.menu-panel { 
+    position: fixed; 
+    left: 0;
+    top: 0;
+    width: 85%; 
+    height: 100vh;
+    max-height: 100vh;
+    background: rgba(26, 26, 26, 0.9);
+    backdrop-filter: blur(20px);
+    z-index: 2000; 
+    transition: opacity 0.3s ease, visibility 0.3s ease;
+    padding-top: 60px; 
+    padding-bottom: 120px;
+    box-shadow: 5px 0 25px rgba(0,0,0,0.4);
+    overflow-y: auto; 
+    -webkit-overflow-scrolling: touch;
+    box-sizing: border-box;
+    opacity: 0;
+    visibility: hidden;
+    border-right: 1px solid rgba(255,255,255,0.1);
+}
+.menu-panel.open { 
+    opacity: 1;
+    visibility: visible;
+}
 .menu-link { padding:15px 25px; border-bottom:1px solid rgba(255,255,255,0.05); display:block; text-decoration:none; color:var(--text); font-weight:500; cursor:pointer; }
 
-/* Dark text override – now with white outline */
+/* Glassmorphism for all cards in menu */
+.premium-box,
+.gift-card-menu,
+.user-info-card {
+    background: rgba(255, 255, 255, 0.1) !important;
+    backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 16px;
+}
+
+.user-info-card {
+    margin: 15px;
+    padding: 15px;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+.user-avatar {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    overflow: hidden;
+    background: rgba(255,255,255,0.2);
+    flex-shrink: 0;
+}
+.user-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+.user-details {
+    flex: 1;
+    min-width: 0;
+}
+.user-name {
+    font-weight: bold;
+    font-size: 16px;
+    margin-bottom: 4px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: #fff;
+    text-shadow: none;
+}
+.user-id-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+}
+.user-id-row span {
+    font-family: monospace;
+    background: rgba(255,255,255,0.2);
+    padding: 2px 6px;
+    border-radius: 4px;
+    color: #fff;
+}
+.user-id-row button {
+    background: rgba(255,255,255,0.2);
+    border: none;
+    color: #fff;
+    border-radius: 12px;
+    padding: 2px 10px;
+    font-size: 11px;
+    cursor: pointer;
+    transition: 0.2s;
+}
+.user-id-row button:hover {
+    background: #fff;
+    color: #000;
+}
+
+/* Dark text override remains as is */
 body.dark-text .meta-overlay {
     text-shadow: none;
 }
@@ -55,7 +173,6 @@ body.dark-text .description-text {
 #swiper { position:absolute; top:104px; bottom:0; width:100%; z-index:10; }
 .swiper-slide { position: relative; width: 100%; height: 100%; }
 .swiper-slide img { width:100%; height:100%; object-fit:cover; }
-.swiper-slide { position: relative; }
 
 /* Text Overlay */
 .meta-overlay { 
@@ -67,7 +184,6 @@ body.dark-text .description-text {
     pointer-events: none; 
     z-index: 15; 
 }
-
 .category-tag {
     font-size: 32px;
     font-weight: 900;
@@ -77,7 +193,6 @@ body.dark-text .description-text {
     letter-spacing: -0.5px;
     line-height: 1.1;
 }
-
 .keyword-container {
     pointer-events: auto;
     font-size: 18px;
@@ -88,7 +203,6 @@ body.dark-text .description-text {
     letter-spacing: 0.3px;
     color: var(--text);
 }
-
 .description-text {
     font-size: 14px;
     line-height: 1.4;
@@ -100,7 +214,6 @@ body.dark-text .description-text {
     overflow: hidden;
     color: var(--text);
 }
-
 .keyword-container button {
     background: none;
     border: none;
@@ -113,7 +226,7 @@ body.dark-text .description-text {
     font-weight: normal;
 }
 
-/* --- Ad Overlay Styles --- */
+/* Ad Overlay Styles */
 .remove-ads-btn {
     position: absolute;
     top: 16px;
@@ -136,7 +249,6 @@ body.dark-text .description-text {
     background: rgba(0, 0, 0, 0.9);
     transform: scale(1.02);
 }
-
 .ad-overlay {
     position: absolute;
     bottom: 5px;
@@ -157,7 +269,6 @@ body.dark-text .description-text {
     -webkit-text-stroke: 0.6px rgba(0, 0, 0, 0.9);
     text-shadow: -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000;
 }
-
 .ad-sponsored {
     font-size: 12px;
     text-transform: uppercase;
@@ -168,19 +279,16 @@ body.dark-text .description-text {
     border-radius: 20px;
     margin-bottom: 8px;
 }
-
 .ad-title {
     font-size: 28px;
     font-weight: bold;
     margin-bottom: 4px;
 }
-
 .ad-description {
     font-size: 16px;
     margin-bottom: 16px;
     opacity: 0.9;
 }
-
 .ad-action-btn {
     display: block;
     width: 100%;
@@ -199,14 +307,13 @@ body.dark-text .description-text {
     letter-spacing: 0.5px;
     font-family: inherit;
 }
-
 .ad-action-btn:hover {
     transform: scale(1.02);
     background: #f5f5f5 !important;
     box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4);
 }
 
-/* --- Theme Variations --- */
+/* Theme Variations (unchanged except glass overlays) */
 .theme-white { --bg: #fff; --text: #000; --bar: #f0f0f0; --accent: #9c4dff; }
 .theme-blood { --bg: #1b0000; --text: #ffd6d6; --bar: #290000; --accent: #ff4d4d; }
 .theme-cyan { --bg: #001616; --text: #00ffff; --bar: #002222; --accent: #00ffff; }
@@ -220,86 +327,11 @@ body.dark-text .description-text {
 .theme-circle { flex: 0 0 48px; width: 48px; height: 48px; border-radius: 50%; overflow: hidden; border: 2px solid rgba(255,255,255,.15); cursor: pointer; display: flex; flex-direction: column; }
 .theme-circle div { height: 50%; }
 
-/* Premium Box in Menu */
-.premium-box { margin: 15px; padding: 15px; background: linear-gradient(45deg, #9c4dff, #ff4d4d); border-radius: 12px; color: white; text-align: center; }
+/* Premium Box in Menu (already glass) */
+.premium-box { margin: 15px; padding: 15px; border-radius: 16px; color: white; text-align: center; }
 .premium-btn-menu { background: white; color: #9c4dff; border: none; padding: 8px 15px; border-radius: 20px; font-weight: bold; margin-top: 10px; cursor: pointer; }
 
-/* User Info Card */
-.user-info-card {
-    margin: 15px;
-    padding: 15px;
-    border-radius: 12px;
-    display: flex;
-    align-items: center;
-    gap: 15px;
-    background: rgba(255, 255, 255, 0.1);   /* translucent – works on any background */
-    backdrop-filter: blur(8px);
-    border: 1px solid rgba(255, 255, 255, 0.2);
-}
-
-.user-avatar {
-    width: 50px;
-    height: 50px;
-    border-radius: 50%;
-    overflow: hidden;
-    background: #ddd;
-    flex-shrink: 0;
-}
-.user-avatar img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-}
-
-.user-details {
-    flex: 1;
-    min-width: 0;
-}
-.user-name {
-    font-weight: bold;
-    font-size: 16px;
-    margin-bottom: 4px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    color: #000;
-    text-shadow: 1px 1px 0 white, -1px -1px 0 white,
-                 1px -1px 0 white, -1px 1px 0 white;
-}
-.user-id-row {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 13px;
-}
-.user-id-row span {
-    font-family: monospace;
-    background: rgba(0,0,0,0.05);
-    padding: 2px 6px;
-    border-radius: 4px;
-    color: #000;
-    text-shadow: 1px 1px 0 white, -1px -1px 0 white,
-                 1px -1px 0 white, -1px 1px 0 white;
-}
-.user-id-row button {
-    background: transparent;
-    border: 1px solid #000;
-    color: #000;
-    border-radius: 12px;
-    padding: 2px 10px;
-    font-size: 11px;
-    cursor: pointer;
-    transition: 0.2s;
-    text-shadow: 1px 1px 0 white, -1px -1px 0 white,
-                 1px -1px 0 white, -1px 1px 0 white;
-}
-.user-id-row button:hover {
-    background: #000;
-    color: #f0f0f0;
-    text-shadow: none;
-}
-
-/* --- Modals --- */
+/* Modals (unchanged) */
 .modal-overlay {
     position: fixed; top: 0; left: 0; width: 100%; height: 100%;
     background: rgba(0,0,0,0.85); z-index: 9999;
@@ -308,7 +340,6 @@ body.dark-text .description-text {
     backdrop-filter: blur(5px);
 }
 .modal-overlay.active { opacity: 1; pointer-events: all; }
-
 .premium-card {
     background: linear-gradient(135deg, #1a1a1a, #2c3e50);
     padding: 30px; border-radius: 20px; text-align: center;
@@ -317,7 +348,6 @@ body.dark-text .description-text {
     transform: scale(0.9); transition: transform 0.3s ease;
 }
 .modal-overlay.active .premium-card { transform: scale(1); }
-
 .copyright-card {
     background: linear-gradient(135deg, #1a1a1a, #2c3e50);
     padding: 25px;
@@ -332,9 +362,7 @@ body.dark-text .description-text {
     transform: scale(0.9);
     transition: transform 0.3s ease;
 }
-.modal-overlay.active .copyright-card {
-    transform: scale(1);
-}
+.modal-overlay.active .copyright-card { transform: scale(1); }
 .copyright-content {
     overflow-y: auto;
     margin: 15px 0;
@@ -357,15 +385,12 @@ body.dark-text .description-text {
     background: #9c4dff;
     border-radius: 10px;
 }
-
 .price-tag { margin: 20px 0; font-size: 18px; }
 .new-price { color: #ffd700; font-weight: bold; display: block; font-size: 24px; margin-top: 5px; }
 .old-price { text-decoration: line-through; opacity: 0.5; font-size: 14px; }
-
 .premium-list { text-align: left; opacity: 0.9; margin: 20px 0; padding-left: 20px; }
 .premium-list li { margin-bottom: 8px; list-style: none; }
 .premium-list li::before { content: "⭐ "; }
-
 .btn-buy {
     background: #ffd700; color: #000; font-weight: bold; border: none;
     padding: 15px; width: 100%; border-radius: 12px; font-size: 16px;
@@ -376,7 +401,6 @@ body.dark-text .description-text {
     margin-top: 15px; cursor: pointer; text-decoration: underline;
 }
 .hidden { display: none !important; }
-
 #premiumIndicator {
     color: #ffd700;
     font-size: 20px;
@@ -384,13 +408,11 @@ body.dark-text .description-text {
     display: none;
     margin-right: 10px;
 }
-
 @keyframes pulse {
     0% { opacity: 0.7; transform: scale(1); }
     50% { opacity: 1; transform: scale(1.1); }
     100% { opacity: 0.7; transform: scale(1); }
 }
-
 .welcome-overlay {
     position: fixed;
     top: 0;
@@ -408,7 +430,6 @@ body.dark-text .description-text {
     background-position: center;
     background-repeat: no-repeat;
 }
-
 .overlay-content {
     width: 100%;
     max-width: 400px;
@@ -416,7 +437,6 @@ body.dark-text .description-text {
     margin-bottom: 20px;
     text-shadow: 2px 2px 8px rgba(0,0,0,0.8);
 }
-
 .welcome-button {
     background: #ffffff !important;
     color: #000000 !important;
@@ -434,7 +454,6 @@ body.dark-text .description-text {
     margin-bottom: 0px;
     bottom: 5px;        
 }
-
 .spinner {
     width: 20px;
     height: 20px;
@@ -447,16 +466,34 @@ body.dark-text .description-text {
     to { transform: rotate(360deg); }
 }
 
-/* ==================== GIFT DRAWER (slide from bottom) ==================== */
+/* ==================== GIFT DRAWER (slide from bottom) with glassmorphism ==================== */
+.drawer-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(8px);
+    z-index: 10999;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.3s ease, visibility 0.3s ease;
+}
+.drawer-overlay.active {
+    opacity: 1;
+    visibility: visible;
+}
 .gift-drawer {
     position: fixed;
-    bottom: -85%;           /* hidden below screen */
+    bottom: -85%;
     left: 0;
     width: 100%;
     height: 85%;
-    background: var(--bar);
+    background: rgba(26, 26, 26, 0.95);
+    backdrop-filter: blur(20px);
     z-index: 11000;
-    border-radius: 24px 24px 0 0;   /* rounded top corners */
+    border-radius: 24px 24px 0 0;
     transition: bottom 0.4s ease-out;
     box-shadow: 0 -10px 30px rgba(0,0,0,0.5);
     display: flex;
@@ -464,17 +501,30 @@ body.dark-text .description-text {
     overflow: hidden;
 }
 .gift-drawer.open {
-    bottom: 0;              /* slide up */
+    bottom: 0;
+}
+/* Drag handle */
+.drawer-drag-handle {
+    width: 50px;
+    height: 5px;
+    background: rgba(255,255,255,0.4);
+    border-radius: 3px;
+    margin: 12px auto 8px;
+    cursor: grab;
+    transition: background 0.2s;
+}
+.drawer-drag-handle:active {
+    cursor: grabbing;
 }
 .gift-drawer-header {
-    padding: 16px;
-    background: var(--accent);
+    padding: 8px 16px 16px;
+    background: transparent;
     color: white;
     display: flex;
     justify-content: space-between;
     align-items: center;
     font-weight: bold;
-    border-radius: 0 0 20px 20px;
+    border-bottom: 1px solid rgba(255,255,255,0.1);
 }
 .close-drawer-btn {
     background: none;
@@ -503,10 +553,9 @@ body.dark-text .description-text {
     grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
     gap: 12px;
 }
-
-/* Base gift item style + pulsing animation for ALL gifts */
 .gift-item {
     background: rgba(255,255,255,0.1);
+    backdrop-filter: blur(4px);
     border-radius: 16px;
     padding: 12px;
     text-align: center;
@@ -519,14 +568,11 @@ body.dark-text .description-text {
     background: rgba(255,255,255,0.2);
     box-shadow: 0 4px 12px rgba(0,0,0,0.2);
 }
-
-/* Gentle pulsing for all gifts */
 @keyframes gentlePulse {
     0% { transform: scale(1); opacity: 1; }
     50% { transform: scale(1.05); opacity: 0.95; }
     100% { transform: scale(1); opacity: 1; }
 }
-
 .gift-emoji {
     font-size: 42px;
     margin-bottom: 8px;
@@ -558,8 +604,6 @@ body.dark-text .description-text {
 .gift-send-btn:active {
     transform: scale(0.96);
 }
-
-/* Overpriced gifts: extra sparkling on emoji (in addition to pulsing) */
 .gift-item[data-category="overpriced"] .gift-emoji {
     animation: sparkle 1.5s infinite;
 }
@@ -568,13 +612,11 @@ body.dark-text .description-text {
     50% { text-shadow: 0 0 8px gold; transform: scale(1.1); }
     100% { text-shadow: 0 0 0 gold; transform: scale(1); }
 }
-
-/* ========== GIFT ICON BUTTON – TRANSPARENT, PULSING, GLOWING (NO VIOLENT SHAKE) ========== */
 .gift-icon-btn {
     position: absolute;
     top: 16px;
     right: 16px;
-    background: rgba(0, 0, 0, 0.35);       /* transparent dark background */
+    background: rgba(0, 0, 0, 0.35);
     backdrop-filter: blur(8px);
     border: none;
     font-size: 44px;
