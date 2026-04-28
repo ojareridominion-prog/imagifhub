@@ -68,7 +68,6 @@ export async function loadGifts() {
 // --- Open gift drawer (closes menu first) ---
 export function showGiftDrawer() {
     if (currentGiftDrawerOpen) return;
-    // Close menu before opening gift drawer
     closeMenuIfOpen();
     const drawer = document.getElementById('giftDrawer');
     if (!drawer) return;
@@ -126,7 +125,7 @@ async function renderGiftDrawerContent() {
     });
 }
 
-// --- Send gift (handles invoice, close drawer, delayed confetti & vibration) ---
+// --- Send gift (handles invoice, close drawer, delayed confetti, vibration, recent gift label) ---
 async function sendGift(giftId, giftName, giftEmoji, giftPrice, category) {
     const tg = window.Telegram.WebApp;
     try {
@@ -142,27 +141,36 @@ async function sendGift(giftId, giftName, giftEmoji, giftPrice, category) {
                 // 1. Close gift drawer
                 closeGiftDrawer();
                 
-                // 2. Use a longer delay (500ms) to ensure the invoice overlay is fully closed
-                //    and the mini app WebView is completely active before playing effects.
+                // 2. Use a longer delay to ensure invoice overlay is fully gone
+                //    and the mini app is back in focus before playing effects.
                 setTimeout(() => {
-                    // Vibration (Telegram haptic or fallback)
+                    // Vibrate device (Telegram haptic + fallback)
                     const isOverpriced = (category === 'overpriced');
-                    if (tg.HapticFeedback) {
-                        if (isOverpriced) {
-                            tg.HapticFeedback.impactOccurred('heavy');
-                            setTimeout(() => tg.HapticFeedback.impactOccurred('heavy'), 200);
-                            setTimeout(() => tg.HapticFeedback.impactOccurred('heavy'), 400);
-                        } else {
-                            tg.HapticFeedback.impactOccurred('medium');
-                        }
-                    } else if (navigator.vibrate) {
-                        if (isOverpriced) navigator.vibrate([200, 100, 200]);
-                        else navigator.vibrate(100);
-                    }
                     
-                    // Confetti burst (now guaranteed to appear inside mini app)
+                    // Try Telegram HapticFeedback first
+                    try {
+                        if (tg.HapticFeedback) {
+                            if (isOverpriced) {
+                                tg.HapticFeedback.impactOccurred('heavy');
+                                setTimeout(() => tg.HapticFeedback.impactOccurred('heavy'), 200);
+                                setTimeout(() => tg.HapticFeedback.impactOccurred('heavy'), 400);
+                            } else {
+                                tg.HapticFeedback.impactOccurred('medium');
+                            }
+                        } else if (navigator.vibrate) {
+                            if (isOverpriced) navigator.vibrate([200, 100, 200]);
+                            else navigator.vibrate(100);
+                        }
+                    } catch(e) { console.warn("Haptic error", e); }
+                    
+                    // Confetti burst (now guaranteed to appear in mini app)
                     triggerConfetti(isOverpriced);
-                }, 500);  // increased delay for better effect visibility
+                    
+                    // Extra burst after 1 second for overpriced gifts
+                    if (isOverpriced) {
+                        setTimeout(() => triggerConfetti(true), 1000);
+                    }
+                }, 500); // increased delay from 300ms to 500ms
                 
                 // 4. Refresh recent gift display
                 await refreshRecentGiftCard();
@@ -184,7 +192,7 @@ async function sendGift(giftId, giftName, giftEmoji, giftPrice, category) {
     }
 }
 
-// --- Enhanced confetti (bigger for overpriced, with global detection) ---
+// --- Enhanced confetti (bigger for overpriced) ---
 function triggerConfetti(isOverpriced = false) {
     // Make sure canvasConfetti is available (script tag is present)
     if (typeof canvasConfetti === 'undefined') {
@@ -265,4 +273,4 @@ export async function initGiftSystem() {
     }
     // Load recent gift once (no auto‑refresh timer)
     await refreshRecentGiftCard();
-}
+                }
