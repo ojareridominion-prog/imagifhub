@@ -92,7 +92,7 @@ async function renderGiftDrawerContent() {
         html += `<div class="gift-category"><div class="gift-category-title">${cat.title}</div><div class="gift-items-grid">`;
         for (const gift of cat.items) {
             html += `
-                <div class="gift-item" data-gift-id="${gift.id}" data-gift-name="${gift.name}" data-gift-emoji="${gift.emoji}" data-gift-price="${gift.price}">
+                <div class="gift-item" data-gift-id="${gift.id}" data-gift-name="${gift.name}" data-gift-emoji="${gift.emoji}" data-gift-price="${gift.price}" data-category="${gift.category}">
                     <div class="gift-emoji">${gift.emoji}</div>
                     <div class="gift-name">${gift.name}</div>
                     <div class="gift-price">${gift.price} ⭐</div>
@@ -238,6 +238,5 @@ export async function initGiftSystem() {
     // Refresh recent gift periodically
     await refreshRecentGiftCard();
     startRecentGiftTimer();
-}
+                   }
 
-// Call this after new slides are added to attach gift buttons? Already handled by event delegation.
