@@ -436,8 +436,9 @@ async def up_final(message: Message, state: FSMContext):
     user_data = await state.get_data()
     supabase.table('media_content').insert({
         "url": user_data['url'],
-        "category": user_data['categcategory'],
-‎        "Keyword": message.text
-‎    }).execute()
-‎    await message.answer(f"✅ Successfully added to {user_data['category']}!")
-‎    await state.clear()
+        "category": user_data['category'],
+        "Keyword": message.text
+    }).execute()
+    await message.answer(f"✅ Successfully added to {user_data['category']}!")
+    await state.clear()
+    
