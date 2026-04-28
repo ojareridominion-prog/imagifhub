@@ -7,7 +7,34 @@ import { playRandomMusic } from './musicManager.js';
 const API_URL = "https://imagifhub.onrender.com";
 const PAGE_SIZE = 30;
 const MAX_RETRIES = 3;
-const AD_FREQUENCY = 3; // same as in adsManager
+const AD_FREQUENCY = 3;
+
+function escapeHtml(str) {
+    if (!str) return '';
+    return str.replace(/[&<>]/g, function(m) {
+        if (m === '&') return '&amp;';
+        if (m === '<') return '&lt;';
+        if (m === '>') return '&gt;';
+        return m;
+    }).replace(/[\uD800-\uDBFF][\uDC00-\uDFFF]/g, function(c) {
+        return c;
+    });
+}
+
+function generateAdSlide(ad, adIndex) {
+    return `
+        <div class="swiper-slide" data-type="ad" data-ad-index="${adIndex}">
+            <img src="${ad.image}" alt="Ad" style="width:100%; height:100%; object-fit:cover;">
+            <div class="ad-overlay">
+                <div class="ad-sponsored">Sponsored</div>
+                <div class="ad-title">${escapeHtml(ad.title)}</div>
+                <div class="ad-description">${escapeHtml(ad.subtitle)}</div>
+                <button class="ad-action-btn">${escapeHtml(ad.buttonLabel || 'Open')}</button>
+            </div>
+            <button class="remove-ads-btn">Remove Ads</button>
+        </div>
+    `;
+}
 
 async function fetchRandomImages(category = state.currentCategory, search = "", retryCount = 0) {
     if (state.isLoadingMore) return [];
@@ -41,7 +68,7 @@ async function fetchRandomImages(category = state.currentCategory, search = "", 
         filtered.forEach(img => state.sessionSeenUrls.add(img.url));
         return filtered;
     } catch (e) {
-        console.error("Error fetching random images:", e);
+        console.error(e);
         return [];
     } finally {
         state.isLoadingMore = false;
@@ -49,19 +76,6 @@ async function fetchRandomImages(category = state.currentCategory, search = "", 
     }
 }
 
-function escapeHtml(str) {
-    if (!str) return '';
-    return str.replace(/[&<>]/g, function(m) {
-        if (m === '&') return '&amp;';
-        if (m === '<') return '&lt;';
-        if (m === '>') return '&gt;';
-        return m;
-    }).replace(/[\uD800-\uDBFF][\uDC00-\uDFFF]/g, function(c) {
-        return c;
-    });
-}
-
-// UPDATED: gift button added to image slide
 function generateImageSlide(img) {
     const keyword = img.Keyword || '';
     const maxLength = 100;
@@ -89,34 +103,19 @@ function generateImageSlide(img) {
     `;
 }
 
-function generateAdSlide(ad, adIndex) {
-    return `
-        <div class="swiper-slide" data-type="ad" data-ad-index="${adIndex}">
-            <img src="${ad.image}" alt="Ad" style="width:100%; height:100%; object-fit:cover;">
-            <div class="ad-overlay">
-                <div class="ad-sponsored">Sponsored</div>
-                <div class="ad-title">${escapeHtml(ad.title)}</div>
-                <div class="ad-description">${escapeHtml(ad.subtitle)}</div>
-                <button class="ad-action-btn">${escapeHtml(ad.buttonLabel || 'Open')}</button>
-            </div>
-            <button class="remove-ads-btn">Remove Ads</button>
-        </div>
-    `;
+function generateSkeletonSlide() {
+    return `<div class="swiper-slide skeleton-slide"></div>`;
 }
 
 async function appendMoreImages(newImages) {
     if (!state.activeSwiper || newImages.length === 0) return false;
-
     const swiper = state.activeSwiper;
     const oldImageCount = state.allImages.length;
     const htmlSlides = [];
     let localAdIndex = state.currentAdIndex;
 
     for (let i = 0; i < newImages.length; i++) {
-        const img = newImages[i];
-        htmlSlides.push(generateImageSlide(img));
-
-        // Insert native ad after every AD_FREQUENCY images (continuing pattern)
+        htmlSlides.push(generateImageSlide(newImages[i]));
         const position = oldImageCount + i + 1;
         if (!state.isPremiumUser && position % AD_FREQUENCY === 0) {
             const ad = state.nativeAds[localAdIndex % state.nativeAds.length];
@@ -124,32 +123,27 @@ async function appendMoreImages(newImages) {
             localAdIndex++;
         }
     }
-
-    if (htmlSlides.length === 0) return false;
-
     swiper.appendSlide(htmlSlides);
     swiper.update();
-
     state.currentAdIndex = localAdIndex;
     state.allImages.push(...newImages);
     newImages.forEach(img => state.sessionSeenUrls.add(img.url));
-
     return true;
 }
 
 function renderSlides(slides) {
     const feed = document.getElementById('feed');
     feed.innerHTML = slides.map(slide => {
-        if (slide.type === 'image') {
-            return generateImageSlide(slide.item);
-        } else {
-            return generateAdSlide(slide.item, slide.item.index);
-        }
+        if (slide.type === 'image') return generateImageSlide(slide.item);
+        else return generateAdSlide(slide.item, slide.item.index);
     }).join('');
 
     if (state.activeSwiper) state.activeSwiper.destroy(true, true);
     state.activeSwiper = new Swiper('#swiper', {
         direction: 'vertical',
+        effect: 'fade',
+        fadeEffect: { crossFade: true },
+        speed: 400,
         mousewheel: true,
         on: {
             reachEnd: async () => {
@@ -181,6 +175,7 @@ function renderSlides(slides) {
             }
         }
     });
+    if (window.initFab) window.initFab();
 }
 
 export async function loadMoreImages(preservePosition = false) {
@@ -203,15 +198,16 @@ export async function resetAndLoadFeed(cat, search = "", skipAd = false) {
     state.currentAdIndex = 0;
     const shouldShowAd = !state.isPremiumUser && !skipAd && !state.activeSearchQuery;
     if (shouldShowAd) {
-        try { await showMonetagInterstitial(); } catch (e) { console.warn(e); }
+        try { await showMonetagInterstitial(); } catch(e) {}
     }
     state.activeSearchQuery = search || "";
     state.currentCategory = cat;
     document.querySelectorAll('.cat-btn').forEach(b => b.classList.toggle('active', b.innerText === cat));
-    const audio = document.getElementById('bgMusic');
-    if (audio.paused || state.currentCategory !== cat) playRandomMusic(cat);
+    playRandomMusic(cat);
+    
     const feed = document.getElementById('feed');
-    feed.innerHTML = '<div class="swiper-slide" style="display:flex; align-items:center; justify-content:center;"><h3>Loading...</h3></div>';
+    feed.innerHTML = Array(6).fill().map(() => generateSkeletonSlide()).join('');
+    
     try {
         const newImages = await fetchRandomImages(cat, state.activeSearchQuery);
         if (newImages.length === 0) {
@@ -230,4 +226,4 @@ export async function resetAndLoadFeed(cat, search = "", skipAd = false) {
 
 export async function loadFeed(cat, search = "", skipAd = false) {
     await resetAndLoadFeed(cat, search, skipAd);
-}
+                                }
