@@ -4,258 +4,146 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>IMAGIFHUB</title>
-    
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    <script src="https://unpkg.com/@telegram-apps/sdk@7.2.0/dist/core.min.js"></script>
-
     <meta name="6a97888e-site-verification" content="dcdb9b639fb5730ac14653a93bf9469c">
     
-    <!-- Monetag SDK – Interstitial (zone 10836321) -->
-    <script>
-    (function() {
-        const script = document.createElement('script');
-        script.src = 'https://libtl.com/sdk.js';
-        script.setAttribute('data-zone', '10836321');
-        script.setAttribute('data-sdk', 'show_10836321');
-        script.async = true;
-        document.head.appendChild(script);
-    })();
-    </script>
-
-    <!-- Monetag SDK – Rewarded Interstitial (zone 10836319) -->
-    <script>
-    (function() {
-        const script = document.createElement('script');
-        script.src = 'https://libtl.com/sdk.js';
-        script.setAttribute('data-zone', '10836319');
-        script.setAttribute('data-sdk', 'show_10836319');
-        script.async = true;
-        document.head.appendChild(script);
-    })();
-    </script>
+    <!-- Monetag SDKs -->
+    <script>(function(){var s=document.createElement('script');s.src='https://libtl.com/sdk.js';s.setAttribute('data-zone','10836321');s.setAttribute('data-sdk','show_10836321');s.async=true;document.head.appendChild(s);})();</script>
+    <script>(function(){var s=document.createElement('script');s.src='https://libtl.com/sdk.js';s.setAttribute('data-zone','10836319');s.setAttribute('data-sdk','show_10836319');s.async=true;document.head.appendChild(s);})();</script>
     
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.css"/>
     <script src="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
-    
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-    <div class="top-bar">
-        <button onclick="window.toggleMenu()" style="background:none; border:none; color:#fff; font-size:24px; padding:15px; cursor:pointer;">☰</button>
-        <h2 style="flex:1; text-align:center; font-size:16px; margin:0;">IMAGIFHUB</h2>
-        <div id="premiumIndicator" style="display:none;">⭐</div>
-        <button id="muteBtn" onclick="window.toggleMute()" style="background:none; border:none; color:#fff; font-size:22px; padding:15px; cursor:pointer;">🔊</button>
-        <button onclick="window.triggerSearch()" style="background:none; border:none; color:#fff; font-size:22px; padding:15px; cursor:pointer;">🔍</button>
-    </div>
+<div class="top-bar">
+    <button onclick="window.toggleMenu()" style="background:none; border:none; color:#fff; font-size:24px; padding:15px; cursor:pointer;">☰</button>
+    <h2 style="flex:1; text-align:center; font-size:16px; margin:0;">IMAGIFHUB</h2>
+    <div id="premiumIndicator" style="display:none;">⭐</div>
+    <button id="muteBtn" onclick="window.toggleMute()" style="background:none; border:none; color:#fff; font-size:22px; padding:15px; cursor:pointer;">🔊</button>
+    <button onclick="window.triggerSearch()" style="background:none; border:none; color:#fff; font-size:22px; padding:15px; cursor:pointer;">🔍</button>
+</div>
 
-    <div class="cat-bar" id="catBar"></div>
+<div class="cat-bar" id="catBar"></div>
 
-    <!-- MENU PANEL with collapsible sections and color pickers -->
-    <div id="menuPanel" class="menu-panel">
-        <a href="#" class="menu-link" onclick="window.toggleMenu()" style="color:var(--accent)">✕ Close Menu</a>
-        
-        <!-- USER INFO CARD -->
-        <div class="user-info-card" id="userInfoCard">
-            <div class="user-avatar">
-                <img id="userAvatar" src="assets/default-avatar.png" alt="User">
-            </div>
-            <div class="user-details">
-                <div id="userName" class="user-name">Loading...</div>
-                <div class="user-id-row">
-                    <span id="userId">-</span>
-                    <button class="copy-id-btn" onclick="window.copyUserId()">📋 Copy</button>
-                </div>
-            </div>
-        </div>
-
-        <!-- PAID PREMIUM CARD -->
-        <div class="premium-box">
-            <div style="font-weight: bold; font-size: 18px;">IMAGIF PREMIUM ⭐</div>
-            <div id="premiumExpiryDisplay" style="font-size: 11px; opacity: 0.9; margin-top: 5px;">
-                Enjoy ad-free smooth scrolling
-            </div>
-            <button class="premium-btn-menu" onclick="window.openPremium()">UPGRADE NOW</button>
-        </div>
-
-        <!-- WATCH ADS CARD -->
-        <div id="watchAdsCard" class="premium-box" style="background: linear-gradient(45deg, #ff8c00, #ff4d4d); margin-top: 10px;">
-            <div style="font-weight: bold; font-size: 16px;">🎬 Watch Ads → 1h Premium</div>
-            <div id="watchAdsProgress" style="font-size: 14px; margin: 8px 0;">0/3 ads watched</div>
-            <div id="tempPremiumTimer" style="font-size: 12px; opacity: 0.9;"></div>
-            <button id="watchAdBtn" class="premium-btn-menu" style="background: white; color: #ff8c00; margin-top: 8px;">🎥 Watch Ad</button>
-        </div>
-
-        <!-- GIFT CARD in menu -->
-        <div id="giftCard" class="gift-card-menu" style="margin: 15px; padding: 15px; background: linear-gradient(135deg, #ff9a3d, #ff4d6d); border-radius: 12px; color: white;">
-            <div style="display: flex; justify-content: space-between; align-items: center;">
-                <div><span style="font-size: 20px;">🎁</span> <strong>Send us a Gift</strong></div>
-                <button id="openGiftFromMenuBtn" style="background: white; border: none; padding: 6px 12px; border-radius: 20px; color: #ff4d6d; font-weight: bold;">Send Gift</button>
-            </div>
-            <div id="recentGiftContent" style="margin-top: 10px; font-size: 12px; background: rgba(0,0,0,0.2); border-radius: 8px; padding: 8px;">
-                Loading...
-            </div>
-        </div>
-
-        <!-- COLLAPSIBLE: Theme Colors (User picks) -->
-        <div class="collapsible" id="colorCollapsible">
-            <div class="collapsible-header">
-                <span>🎨 Theme Colors</span>
-                <span class="arrow">▶</span>
-            </div>
-            <div class="collapsible-content">
-                <div class="color-picker-row">
-                    <label>Background</label>
-                    <input type="color" id="colorBg" value="#000000">
-                </div>
-                <div class="color-picker-row">
-                    <label>Text Color</label>
-                    <input type="color" id="colorText" value="#ffffff">
-                </div>
-                <div class="color-picker-row">
-                    <label>Accent Color</label>
-                    <input type="color" id="colorAccent" value="#9c4dff">
-                </div>
-            </div>
-        </div>
-
-        <a href="#" class="menu-link" onclick="window.openCopyright()">⚖️ Copyright Policy</a>
-        <a href="#" class="menu-link" onclick="window.openPrivacy()">🔒 Privacy Policy</a>
-        <div class="menu-link" onclick="window.toggleDarkText()" style="display:flex; justify-content:space-between; align-items:center;">
-            <span>🌙 Dark Text</span>
-            <span id="darkTextIndicator">OFF</span>
-        </div>
-        <a href="#" class="menu-link" onclick="window.shareBot()">🔗 Share Bot with Friends</a>
-        <a href="https://t.me/imagifhub" class="menu-link">📢 Join Official Channel</a>
-        <a href="https://t.me/ojareridominion" class="menu-link">💬 Support</a>
-        
-        <div style="padding:15px 25px 5px; font-size:12px; opacity:0.6;">SELECT THEME</div>
-        <div class="theme-grid" id="themeGrid"></div>
-    </div>
-
-    <div id="swiper" class="swiper"><div class="swiper-wrapper" id="feed"></div></div>
+<!-- MENU PANEL -->
+<div id="menuPanel" class="menu-panel">
+    <a href="#" class="menu-link" onclick="window.toggleMenu()" style="color:var(--accent)">✕ Close Menu</a>
     
-    <!-- Scroll to top FAB -->
-    <div id="fabTop" class="fab-top">↑</div>
-
-    <!-- Inline Search Bar (hidden by default) -->
-    <div id="searchBar" class="search-bar">
-        <input type="text" id="searchInput" placeholder="Search images...">
-        <button id="searchBtn">Go</button>
-        <button id="closeSearchBtn">✕</button>
-    </div>
-
-    <audio id="bgMusic"></audio>
-
-    <!-- PREMIUM MODAL -->
-    <div id="premiumModal" class="modal-overlay">
-        <div class="premium-card">
-            <h1>✨ ImagifHub Premium</h1>
-            <div class="price-tag">
-                <span class="old-price">149 Stars</span>
-                <span class="new-price">99 Stars / 30 days</span>
+    <div class="user-info-card">
+        <div class="user-avatar"><img id="userAvatar" src="assets/default-avatar.png" alt="User"></div>
+        <div class="user-details">
+            <div id="userName" class="user-name">Loading...</div>
+            <div class="user-id-row">
+                <span id="userId">-</span>
+                <button class="copy-id-btn" onclick="window.copyUserId()">📋 Copy</button>
             </div>
-            <ul class="premium-list">
-                <li>🚫 No ads</li>
-                <li>😁 Support ImagifHub</li>
-            </ul>
-            <div style="background: rgba(255, 215, 0, 0.1); padding: 15px; border-radius: 10px; margin: 20px 0; text-align: center;">
-                <p style="margin: 0; font-size: 14px; opacity: 0.9;">
-                    🔒 <b>Secure Payment via Telegram</b><br>
-                    Clicking "Go Premium" will open Telegram chat.
-                </p>
-            </div>
-            <div id="paymentStatus" style="margin: 10px 0; font-size: 14px; text-align: center;"></div>
-            <button id="btnBuy" class="btn-buy" onclick="window.goPremium()">Go Premium</button>
-            <button class="btn-close" onclick="window.closePremium()">Close</button>
         </div>
     </div>
 
-    <!-- COPYRIGHT MODAL -->
-    <div id="copyrightModal" class="modal-overlay">
-        <div class="copyright-card">
-            <h2 style="margin-top:0;">⚖️ ImagifHub: Intellectual Property Policy</h2>
-            <div class="copyright-content scrollable">
-                <p><strong>1. Content Sources</strong><br>
-                ImagifHub is a content discovery platform. The media displayed within this application is sourced from:<br>
-                • Public Domain & Creative Commons: Images sourced from platforms like Unsplash, Pexels, stocksnap, burst, wallpezia and Pixabay under their respective commercial-use licenses.<br>
-                • AI-Generated Art: Original visuals created via Generative AI models.<br>
-                • User-Contributed Content: (If applicable) Content uploaded by our community.</p>
-                <p><strong>2. Background Music</strong><br>
-                All background music played in the mini app is sourced from Pixabay Music, which offers royalty‑free tracks under the Pixabay Content License. No copyrighted music is used.</p>
-                <p><strong>3. Respect for Copyright</strong><br>
-                We respect the intellectual property rights of others. It is our policy to respond to any claim that Content posted on the Service infringes the copyright or other intellectual property infringement of any person.</p>
-                <p><strong>4. DMCA & Takedown Requests</strong><br>
-                If you are a copyright owner, or authorized on behalf of one, and you believe that a copyrighted work has been used in a way that constitutes copyright infringement, please submit your claim via telegram to <a href="https://t.me/ojareridominion" target="_blank">support</a> with the subject line: "Copyright Takedown Request."<br>
-                Please include the following in your request:<br>
-                • A description of the copyrighted work you claim has been infringed.<br>
-                • The specific URL<br>
-                • Your contact information (Email and Phone Number).<br>
-                • A statement that you have a good-faith belief that the use is not authorized by the copyright owner.</p>
-                <p><strong>5. Disclaimer</strong><br>
-                ImagifHub does not claim ownership of the trademarked characters or brands that may appear in user-generated prompts or historical search results. We make every effort to remove copyrighted material from our mini app.</p>
-            </div>
-            <button class="btn-close" onclick="window.closeCopyright()">Close</button>
+    <div class="premium-box">
+        <div style="font-weight:bold; font-size:18px;">IMAGIF PREMIUM ⭐</div>
+        <div id="premiumExpiryDisplay" style="font-size:11px;">Enjoy ad-free smooth scrolling</div>
+        <button class="premium-btn-menu" onclick="window.openPremium()">UPGRADE NOW</button>
+    </div>
+
+    <div id="watchAdsCard" class="premium-box" style="background: linear-gradient(45deg, #ff8c00, #ff4d4d);">
+        <div style="font-weight:bold; font-size:16px;">🎬 Watch Ads → 1h Premium</div>
+        <div id="watchAdsProgress" style="font-size:14px; margin:8px 0;">0/3 ads watched</div>
+        <div id="tempPremiumTimer" style="font-size:12px;"></div>
+        <button id="watchAdBtn" class="premium-btn-menu" style="background:white; color:#ff8c00;">🎥 Watch Ad</button>
+    </div>
+
+    <div id="giftCard" class="gift-card-menu">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+            <div><span style="font-size:20px;">🎁</span> <strong>Send us a Gift</strong></div>
+            <button id="openGiftFromMenuBtn" style="background:white; border:none; padding:6px 12px; border-radius:20px; color:#ff4d6d; font-weight:bold;">Send Gift</button>
+        </div>
+        <div id="recentGiftContent" style="margin-top:10px; font-size:12px; background:rgba(0,0,0,0.2); border-radius:8px; padding:8px;">Loading...</div>
+    </div>
+
+    <div class="collapsible">
+        <div class="collapsible-header"><span>🎨 Theme Colors</span><span class="arrow">▶</span></div>
+        <div class="collapsible-content">
+            <div class="color-picker-row"><label>Background</label><input type="color" id="colorBg" value="#000000"></div>
+            <div class="color-picker-row"><label>Text Color</label><input type="color" id="colorText" value="#ffffff"></div>
+            <div class="color-picker-row"><label>Accent Color</label><input type="color" id="colorAccent" value="#9c4dff"></div>
         </div>
     </div>
 
-    <!-- PRIVACY POLICY MODAL -->
-    <div id="privacyModal" class="modal-overlay">
-        <div class="copyright-card">
-            <h2 style="margin-top:0;">🔒 Privacy Policy</h2>
-            <div class="copyright-content scrollable">
-                <p><strong>Data We Collect</strong><br>
-                When you use ImagifHub, we may collect the following information:</p>
-                <ul>
-                    <li><strong>Telegram User Data:</strong> Your Telegram user ID, username, first name, last name (if provided), and profile photo (if accessible).</li>
-                    <li><strong>Premium Status:</strong> Whether you have purchased a premium subscription, along with the expiration date of your premium access.</li>
-                    <li><strong>Payment Records:</strong> Transaction IDs, amount paid, currency, and timestamp of successful payments (for premium purchases).</li>
-                    <li><strong>Ad Interaction:</strong> Number of ads watched per day and the timestamp of the last ad viewed (used to enforce cooldown and daily limits).</li>
-                    <li><strong>Usage Data:</strong> Categories you browse, search queries, and image view history (stored locally on your device).</li>
-                </ul>
-                <p><strong>How We Use Your Data</strong><br>
-                Your information is used solely to:</p>
-                <ul>
-                    <li>Provide and maintain the core functionality of the mini app.</li>
-                    <li>Manage premium subscriptions and deliver ad‑free experiences to paying users.</li>
-                    <li>Serve relevant ads and limit ad frequency to respect your experience.</li>
-                    <li>Improve content discovery and app performance.</li>
-                    <li>Respond to support inquiries or copyright claims.</li>
-                </ul>
-                <p><strong>Data Sharing</strong><br>
-                We do <strong>not</strong> sell or rent your personal data to third parties. We may share limited data (e.g., user ID) with our payment provider (Telegram Stars) to complete transactions. Aggregated, anonymized statistics may be used for internal analytics.</p>
-                <p><strong>Data Retention</strong><br>
-                Your Telegram user data is retained as long as you use the app. Premium records are kept for financial and legal compliance. You may request deletion of your data by contacting support.</p>
-                <p><strong>Your Rights</strong><br>
-                You have the right to access, correct, or delete your personal data. To exercise these rights, please contact us via Telegram <a href="https://t.me/ojareridominion" target="_blank">support</a>.</p>
-                <p><strong>Changes to This Policy</strong><br>
-                We may update this Privacy Policy from time to time. Continued use of the app constitutes acceptance of the revised policy.</p>
-                <p><em>Last updated: April 2026</em></p>
-            </div>
-            <button class="btn-close" onclick="window.closePrivacy()">Close</button>
-        </div>
+    <a href="#" class="menu-link" onclick="window.openCopyright()">⚖️ Copyright Policy</a>
+    <a href="#" class="menu-link" onclick="window.openPrivacy()">🔒 Privacy Policy</a>
+    <div class="menu-link" onclick="window.toggleDarkText()" style="display:flex; justify-content:space-between;">
+        <span>🌙 Dark Text</span><span id="darkTextIndicator">OFF</span>
     </div>
+    <a href="#" class="menu-link" onclick="window.shareBot()">🔗 Share Bot with Friends</a>
+    <a href="https://t.me/imagifhub" class="menu-link">📢 Join Official Channel</a>
+    <a href="https://t.me/ojareridominion" class="menu-link">💬 Support</a>
+    <div style="padding:15px 25px 5px; font-size:12px; opacity:0.6;">SELECT THEME</div>
+    <div class="theme-grid" id="themeGrid"></div>
+</div>
 
-    <!-- GIFT DRAWER -->
-    <div id="giftDrawer" class="gift-drawer">
-        <div class="gift-drawer-header">
-            <h3>🎁 Send us a Gift</h3>
-            <button id="closeGiftDrawer" class="close-drawer-btn">✕</button>
+<div id="swiper" class="swiper"><div class="swiper-wrapper" id="feed"></div></div>
+<div id="fabTop" class="fab-top">↑</div>
+<div id="searchBar" class="search-bar">
+    <input type="text" id="searchInput" placeholder="Search images...">
+    <button id="searchBtn">Go</button>
+    <button id="closeSearchBtn">✕</button>
+</div>
+<audio id="bgMusic"></audio>
+
+<!-- Premium Modal -->
+<div id="premiumModal" class="modal-overlay">
+    <div class="premium-card">
+        <h1>✨ ImagifHub Premium</h1>
+        <div class="price-tag"><span class="old-price">149 Stars</span><span class="new-price">99 Stars / 30 days</span></div>
+        <ul class="premium-list"><li>🚫 No ads</li><li>😁 Support ImagifHub</li></ul>
+        <div style="background:rgba(255,215,0,0.1); padding:15px; border-radius:10px; margin:20px 0; text-align:center;">
+            <p style="margin:0; font-size:14px;">🔒 <b>Secure Payment via Telegram</b><br>Clicking "Go Premium" will open Telegram chat.</p>
         </div>
-        <div class="gift-drawer-body" id="giftDrawerContent">
-            <div class="gift-loading">Loading gifts...</div>
-        </div>
+        <div id="paymentStatus" style="margin:10px 0; font-size:14px; text-align:center;"></div>
+        <button id="btnBuy" class="btn-buy" onclick="window.goPremium()">Go Premium</button>
+        <button class="btn-close" onclick="window.closePremium()">Close</button>
     </div>
+</div>
 
-    <div id="welcomeOverlay" class="welcome-overlay">
-        <div class="overlay-content">
-            <button id="welcomeContinueBtn" class="welcome-button">CONTINUE 🚀</button>
+<!-- Copyright Modal -->
+<div id="copyrightModal" class="modal-overlay">
+    <div class="copyright-card">
+        <h2>⚖️ ImagifHub: Intellectual Property Policy</h2>
+        <div class="copyright-content scrollable">
+            <p><strong>1. Content Sources</strong><br>ImagifHub is a content discovery platform. The media displayed is sourced from Public Domain & Creative Commons (Unsplash, Pexels, Pixabay etc.), AI-Generated Art, and User-Contributed Content.</p>
+            <p><strong>2. Background Music</strong><br>All background music is sourced from Pixabay Music under the Pixabay Content License.</p>
+            <p><strong>3. DMCA & Takedown Requests</strong><br>Submit claims to <a href="https://t.me/ojareridominion" target="_blank">support</a> with subject "Copyright Takedown Request".</p>
         </div>
+        <button class="btn-close" onclick="window.closeCopyright()">Close</button>
     </div>
+</div>
 
-    <script type="module" src="script.js"></script>
-    <script type="module" src="giftManager.js"></script>
+<!-- Privacy Modal -->
+<div id="privacyModal" class="modal-overlay">
+    <div class="copyright-card">
+        <h2>🔒 Privacy Policy</h2>
+        <div class="copyright-content scrollable">
+            <p>We collect Telegram user data (ID, name, username, profile photo), premium status, payment records, ad interaction, and usage data. Data is never sold. You may request deletion via support.</p>
+            <p><em>Last updated: April 2026</em></p>
+        </div>
+        <button class="btn-close" onclick="window.closePrivacy()">Close</button>
+    </div>
+</div>
+
+<!-- Gift Drawer -->
+<div id="giftDrawer" class="gift-drawer">
+    <div class="gift-drawer-header"><h3>🎁 Send us a Gift</h3><button id="closeGiftDrawer" class="close-drawer-btn">✕</button></div>
+    <div class="gift-drawer-body" id="giftDrawerContent"><div class="gift-loading">Loading gifts...</div></div>
+</div>
+
+<div id="welcomeOverlay" class="welcome-overlay">
+    <div class="overlay-content"><button id="welcomeContinueBtn" class="welcome-button">CONTINUE 🚀</button></div>
+</div>
+
+<script type="module" src="script.js"></script>
 </body>
-                                           </html>
-                                           
+    </html>
