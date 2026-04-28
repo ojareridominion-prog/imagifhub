@@ -14,10 +14,42 @@ const themesList = [
     {id: "theme-violet", top: "#16001f", bottom: "#f0b3ff"}
 ];
 
+// Get menu overlay element
+function getMenuOverlay() {
+    return document.getElementById('menuOverlay');
+}
+
 export function toggleMenu() {
     const panel = document.getElementById('menuPanel');
-    panel.classList.toggle('open');
-    if (panel.classList.contains('open')) verifyPremiumStatus();
+    const overlay = getMenuOverlay();
+    if (!panel || !overlay) return;
+    
+    const isOpen = panel.classList.contains('open');
+    
+    if (!isOpen) {
+        // Open menu
+        panel.classList.add('open');
+        overlay.classList.add('active');
+        document.body.style.overflow = 'hidden'; // prevent background scroll
+        verifyPremiumStatus();
+    } else {
+        // Close menu
+        panel.classList.remove('open');
+        overlay.classList.remove('active');
+        document.body.style.overflow = '';
+    }
+}
+
+// Close menu when clicking on overlay
+function initMenuOverlay() {
+    const overlay = getMenuOverlay();
+    if (overlay) {
+        overlay.addEventListener('click', () => {
+            if (document.getElementById('menuPanel').classList.contains('open')) {
+                toggleMenu();
+            }
+        });
+    }
 }
 
 export function applyTheme(themeId) {
@@ -47,7 +79,13 @@ export async function shareBot() {
 }
 
 export function openPremium() {
-    document.getElementById('menuPanel').classList.remove('open');
+    const panel = document.getElementById('menuPanel');
+    const overlay = getMenuOverlay();
+    if (panel.classList.contains('open')) {
+        panel.classList.remove('open');
+        overlay.classList.remove('active');
+        document.body.style.overflow = '';
+    }
     document.getElementById('premiumModal').classList.add('active');
 }
 
@@ -56,7 +94,13 @@ export function closePremium() {
 }
 
 export function openCopyright() {
-    document.getElementById('menuPanel').classList.remove('open');
+    const panel = document.getElementById('menuPanel');
+    const overlay = getMenuOverlay();
+    if (panel.classList.contains('open')) {
+        panel.classList.remove('open');
+        overlay.classList.remove('active');
+        document.body.style.overflow = '';
+    }
     document.getElementById('copyrightModal').classList.add('active');
 }
 
@@ -65,7 +109,13 @@ export function closeCopyright() {
 }
 
 export function openPrivacy() {
-    document.getElementById('menuPanel').classList.remove('open');
+    const panel = document.getElementById('menuPanel');
+    const overlay = getMenuOverlay();
+    if (panel.classList.contains('open')) {
+        panel.classList.remove('open');
+        overlay.classList.remove('active');
+        document.body.style.overflow = '';
+    }
     document.getElementById('privacyModal').classList.add('active');
 }
 
@@ -113,4 +163,7 @@ export function initUI() {
             <div style="background:${t.bottom}"></div>
         </div>
     `).join('');
+    
+    // Initialize menu overlay click handler
+    initMenuOverlay();
 }
