@@ -1,18 +1,13 @@
-// script.js - Main entry point with updated UI
+// script.js - Main entry point
 import { musicLibrary, categories } from './music.js';
 import { getHolidayImage, getFestiveTitle } from './welcome.js';
 import { state } from './state.js';
 import { playRandomMusic, toggleMute } from './musicManager.js';
-import { fetchNativeAds, setupAdButtonListeners } from './adsManager.js';
+import { fetchNativeAds, setupAdButtonListeners } from './adsManager.js';   // removed showRewardedAdWrapper
 import { verifyPremiumStatus, updateWatchAdCard, startTempPremiumCountdown, showRewardedAdWrapper as premiumRewardedWrapper } from './premiumManager.js';
 import { loadFeed, resetAndLoadFeed } from './feedManager.js';
-import { 
-    toggleMenu, applyTheme, triggerSearch, shareBot, openPremium, closePremium, 
-    openCopyright, closeCopyright, openPrivacy, closePrivacy, copyUserId, 
-    toggleDarkText, initUI, saveUserColors, toggleSearchBar, performSearch, 
-    clearSearch, initFab, initCollapsibles 
-} from './uiManager.js';
-import { initGiftSystem, refreshRecentGiftCard, showGiftDrawer } from './giftManager.js';
+import { toggleMenu, applyTheme, triggerSearch, shareBot, openPremium, closePremium, openCopyright, closeCopyright, openPrivacy, closePrivacy, copyUserId, toggleDarkText, initUI } from './uiManager.js';
+import { initGiftSystem, refreshRecentGiftCard, showGiftDrawer } from './giftManager.js';   // NEW
 
 const API_URL = "https://imagifhub.onrender.com";
 
@@ -20,12 +15,12 @@ const API_URL = "https://imagifhub.onrender.com";
 window.loadFeed = loadFeed;
 window.toggleMenu = toggleMenu;
 window.toggleMute = toggleMute;
-window.triggerSearch = () => toggleSearchBar();
+window.triggerSearch = triggerSearch;
 window.applyTheme = applyTheme;
 window.shareBot = shareBot;
 window.openPremium = openPremium;
 window.closePremium = closePremium;
-window.goPremium = goPremium;
+window.goPremium = goPremium;        // defined below
 window.verifyPremiumStatus = verifyPremiumStatus;
 window.toggleDarkText = toggleDarkText;
 window.openCopyright = openCopyright;
@@ -33,12 +28,8 @@ window.closeCopyright = closeCopyright;
 window.copyUserId = copyUserId;
 window.openPrivacy = openPrivacy;
 window.closePrivacy = closePrivacy;
-window.performSearch = performSearch;
-window.clearSearch = clearSearch;
-window.showGiftDrawer = showGiftDrawer;
-window.initFab = initFab;  // expose for feedManager
 
-// Payment / invoice function
+// Payment / invoice function (needs API call)
 async function goPremium() {
     const tg = window.Telegram.WebApp;
     const statusEl = document.getElementById('paymentStatus');
@@ -122,28 +113,6 @@ function initWatchAdButton() {
     }
 }
 
-// Color picker listeners
-function initColorPickers() {
-    const bgPicker = document.getElementById('colorBg');
-    const textPicker = document.getElementById('colorText');
-    const accentPicker = document.getElementById('colorAccent');
-    if (bgPicker) {
-        bgPicker.addEventListener('change', (e) => saveUserColors(e.target.value, null, null));
-        textPicker.addEventListener('change', (e) => saveUserColors(null, e.target.value, null));
-        accentPicker.addEventListener('change', (e) => saveUserColors(null, null, e.target.value));
-    }
-}
-
-// Search bar listeners
-function initSearchBar() {
-    const searchBtn = document.getElementById('searchBtn');
-    const closeBtn = document.getElementById('closeSearchBtn');
-    const input = document.getElementById('searchInput');
-    if (searchBtn) searchBtn.addEventListener('click', performSearch);
-    if (closeBtn) closeBtn.addEventListener('click', clearSearch);
-    if (input) input.addEventListener('keypress', (e) => { if (e.key === 'Enter') performSearch(); });
-}
-
 // Initialization
 window.onload = async () => {
     // Expand Telegram WebApp
@@ -159,9 +128,6 @@ window.onload = async () => {
     ).join('');
 
     initUI();
-    initCollapsibles();
-    initColorPickers();
-    initSearchBar();
 
     const audioElem = document.getElementById('bgMusic');
     audioElem.addEventListener('ended', () => {
@@ -174,27 +140,27 @@ window.onload = async () => {
 
     // Initialize gift system
     await initGiftSystem();
+    // Attach menu button for gift drawer
     const openGiftMenuBtn = document.getElementById('openGiftFromMenuBtn');
     if (openGiftMenuBtn) openGiftMenuBtn.addEventListener('click', () => showGiftDrawer());
 
     // Welcome overlay
-    // Welcome overlay
-const welcomeOverlay = document.getElementById('welcomeOverlay');
-const continueBtn = document.getElementById('welcomeContinueBtn');
-if (welcomeOverlay && continueBtn) {
-    welcomeOverlay.style.backgroundImage = `url('${getHolidayImage()}')`;
-    continueBtn.addEventListener('click', () => {
-        welcomeOverlay.classList.add('hidden');
-        welcomeOverlay.style.display = 'none'; // force hide
-        fetch(`${API_URL}/api/trigger-ad`, {
-            method: 'POST',
-            headers: { 'X-Telegram-Init-Data': tg.initData }
-        }).catch(() => {});
+    const welcomeOverlay = document.getElementById('welcomeOverlay');
+    const continueBtn = document.getElementById('welcomeContinueBtn');
+    if (welcomeOverlay && continueBtn) {
+        welcomeOverlay.style.backgroundImage = `url('${getHolidayImage()}')`;
+        continueBtn.addEventListener('click', () => {
+            welcomeOverlay.classList.add('hidden');
+            // Trigger bot ad (optional)
+            fetch(`${API_URL}/api/trigger-ad`, {
+                method: 'POST',
+                headers: { 'X-Telegram-Init-Data': tg.initData }
+            }).catch(() => {});
+            loadFeed("Discover", "", true);
+        });
+    } else {
         loadFeed("Discover", "", true);
-    });
-} else {
-    loadFeed("Discover", "", true);
-}
+    }
 
     document.querySelector('.top-bar h2').innerText = getFestiveTitle();
 
@@ -216,9 +182,4 @@ if (welcomeOverlay && continueBtn) {
             e.stopPropagation();
         }
     });
-
-    // FAB will be initialized after swiper is ready (inside feedManager)
-    setTimeout(() => {
-        if (state.activeSwiper) initFab();
-    }, 1000);
 };
