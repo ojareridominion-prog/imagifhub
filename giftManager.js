@@ -126,7 +126,7 @@ async function renderGiftDrawerContent() {
     });
 }
 
-// --- Send gift (handles invoice, close drawer, confetti, vibration) ---
+// --- Send gift (handles invoice, close drawer, delayed confetti, vibration, recent gift label) ---
 async function sendGift(giftId, giftName, giftEmoji, giftPrice, category) {
     const tg = window.Telegram.WebApp;
     try {
@@ -142,29 +142,33 @@ async function sendGift(giftId, giftName, giftEmoji, giftPrice, category) {
                 // 1. Close gift drawer
                 closeGiftDrawer();
                 
-                // 2. Vibrate device (telegram haptic)
-                const isOverpriced = (category === 'overpriced');
-                if (tg.HapticFeedback) {
-                    if (isOverpriced) {
-                        tg.HapticFeedback.impactOccurred('heavy');
-                        setTimeout(() => tg.HapticFeedback.impactOccurred('heavy'), 200);
-                        setTimeout(() => tg.HapticFeedback.impactOccurred('heavy'), 400);
-                    } else {
-                        tg.HapticFeedback.impactOccurred('medium');
+                // 2. Use a delay to ensure the invoice overlay is fully closed
+                //    and the mini app is back in focus before playing effects.
+                setTimeout(() => {
+                    // Vibrate device (Telegram haptic or fallback)
+                    const isOverpriced = (category === 'overpriced');
+                    if (tg.HapticFeedback) {
+                        if (isOverpriced) {
+                            tg.HapticFeedback.impactOccurred('heavy');
+                            setTimeout(() => tg.HapticFeedback.impactOccurred('heavy'), 200);
+                            setTimeout(() => tg.HapticFeedback.impactOccurred('heavy'), 400);
+                        } else {
+                            tg.HapticFeedback.impactOccurred('medium');
+                        }
+                    } else if (navigator.vibrate) {
+                        if (isOverpriced) navigator.vibrate([200, 100, 200]);
+                        else navigator.vibrate(100);
                     }
-                } else if (navigator.vibrate) {
-                    if (isOverpriced) navigator.vibrate([200, 100, 200]);
-                    else navigator.vibrate(100);
-                }
+                    
+                    // Confetti burst (now guaranteed to appear in mini app)
+                    triggerConfetti(isOverpriced);
+                }, 300); // 300ms delay – enough for invoice to disappear
                 
-                // 3. Confetti burst
-                triggerConfetti(isOverpriced);
-                
-                // 4. Refresh recent gift display (without countdown)
+                // 4. Refresh recent gift display (no countdown)
                 await refreshRecentGiftCard();
                 
                 // 5. If overpriced gift, refresh premium status to remove ads
-                if (isOverpriced) {
+                if (category === 'overpriced') {
                     await verifyPremiumStatus();
                 }
                 
@@ -181,7 +185,12 @@ async function sendGift(giftId, giftName, giftEmoji, giftPrice, category) {
 }
 
 // --- Enhanced confetti (bigger for overpriced) ---
-export function triggerConfetti(isOverpriced = false) {
+function triggerConfetti(isOverpriced = false) {
+    // Make sure canvasConfetti is available (script tag is present)
+    if (typeof canvasConfetti === 'undefined') {
+        console.warn("canvasConfetti not loaded – confetti disabled");
+        return;
+    }
     // Basic confetti always
     canvasConfetti({ particleCount: 150, spread: 70, origin: { y: 0.6 } });
     canvasConfetti({ particleCount: 100, spread: 100, origin: { y: 0.6, x: 0.2 }, startVelocity: 15 });
@@ -203,7 +212,7 @@ export function triggerConfetti(isOverpriced = false) {
     }
 }
 
-// --- Refresh the "Recent Gift" card in the menu (NO countdown timer)---
+// --- Refresh the "Recent Gift" card in the menu (with "recent gift" label) ---
 export async function refreshRecentGiftCard() {
     const tg = window.Telegram.WebApp;
     try {
@@ -215,12 +224,13 @@ export async function refreshRecentGiftCard() {
         const container = document.getElementById('recentGiftContent');
         if (!container) return;
         if (gift && gift.gift_name) {
-            // Display only the gift info without any countdown
+            // Display gift info + "Recent gift" label underneath
             container.innerHTML = `
                 <div style="display:flex; align-items:center; gap:8px;">
                     <span style="font-size:28px;">${gift.gift_emoji}</span>
                     <div><strong>${gift.gift_name}</strong><br><span style="font-size:11px;">${gift.gift_price} ⭐</span></div>
                 </div>
+                <div style="font-size:10px; margin-top:6px; opacity:0.8;">🎁 Recent gift</div>
             `;
         } else {
             container.innerHTML = '<div style="opacity:0.7;">No recent gift sent</div>';
@@ -255,4 +265,4 @@ export async function initGiftSystem() {
     }
     // Load recent gift once (no auto‑refresh timer)
     await refreshRecentGiftCard();
-                            }
+            }
