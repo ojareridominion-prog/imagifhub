@@ -22,6 +22,7 @@ function escapeHtml(str) {
 }
 
 function generateAdSlide(ad, adIndex) {
+    if (!ad) return ''; // safety guard
     return `
         <div class="swiper-slide" data-type="ad" data-ad-index="${adIndex}">
             <img src="${ad.image}" alt="Ad" style="width:100%; height:100%; object-fit:cover;">
@@ -113,14 +114,17 @@ async function appendMoreImages(newImages) {
     const oldImageCount = state.allImages.length;
     const htmlSlides = [];
     let localAdIndex = state.currentAdIndex;
+    const hasAds = state.nativeAds && state.nativeAds.length > 0;
 
     for (let i = 0; i < newImages.length; i++) {
         htmlSlides.push(generateImageSlide(newImages[i]));
         const position = oldImageCount + i + 1;
-        if (!state.isPremiumUser && position % AD_FREQUENCY === 0) {
+        if (!state.isPremiumUser && hasAds && position % AD_FREQUENCY === 0) {
             const ad = state.nativeAds[localAdIndex % state.nativeAds.length];
-            htmlSlides.push(generateAdSlide(ad, localAdIndex % state.nativeAds.length));
-            localAdIndex++;
+            if (ad) {
+                htmlSlides.push(generateAdSlide(ad, localAdIndex % state.nativeAds.length));
+                localAdIndex++;
+            }
         }
     }
     swiper.appendSlide(htmlSlides);
@@ -218,6 +222,7 @@ export async function resetAndLoadFeed(cat, search = "", skipAd = false) {
         const slides = buildSlides(state.allImages, state.isPremiumUser);
         renderSlides(slides);
     } catch (e) {
+        console.error("Feed load error:", e);
         feed.innerHTML = '<div class="swiper-slide" style="display:flex; align-items:center; justify-content:center;"><h3>Connection Error</h3></div>';
     } finally {
         state.isLoadingFeed = false;
