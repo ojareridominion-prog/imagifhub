@@ -36,7 +36,7 @@
     
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.css"/>
     <script src="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>  <!-- NEW -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     
     <link rel="stylesheet" href="style.css">
 </head>
@@ -52,11 +52,14 @@
 
     <div class="cat-bar" id="catBar"></div>
 
-    <!-- MENU PANEL – reordered, scrollable, with watch-ads card -->
+    <!-- MENU OVERLAY (blur background) -->
+    <div id="menuOverlay" class="menu-overlay"></div>
+
+    <!-- MENU PANEL -->
     <div id="menuPanel" class="menu-panel">
         <a href="#" class="menu-link" onclick="toggleMenu()" style="color:var(--accent)">✕ Close Menu</a>
         
-        <!-- USER INFO CARD (moved to top) -->
+        <!-- USER INFO CARD -->
         <div class="user-info-card" id="userInfoCard">
             <div class="user-avatar">
                 <img id="userAvatar" src="assets/default-avatar.png" alt="User">
@@ -79,16 +82,16 @@
             <button class="premium-btn-menu" onclick="openPremium()">UPGRADE NOW</button>
         </div>
 
-        <!-- WATCH ADS CARD (temporary premium) -->
-        <div id="watchAdsCard" class="premium-box" style="background: linear-gradient(45deg, #ff8c00, #ff4d4d); margin-top: 10px;">
+        <!-- WATCH ADS CARD -->
+        <div id="watchAdsCard" class="premium-box" style="margin-top: 10px;">
             <div style="font-weight: bold; font-size: 16px;">🎬 Watch Ads → 1h Premium</div>
             <div id="watchAdsProgress" style="font-size: 14px; margin: 8px 0;">0/3 ads watched</div>
             <div id="tempPremiumTimer" style="font-size: 12px; opacity: 0.9;"></div>
             <button id="watchAdBtn" class="premium-btn-menu" style="background: white; color: #ff8c00; margin-top: 8px;">🎥 Watch Ad</button>
         </div>
 
-        <!-- NEW: GIFT CARD in menu -->
-        <div id="giftCard" class="gift-card-menu" style="margin: 15px; padding: 15px; background: linear-gradient(135deg, #ff9a3d, #ff4d6d); border-radius: 12px; color: white;">
+        <!-- GIFT CARD IN MENU -->
+        <div id="giftCard" class="gift-card-menu" style="margin: 15px; padding: 15px; border-radius: 16px; color: white;">
             <div style="display: flex; justify-content: space-between; align-items: center;">
                 <div><span style="font-size: 20px;">🎁</span> <strong>Send us a Gift</strong></div>
                 <button id="openGiftFromMenuBtn" style="background: white; border: none; padding: 6px 12px; border-radius: 20px; color: #ff4d6d; font-weight: bold;">Send Gift</button>
@@ -143,7 +146,7 @@
         </div>
     </div>
 
-    <!-- COPYRIGHT MODAL (UPDATED WITH PIXABAY STATEMENT) -->
+    <!-- COPYRIGHT MODAL -->
     <div id="copyrightModal" class="modal-overlay">
         <div class="copyright-card">
             <h2 style="margin-top:0;">⚖️ ImagifHub: Intellectual Property Policy</h2>
@@ -175,7 +178,7 @@
         </div>
     </div>
 
-    <!-- NEW PRIVACY POLICY MODAL -->
+    <!-- PRIVACY POLICY MODAL -->
     <div id="privacyModal" class="modal-overlay">
         <div class="copyright-card">
             <h2 style="margin-top:0;">🔒 Privacy Policy</h2>
@@ -218,8 +221,12 @@
         </div>
     </div>
 
-    <!-- NEW: GIFT DRAWER (slide down) -->
+    <!-- DRAWER OVERLAY (blur background for gift drawer) -->
+    <div id="drawerOverlay" class="drawer-overlay"></div>
+
+    <!-- GIFT DRAWER (slide from bottom with drag handle) -->
     <div id="giftDrawer" class="gift-drawer">
+        <div class="drawer-drag-handle" id="drawerDragHandle"></div>
         <div class="gift-drawer-header">
             <h3>🎁 Send us a Gift</h3>
             <button id="closeGiftDrawer" class="close-drawer-btn">✕</button>
@@ -236,8 +243,7 @@
     </div>
 
     <script type="module" src="script.js"></script>
-    <script type="module" src="giftManager.js"></script>  <!-- NEW -->
+    <script type="module" src="giftManager.js"></script>
     
 </body>
-    </html>
-    
+</html>
