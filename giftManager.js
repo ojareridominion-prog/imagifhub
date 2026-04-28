@@ -1,4 +1,4 @@
-// giftManager.js - Gifting system (with reliable haptic + confetti)
+// giftManager.js - Gifting system (with larger confetti)
 import { state } from './state.js';
 import { verifyPremiumStatus } from './premiumManager.js';
 
@@ -125,7 +125,7 @@ async function renderGiftDrawerContent() {
     });
 }
 
-// Send gift – with reliable haptic feedback and confetti (as per your spec)
+// Send gift – with BIG confetti (normal and overpriced)
 async function sendGift(giftId, giftName, giftEmoji, giftPrice, category) {
     const tg = window.Telegram.WebApp;
     try {
@@ -138,48 +138,77 @@ async function sendGift(giftId, giftName, giftEmoji, giftPrice, category) {
         const data = await response.json();
         tg.openInvoice(data.invoice_link, async (status) => {
             if (status === 'paid' || status === 'paid_in_chat') {
-                // 1. Trigger Telegram Haptic Feedback (success vibration)
+                // 1. Haptic success
                 if (tg.HapticFeedback) {
                     tg.HapticFeedback.notificationOccurred('success');
                 }
 
-                // 2. Trigger confetti burst INSIDE the Mini App
+                // 2. Confetti – bigger for all gifts
                 if (typeof confetti === 'function') {
+                    // Primary burst (all gifts)
                     confetti({
-                        particleCount: 150,
-                        spread: 70,
+                        particleCount: 300,      // was 150
+                        spread: 100,             // was 70
                         origin: { y: 0.5 },
-                        zIndex: 2147483647   // sits above all drawers / overlays
+                        startVelocity: 20,       // faster
+                        zIndex: 2147483647
                     });
-                    // Extra burst for overpriced gifts (more festive)
+                    // Secondary burst from sides
+                    confetti({
+                        particleCount: 200,
+                        spread: 80,
+                        origin: { y: 0.5, x: 0.2 },
+                        startVelocity: 25,
+                        zIndex: 2147483647
+                    });
+                    confetti({
+                        particleCount: 200,
+                        spread: 80,
+                        origin: { y: 0.5, x: 0.8 },
+                        startVelocity: 25,
+                        zIndex: 2147483647
+                    });
+
+                    // Overpriced: extra massive burst + gold colors
                     if (category === 'overpriced') {
                         setTimeout(() => {
                             confetti({
-                                particleCount: 300,
-                                spread: 100,
+                                particleCount: 600,
+                                spread: 140,
                                 origin: { y: 0.5 },
-                                startVelocity: 20,
-                                colors: ['#ffd700', '#ffaa00', '#ff5500'],
+                                startVelocity: 30,
+                                colors: ['#ffd700', '#ffaa00', '#ff5500', '#ffffff'],
                                 zIndex: 2147483647
                             });
+                            // And a third big burst from top
+                            setTimeout(() => {
+                                confetti({
+                                    particleCount: 400,
+                                    spread: 120,
+                                    origin: { y: 0.2 },
+                                    startVelocity: 25,
+                                    colors: ['#ffd700', '#ffaa00', '#ff5500'],
+                                    zIndex: 2147483647
+                                });
+                            }, 300);
                         }, 200);
                     }
                 } else {
-                    console.warn("confetti function not available – check library");
+                    console.warn("confetti function not available");
                 }
 
-                // 3. Close the gift drawer
+                // 3. Close drawer
                 closeGiftDrawer();
 
-                // 4. Refresh recent gift display
+                // 4. Refresh recent gift
                 await refreshRecentGiftCard();
 
-                // 5. If overpriced gift, refresh premium status
+                // 5. Grant premium if overpriced
                 if (category === 'overpriced') {
                     await verifyPremiumStatus();
                 }
 
-                // 6. Optional: show a brief thank you alert
+                // 6. Optional alert
                 if (tg.showAlert) {
                     tg.showAlert(`🎁 ${giftEmoji} ${giftName} sent! Thank you!`);
                 }
@@ -225,7 +254,6 @@ export async function refreshRecentGiftCard() {
 // Initialize gift system
 export async function initGiftSystem() {
     await loadGifts();
-    // Listen for gift-icon buttons on the feed (opens drawer)
     document.getElementById('feed').addEventListener('click', (e) => {
         const giftBtn = e.target.closest('.gift-icon-btn');
         if (giftBtn) {
@@ -234,7 +262,6 @@ export async function initGiftSystem() {
             showGiftDrawer();
         }
     });
-    // Close drawer when clicking on overlay or close button
     const drawer = document.getElementById('giftDrawer');
     const closeBtn = document.getElementById('closeGiftDrawer');
     if (closeBtn) closeBtn.addEventListener('click', closeGiftDrawer);
@@ -243,6 +270,5 @@ export async function initGiftSystem() {
             if (e.target === drawer) closeGiftDrawer();
         });
     }
-    // Load recent gift once
     await refreshRecentGiftCard();
-                                              }
+                }
