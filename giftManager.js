@@ -1,4 +1,4 @@
-// giftManager.js - Gifting system
+// giftManager.js - Gifting system (with reliable haptic + confetti)
 import { state } from './state.js';
 import { verifyPremiumStatus } from './premiumManager.js';
 
@@ -6,25 +6,6 @@ const API_URL = "https://imagifhub.onrender.com";
 
 let giftList = [];
 let currentGiftDrawerOpen = false;
-
-// Helper: ensure canvas-confetti is loaded
-function ensureConfetti(callback) {
-    if (typeof canvasConfetti === 'function') {
-        callback();
-        return;
-    }
-    console.warn("canvasConfetti not loaded, attempting to load dynamically");
-    const script = document.createElement('script');
-    script.src = 'https://cdn.jsdelivr.net/npm/canvas-confetti@1';
-    script.onload = () => {
-        console.log("canvasConfetti loaded dynamically");
-        callback();
-    };
-    script.onerror = () => {
-        console.error("Failed to load canvasConfetti, confetti disabled");
-    };
-    document.head.appendChild(script);
-}
 
 // Helper: close menu if open
 function closeMenuIfOpen() {
@@ -144,33 +125,7 @@ async function renderGiftDrawerContent() {
     });
 }
 
-// Enhanced confetti (bigger for overpriced, guaranteed to run)
-function triggerConfetti(isOverpriced = false) {
-    ensureConfetti(() => {
-        if (typeof canvasConfetti !== 'function') return;
-        
-        // Basic confetti
-        canvasConfetti({ particleCount: 150, spread: 70, origin: { y: 0.6 } });
-        canvasConfetti({ particleCount: 100, spread: 100, origin: { y: 0.6, x: 0.2 }, startVelocity: 15 });
-        canvasConfetti({ particleCount: 100, spread: 100, origin: { y: 0.6, x: 0.8 }, startVelocity: 15 });
-        
-        if (isOverpriced) {
-            setTimeout(() => {
-                canvasConfetti({ particleCount: 300, spread: 120, origin: { y: 0.5 }, startVelocity: 20, colors: ['#ffd700', '#ffaa00', '#ff5500'] });
-            }, 200);
-            setTimeout(() => {
-                canvasConfetti({ particleCount: 500, spread: 150, origin: { y: 0.3 }, startVelocity: 25, decay: 0.9 });
-            }, 500);
-            for (let i = 0; i < 3; i++) {
-                setTimeout(() => {
-                    canvasConfetti({ particleCount: 80, spread: 360, origin: { y: 0.5, x: Math.random() }, startVelocity: 30, colors: ['#ffffff', '#ffdd44'] });
-                }, i * 300);
-            }
-        }
-    });
-}
-
-// Send gift (handles invoice, close drawer, delayed confetti, vibration)
+// Send gift – with reliable haptic feedback and confetti (as per your spec)
 async function sendGift(giftId, giftName, giftEmoji, giftPrice, category) {
     const tg = window.Telegram.WebApp;
     try {
@@ -182,52 +137,52 @@ async function sendGift(giftId, giftName, giftEmoji, giftPrice, category) {
         if (!response.ok) throw new Error('Failed to create invoice');
         const data = await response.json();
         tg.openInvoice(data.invoice_link, async (status) => {
-            if (status === 'paid') {
-                // 1. Close gift drawer
-                closeGiftDrawer();
-                
-                // 2. Ensure WebApp is expanded and focused
-                tg.expand();
-                
-                // 3. Wait a full second for the invoice overlay to disappear completely
-                setTimeout(() => {
-                    // Vibrate device (Telegram haptic + fallback)
-                    const isOverpriced = (category === 'overpriced');
-                    try {
-                        if (tg.HapticFeedback) {
-                            if (isOverpriced) {
-                                tg.HapticFeedback.impactOccurred('heavy');
-                                setTimeout(() => tg.HapticFeedback.impactOccurred('heavy'), 200);
-                                setTimeout(() => tg.HapticFeedback.impactOccurred('heavy'), 400);
-                            } else {
-                                tg.HapticFeedback.impactOccurred('medium');
-                            }
-                        } else if (navigator.vibrate) {
-                            if (isOverpriced) {
-                                navigator.vibrate([200, 100, 200, 100, 200]);
-                            } else {
-                                navigator.vibrate(100);
-                            }
-                        }
-                    } catch(e) { console.warn("Haptic error", e); }
-                    
-                    // Trigger confetti bursts
-                    triggerConfetti(isOverpriced);
-                    if (isOverpriced) {
-                        setTimeout(() => triggerConfetti(true), 1000);
+            if (status === 'paid' || status === 'paid_in_chat') {
+                // 1. Trigger Telegram Haptic Feedback (success vibration)
+                if (tg.HapticFeedback) {
+                    tg.HapticFeedback.notificationOccurred('success');
+                }
+
+                // 2. Trigger confetti burst INSIDE the Mini App
+                if (typeof confetti === 'function') {
+                    confetti({
+                        particleCount: 150,
+                        spread: 70,
+                        origin: { y: 0.5 },
+                        zIndex: 2147483647   // sits above all drawers / overlays
+                    });
+                    // Extra burst for overpriced gifts (more festive)
+                    if (category === 'overpriced') {
+                        setTimeout(() => {
+                            confetti({
+                                particleCount: 300,
+                                spread: 100,
+                                origin: { y: 0.5 },
+                                startVelocity: 20,
+                                colors: ['#ffd700', '#ffaa00', '#ff5500'],
+                                zIndex: 2147483647
+                            });
+                        }, 200);
                     }
-                }, 1000); // increased delay to 1 second
-                
+                } else {
+                    console.warn("confetti function not available – check library");
+                }
+
+                // 3. Close the gift drawer
+                closeGiftDrawer();
+
                 // 4. Refresh recent gift display
                 await refreshRecentGiftCard();
-                
+
                 // 5. If overpriced gift, refresh premium status
                 if (category === 'overpriced') {
                     await verifyPremiumStatus();
                 }
-                
-                // 6. Show alert (already shown by bot, but extra user feedback)
-                if (tg.showAlert) tg.showAlert(`🎁 ${giftEmoji} ${giftName} sent! Enjoy the confetti!`);
+
+                // 6. Optional: show a brief thank you alert
+                if (tg.showAlert) {
+                    tg.showAlert(`🎁 ${giftEmoji} ${giftName} sent! Thank you!`);
+                }
             } else {
                 if (tg.showAlert) tg.showAlert("Gift purchase cancelled or failed.");
             }
@@ -290,4 +245,4 @@ export async function initGiftSystem() {
     }
     // Load recent gift once
     await refreshRecentGiftCard();
-                                                     }
+                                              }
