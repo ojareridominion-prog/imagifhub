@@ -4,7 +4,7 @@ from fastapi.staticfiles import StaticFiles
 import logging
 import os
 import threading
-import asyncio          # <-- ADDED
+import asyncio
 import ping
 from config import bot, dp
 
@@ -16,12 +16,13 @@ from media import router as media_router
 from admin import router as admin_router
 from ads_router import router as ads_router
 from ad_trigger import router as ad_trigger_router
+from gift_routes import router as gift_router          # NEW
 
 # Import bot handlers to register them with dispatcher
 import bot_handlers  # noqa
 
 # Import premium expiry checker
-from premium_expiry_checker import run_expiry_checker   # <-- ADDED
+from premium_expiry_checker import run_expiry_checker
 
 app = FastAPI()
 
@@ -47,6 +48,7 @@ app.include_router(media_router)
 app.include_router(admin_router)
 app.include_router(ads_router)
 app.include_router(ad_trigger_router)
+app.include_router(gift_router)          # NEW
 
 @app.get("/")
 async def root():
