@@ -7,7 +7,26 @@ const API_URL = "https://imagifhub.onrender.com";
 let giftList = [];
 let currentGiftDrawerOpen = false;
 
-// --- Helper: close menu if open (used when opening gift drawer) ---
+// Helper: ensure canvas-confetti is loaded
+function ensureConfetti(callback) {
+    if (typeof canvasConfetti === 'function') {
+        callback();
+        return;
+    }
+    console.warn("canvasConfetti not loaded, attempting to load dynamically");
+    const script = document.createElement('script');
+    script.src = 'https://cdn.jsdelivr.net/npm/canvas-confetti@1';
+    script.onload = () => {
+        console.log("canvasConfetti loaded dynamically");
+        callback();
+    };
+    script.onerror = () => {
+        console.error("Failed to load canvasConfetti, confetti disabled");
+    };
+    document.head.appendChild(script);
+}
+
+// Helper: close menu if open
 function closeMenuIfOpen() {
     const panel = document.getElementById('menuPanel');
     if (panel && panel.classList.contains('open')) {
@@ -15,7 +34,7 @@ function closeMenuIfOpen() {
     }
 }
 
-// --- Detect current season (unchanged) ---
+// Detect current season
 function getCurrentSeason() {
     const now = new Date();
     const month = now.getMonth() + 1;
@@ -28,7 +47,7 @@ function getCurrentSeason() {
     return null;
 }
 
-// --- Organise gifts by category (unchanged) ---
+// Organise gifts by category
 function organizeGifts(gifts, currentSeason) {
     const categories = {};
     for (const gift of gifts) {
@@ -53,7 +72,7 @@ function organizeGifts(gifts, currentSeason) {
     return ordered;
 }
 
-// --- Load gifts from backend (unchanged) ---
+// Load gifts from backend
 export async function loadGifts() {
     try {
         const res = await fetch(`${API_URL}/api/gifts`);
@@ -65,7 +84,7 @@ export async function loadGifts() {
     }
 }
 
-// --- Open gift drawer (closes menu first) ---
+// Open gift drawer
 export function showGiftDrawer() {
     if (currentGiftDrawerOpen) return;
     closeMenuIfOpen();
@@ -76,14 +95,14 @@ export function showGiftDrawer() {
     renderGiftDrawerContent();
 }
 
-// --- Close gift drawer ---
+// Close gift drawer
 function closeGiftDrawer() {
     const drawer = document.getElementById('giftDrawer');
     if (drawer) drawer.classList.remove('open');
     currentGiftDrawerOpen = false;
 }
 
-// --- Render gift items inside the drawer (unchanged) ---
+// Render gift items inside drawer
 async function renderGiftDrawerContent() {
     const container = document.getElementById('giftDrawerContent');
     if (!container) return;
@@ -125,7 +144,33 @@ async function renderGiftDrawerContent() {
     });
 }
 
-// --- Send gift (handles invoice, close drawer, delayed confetti, vibration, recent gift label) ---
+// Enhanced confetti (bigger for overpriced, guaranteed to run)
+function triggerConfetti(isOverpriced = false) {
+    ensureConfetti(() => {
+        if (typeof canvasConfetti !== 'function') return;
+        
+        // Basic confetti
+        canvasConfetti({ particleCount: 150, spread: 70, origin: { y: 0.6 } });
+        canvasConfetti({ particleCount: 100, spread: 100, origin: { y: 0.6, x: 0.2 }, startVelocity: 15 });
+        canvasConfetti({ particleCount: 100, spread: 100, origin: { y: 0.6, x: 0.8 }, startVelocity: 15 });
+        
+        if (isOverpriced) {
+            setTimeout(() => {
+                canvasConfetti({ particleCount: 300, spread: 120, origin: { y: 0.5 }, startVelocity: 20, colors: ['#ffd700', '#ffaa00', '#ff5500'] });
+            }, 200);
+            setTimeout(() => {
+                canvasConfetti({ particleCount: 500, spread: 150, origin: { y: 0.3 }, startVelocity: 25, decay: 0.9 });
+            }, 500);
+            for (let i = 0; i < 3; i++) {
+                setTimeout(() => {
+                    canvasConfetti({ particleCount: 80, spread: 360, origin: { y: 0.5, x: Math.random() }, startVelocity: 30, colors: ['#ffffff', '#ffdd44'] });
+                }, i * 300);
+            }
+        }
+    });
+}
+
+// Send gift (handles invoice, close drawer, delayed confetti, vibration)
 async function sendGift(giftId, giftName, giftEmoji, giftPrice, category) {
     const tg = window.Telegram.WebApp;
     try {
@@ -141,13 +186,13 @@ async function sendGift(giftId, giftName, giftEmoji, giftPrice, category) {
                 // 1. Close gift drawer
                 closeGiftDrawer();
                 
-                // 2. Use a longer delay to ensure invoice overlay is fully gone
-                //    and the mini app is back in focus before playing effects.
+                // 2. Ensure WebApp is expanded and focused
+                tg.expand();
+                
+                // 3. Wait a full second for the invoice overlay to disappear completely
                 setTimeout(() => {
                     // Vibrate device (Telegram haptic + fallback)
                     const isOverpriced = (category === 'overpriced');
-                    
-                    // Try Telegram HapticFeedback first
                     try {
                         if (tg.HapticFeedback) {
                             if (isOverpriced) {
@@ -158,30 +203,31 @@ async function sendGift(giftId, giftName, giftEmoji, giftPrice, category) {
                                 tg.HapticFeedback.impactOccurred('medium');
                             }
                         } else if (navigator.vibrate) {
-                            if (isOverpriced) navigator.vibrate([200, 100, 200]);
-                            else navigator.vibrate(100);
+                            if (isOverpriced) {
+                                navigator.vibrate([200, 100, 200, 100, 200]);
+                            } else {
+                                navigator.vibrate(100);
+                            }
                         }
                     } catch(e) { console.warn("Haptic error", e); }
                     
-                    // Confetti burst (now guaranteed to appear in mini app)
+                    // Trigger confetti bursts
                     triggerConfetti(isOverpriced);
-                    
-                    // Extra burst after 1 second for overpriced gifts
                     if (isOverpriced) {
                         setTimeout(() => triggerConfetti(true), 1000);
                     }
-                }, 500); // increased delay from 300ms to 500ms
+                }, 1000); // increased delay to 1 second
                 
                 // 4. Refresh recent gift display
                 await refreshRecentGiftCard();
                 
-                // 5. If overpriced gift, refresh premium status to remove ads
+                // 5. If overpriced gift, refresh premium status
                 if (category === 'overpriced') {
                     await verifyPremiumStatus();
                 }
                 
-                // 6. Optional: show a quick alert (already shown by bot)
-                if (tg.showAlert) tg.showAlert(`🎁 ${giftEmoji} ${giftName} sent! Thank you!`);
+                // 6. Show alert (already shown by bot, but extra user feedback)
+                if (tg.showAlert) tg.showAlert(`🎁 ${giftEmoji} ${giftName} sent! Enjoy the confetti!`);
             } else {
                 if (tg.showAlert) tg.showAlert("Gift purchase cancelled or failed.");
             }
@@ -192,35 +238,7 @@ async function sendGift(giftId, giftName, giftEmoji, giftPrice, category) {
     }
 }
 
-// --- Enhanced confetti (bigger for overpriced) ---
-function triggerConfetti(isOverpriced = false) {
-    // Make sure canvasConfetti is available (script tag is present)
-    if (typeof canvasConfetti === 'undefined') {
-        console.warn("canvasConfetti not loaded – confetti disabled");
-        return;
-    }
-    // Basic confetti always
-    canvasConfetti({ particleCount: 150, spread: 70, origin: { y: 0.6 } });
-    canvasConfetti({ particleCount: 100, spread: 100, origin: { y: 0.6, x: 0.2 }, startVelocity: 15 });
-    canvasConfetti({ particleCount: 100, spread: 100, origin: { y: 0.6, x: 0.8 }, startVelocity: 15 });
-    
-    if (isOverpriced) {
-        // Extra fireworks and glitter
-        setTimeout(() => {
-            canvasConfetti({ particleCount: 300, spread: 120, origin: { y: 0.5 }, startVelocity: 20, colors: ['#ffd700', '#ffaa00', '#ff5500'] });
-        }, 200);
-        setTimeout(() => {
-            canvasConfetti({ particleCount: 500, spread: 150, origin: { y: 0.3 }, startVelocity: 25, decay: 0.9 });
-        }, 500);
-        for (let i = 0; i < 3; i++) {
-            setTimeout(() => {
-                canvasConfetti({ particleCount: 80, spread: 360, origin: { y: 0.5, x: Math.random() }, startVelocity: 30, colors: ['#ffffff', '#ffdd44'] });
-            }, i * 300);
-        }
-    }
-}
-
-// --- Refresh the "Recent Gift" card in the menu (with "recent gift" label) ---
+// Refresh "Recent Gift" card in menu
 export async function refreshRecentGiftCard() {
     const tg = window.Telegram.WebApp;
     try {
@@ -232,7 +250,6 @@ export async function refreshRecentGiftCard() {
         const container = document.getElementById('recentGiftContent');
         if (!container) return;
         if (gift && gift.gift_name) {
-            // Display gift info + "Recent gift" label underneath
             container.innerHTML = `
                 <div style="display:flex; align-items:center; gap:8px;">
                     <span style="font-size:28px;">${gift.gift_emoji}</span>
@@ -250,13 +267,13 @@ export async function refreshRecentGiftCard() {
     }
 }
 
-// --- Initialize gift system (no interval timers) ---
+// Initialize gift system
 export async function initGiftSystem() {
     await loadGifts();
     // Listen for gift-icon buttons on the feed (opens drawer)
     document.getElementById('feed').addEventListener('click', (e) => {
         const giftBtn = e.target.closest('.gift-icon-btn');
-        if (giftBtn && !state.isGiftDrawerOpen) {
+        if (giftBtn) {
             e.preventDefault();
             e.stopPropagation();
             showGiftDrawer();
@@ -271,6 +288,6 @@ export async function initGiftSystem() {
             if (e.target === drawer) closeGiftDrawer();
         });
     }
-    // Load recent gift once (no auto‑refresh timer)
+    // Load recent gift once
     await refreshRecentGiftCard();
-                }
+                                                     }
