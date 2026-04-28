@@ -87,13 +87,13 @@ GIFTS = [
     {"id": "rabbit", "emoji": "🐇", "name": "Rabbit", "price": 12, "category": "spring", "season": "spring"},
 
     # Fun Gifts
-    {"id": "boss_move", "emoji": "✋😎🤚", "name": "Boss Move", "price": 50, "category": "fun", "season": None},
-    {"id": "innocent", "emoji": "🥺", "name": "Innocent", "price": 12, "category": "fun", "season": None},
+    {"id": "boss_move", "emoji": "😎", "name": "Boss Move", "price": 50, "category": "fun", "season": None},
+    {"id": "innocence", "emoji": "🥺", "name": "Innocent", "price": 12, "category": "fun", "season": None},
     {"id": "angelic", "emoji": "😇", "name": "Angelic", "price": 15, "category": "fun", "season": None},
     {"id": "hug", "emoji": "🫂", "name": "Hug", "price": 15, "category": "fun", "season": None},
     {"id": "gold_medal", "emoji": "🥇", "name": "Gold Medal", "price": 100, "category": "fun", "season": None},
     {"id": "silver_medal", "emoji": "🥈", "name": "Silver Medal", "price": 75, "category": "fun", "season": None},
-    {"id": "bronze_medal", "emoji": "🥉", "name": "Bronze Medal", "price": 45, "category": "fun", "season": None},
+    {"id": "bronze_medal", "emoji": "🥉", "name": "Bronze Medal", "price": 50, "category": "fun", "season": None},
     {"id": "zen_moment", "emoji": "🧘", "name": "Zen Moment", "price": 18, "category": "fun", "season": None},
     {"id": "on_fire", "emoji": "🔥", "name": "On Fire", "price": 40, "category": "fun", "season": None},
     {"id": "sparkle_aura", "emoji": "✨", "name": "Sparkle Aura", "price": 35, "category": "fun", "season": None},
