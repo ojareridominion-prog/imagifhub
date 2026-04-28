@@ -126,7 +126,7 @@ async function renderGiftDrawerContent() {
     });
 }
 
-// --- Send gift (handles invoice, close drawer, delayed confetti, vibration, recent gift label) ---
+// --- Send gift (handles invoice, close drawer, delayed confetti & vibration) ---
 async function sendGift(giftId, giftName, giftEmoji, giftPrice, category) {
     const tg = window.Telegram.WebApp;
     try {
@@ -142,10 +142,10 @@ async function sendGift(giftId, giftName, giftEmoji, giftPrice, category) {
                 // 1. Close gift drawer
                 closeGiftDrawer();
                 
-                // 2. Use a delay to ensure the invoice overlay is fully closed
-                //    and the mini app is back in focus before playing effects.
+                // 2. Use a longer delay (500ms) to ensure the invoice overlay is fully closed
+                //    and the mini app WebView is completely active before playing effects.
                 setTimeout(() => {
-                    // Vibrate device (Telegram haptic or fallback)
+                    // Vibration (Telegram haptic or fallback)
                     const isOverpriced = (category === 'overpriced');
                     if (tg.HapticFeedback) {
                         if (isOverpriced) {
@@ -160,11 +160,11 @@ async function sendGift(giftId, giftName, giftEmoji, giftPrice, category) {
                         else navigator.vibrate(100);
                     }
                     
-                    // Confetti burst (now guaranteed to appear in mini app)
+                    // Confetti burst (now guaranteed to appear inside mini app)
                     triggerConfetti(isOverpriced);
-                }, 300); // 300ms delay – enough for invoice to disappear
+                }, 500);  // increased delay for better effect visibility
                 
-                // 4. Refresh recent gift display (no countdown)
+                // 4. Refresh recent gift display
                 await refreshRecentGiftCard();
                 
                 // 5. If overpriced gift, refresh premium status to remove ads
@@ -184,7 +184,7 @@ async function sendGift(giftId, giftName, giftEmoji, giftPrice, category) {
     }
 }
 
-// --- Enhanced confetti (bigger for overpriced) ---
+// --- Enhanced confetti (bigger for overpriced, with global detection) ---
 function triggerConfetti(isOverpriced = false) {
     // Make sure canvasConfetti is available (script tag is present)
     if (typeof canvasConfetti === 'undefined') {
@@ -265,4 +265,4 @@ export async function initGiftSystem() {
     }
     // Load recent gift once (no auto‑refresh timer)
     await refreshRecentGiftCard();
-            }
+}
