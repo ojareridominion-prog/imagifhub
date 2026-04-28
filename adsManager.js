@@ -27,16 +27,20 @@ export function buildSlides(images, isPremium) {
     const slides = [];
     let imageCounter = 0;
     const AD_FREQUENCY = 3;
+    const hasAds = state.nativeAds && state.nativeAds.length > 0;
+    
     for (let i = 0; i < images.length; i++) {
         slides.push({ type: 'image', item: images[i] });
         imageCounter++;
-        if (imageCounter % AD_FREQUENCY === 0) {
+        if (hasAds && imageCounter % AD_FREQUENCY === 0) {
             const ad = state.nativeAds[state.currentAdIndex % state.nativeAds.length];
-            slides.push({
-                type: 'ad',
-                item: { ...ad, index: state.currentAdIndex % state.nativeAds.length }
-            });
-            state.currentAdIndex++;
+            if (ad) {
+                slides.push({
+                    type: 'ad',
+                    item: { ...ad, index: state.currentAdIndex % state.nativeAds.length }
+                });
+                state.currentAdIndex++;
+            }
         }
     }
     return slides;
