@@ -36,27 +36,27 @@
     
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.css"/>
     <script src="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>  <!-- NEW -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
     <div class="top-bar">
-        <button onclick="toggleMenu()" style="background:none; border:none; color:#fff; font-size:24px; padding:15px; cursor:pointer;">☰</button>
+        <button onclick="window.toggleMenu()" style="background:none; border:none; color:#fff; font-size:24px; padding:15px; cursor:pointer;">☰</button>
         <h2 style="flex:1; text-align:center; font-size:16px; margin:0;">IMAGIFHUB</h2>
         <div id="premiumIndicator" style="display:none;">⭐</div>
-        <button id="muteBtn" onclick="toggleMute()" style="background:none; border:none; color:#fff; font-size:22px; padding:15px; cursor:pointer;">🔊</button>
-        <button onclick="triggerSearch()" style="background:none; border:none; color:#fff; font-size:22px; padding:15px; cursor:pointer;">🔍</button>
+        <button id="muteBtn" onclick="window.toggleMute()" style="background:none; border:none; color:#fff; font-size:22px; padding:15px; cursor:pointer;">🔊</button>
+        <button onclick="window.triggerSearch()" style="background:none; border:none; color:#fff; font-size:22px; padding:15px; cursor:pointer;">🔍</button>
     </div>
 
     <div class="cat-bar" id="catBar"></div>
 
-    <!-- MENU PANEL – reordered, scrollable, with watch-ads card -->
+    <!-- MENU PANEL with collapsible sections and color pickers -->
     <div id="menuPanel" class="menu-panel">
-        <a href="#" class="menu-link" onclick="toggleMenu()" style="color:var(--accent)">✕ Close Menu</a>
+        <a href="#" class="menu-link" onclick="window.toggleMenu()" style="color:var(--accent)">✕ Close Menu</a>
         
-        <!-- USER INFO CARD (moved to top) -->
+        <!-- USER INFO CARD -->
         <div class="user-info-card" id="userInfoCard">
             <div class="user-avatar">
                 <img id="userAvatar" src="assets/default-avatar.png" alt="User">
@@ -65,7 +65,7 @@
                 <div id="userName" class="user-name">Loading...</div>
                 <div class="user-id-row">
                     <span id="userId">-</span>
-                    <button id="copyIdBtn" onclick="copyUserId()">📋 Copy</button>
+                    <button class="copy-id-btn" onclick="window.copyUserId()">📋 Copy</button>
                 </div>
             </div>
         </div>
@@ -76,10 +76,10 @@
             <div id="premiumExpiryDisplay" style="font-size: 11px; opacity: 0.9; margin-top: 5px;">
                 Enjoy ad-free smooth scrolling
             </div>
-            <button class="premium-btn-menu" onclick="openPremium()">UPGRADE NOW</button>
+            <button class="premium-btn-menu" onclick="window.openPremium()">UPGRADE NOW</button>
         </div>
 
-        <!-- WATCH ADS CARD (temporary premium) -->
+        <!-- WATCH ADS CARD -->
         <div id="watchAdsCard" class="premium-box" style="background: linear-gradient(45deg, #ff8c00, #ff4d4d); margin-top: 10px;">
             <div style="font-weight: bold; font-size: 16px;">🎬 Watch Ads → 1h Premium</div>
             <div id="watchAdsProgress" style="font-size: 14px; margin: 8px 0;">0/3 ads watched</div>
@@ -87,7 +87,7 @@
             <button id="watchAdBtn" class="premium-btn-menu" style="background: white; color: #ff8c00; margin-top: 8px;">🎥 Watch Ad</button>
         </div>
 
-        <!-- NEW: GIFT CARD in menu -->
+        <!-- GIFT CARD in menu -->
         <div id="giftCard" class="gift-card-menu" style="margin: 15px; padding: 15px; background: linear-gradient(135deg, #ff9a3d, #ff4d6d); border-radius: 12px; color: white;">
             <div style="display: flex; justify-content: space-between; align-items: center;">
                 <div><span style="font-size: 20px;">🎁</span> <strong>Send us a Gift</strong></div>
@@ -98,13 +98,35 @@
             </div>
         </div>
 
-        <a href="#" class="menu-link" onclick="openCopyright()">⚖️ Copyright Policy</a>
-        <a href="#" class="menu-link" onclick="openPrivacy()">🔒 Privacy Policy</a>
-        <div class="menu-link" onclick="toggleDarkText()" style="display:flex; justify-content:space-between; align-items:center;">
+        <!-- COLLAPSIBLE: Theme Colors (User picks) -->
+        <div class="collapsible" id="colorCollapsible">
+            <div class="collapsible-header">
+                <span>🎨 Theme Colors</span>
+                <span class="arrow">▶</span>
+            </div>
+            <div class="collapsible-content">
+                <div class="color-picker-row">
+                    <label>Background</label>
+                    <input type="color" id="colorBg" value="#000000">
+                </div>
+                <div class="color-picker-row">
+                    <label>Text Color</label>
+                    <input type="color" id="colorText" value="#ffffff">
+                </div>
+                <div class="color-picker-row">
+                    <label>Accent Color</label>
+                    <input type="color" id="colorAccent" value="#9c4dff">
+                </div>
+            </div>
+        </div>
+
+        <a href="#" class="menu-link" onclick="window.openCopyright()">⚖️ Copyright Policy</a>
+        <a href="#" class="menu-link" onclick="window.openPrivacy()">🔒 Privacy Policy</a>
+        <div class="menu-link" onclick="window.toggleDarkText()" style="display:flex; justify-content:space-between; align-items:center;">
             <span>🌙 Dark Text</span>
             <span id="darkTextIndicator">OFF</span>
         </div>
-        <a href="#" class="menu-link" onclick="shareBot()">🔗 Share Bot with Friends</a>
+        <a href="#" class="menu-link" onclick="window.shareBot()">🔗 Share Bot with Friends</a>
         <a href="https://t.me/imagifhub" class="menu-link">📢 Join Official Channel</a>
         <a href="https://t.me/ojareridominion" class="menu-link">💬 Support</a>
         
@@ -114,6 +136,16 @@
 
     <div id="swiper" class="swiper"><div class="swiper-wrapper" id="feed"></div></div>
     
+    <!-- Scroll to top FAB -->
+    <div id="fabTop" class="fab-top">↑</div>
+
+    <!-- Inline Search Bar (hidden by default) -->
+    <div id="searchBar" class="search-bar">
+        <input type="text" id="searchInput" placeholder="Search images...">
+        <button id="searchBtn">Go</button>
+        <button id="closeSearchBtn">✕</button>
+    </div>
+
     <audio id="bgMusic"></audio>
 
     <!-- PREMIUM MODAL -->
@@ -128,22 +160,19 @@
                 <li>🚫 No ads</li>
                 <li>😁 Support ImagifHub</li>
             </ul>
-            
             <div style="background: rgba(255, 215, 0, 0.1); padding: 15px; border-radius: 10px; margin: 20px 0; text-align: center;">
                 <p style="margin: 0; font-size: 14px; opacity: 0.9;">
                     🔒 <b>Secure Payment via Telegram</b><br>
                     Clicking "Go Premium" will open Telegram chat.
                 </p>
             </div>
-
             <div id="paymentStatus" style="margin: 10px 0; font-size: 14px; text-align: center;"></div>
-            
-            <button id="btnBuy" class="btn-buy" onclick="goPremium()">Go Premium</button>
-            <button class="btn-close" onclick="closePremium()">Close</button>
+            <button id="btnBuy" class="btn-buy" onclick="window.goPremium()">Go Premium</button>
+            <button class="btn-close" onclick="window.closePremium()">Close</button>
         </div>
     </div>
 
-    <!-- COPYRIGHT MODAL (UPDATED WITH PIXABAY STATEMENT) -->
+    <!-- COPYRIGHT MODAL -->
     <div id="copyrightModal" class="modal-overlay">
         <div class="copyright-card">
             <h2 style="margin-top:0;">⚖️ ImagifHub: Intellectual Property Policy</h2>
@@ -153,13 +182,10 @@
                 • Public Domain & Creative Commons: Images sourced from platforms like Unsplash, Pexels, stocksnap, burst, wallpezia and Pixabay under their respective commercial-use licenses.<br>
                 • AI-Generated Art: Original visuals created via Generative AI models.<br>
                 • User-Contributed Content: (If applicable) Content uploaded by our community.</p>
-
                 <p><strong>2. Background Music</strong><br>
                 All background music played in the mini app is sourced from Pixabay Music, which offers royalty‑free tracks under the Pixabay Content License. No copyrighted music is used.</p>
-
                 <p><strong>3. Respect for Copyright</strong><br>
                 We respect the intellectual property rights of others. It is our policy to respond to any claim that Content posted on the Service infringes the copyright or other intellectual property infringement of any person.</p>
-
                 <p><strong>4. DMCA & Takedown Requests</strong><br>
                 If you are a copyright owner, or authorized on behalf of one, and you believe that a copyrighted work has been used in a way that constitutes copyright infringement, please submit your claim via telegram to <a href="https://t.me/ojareridominion" target="_blank">support</a> with the subject line: "Copyright Takedown Request."<br>
                 Please include the following in your request:<br>
@@ -167,15 +193,14 @@
                 • The specific URL<br>
                 • Your contact information (Email and Phone Number).<br>
                 • A statement that you have a good-faith belief that the use is not authorized by the copyright owner.</p>
-
                 <p><strong>5. Disclaimer</strong><br>
                 ImagifHub does not claim ownership of the trademarked characters or brands that may appear in user-generated prompts or historical search results. We make every effort to remove copyrighted material from our mini app.</p>
             </div>
-            <button class="btn-close" onclick="closeCopyright()">Close</button>
+            <button class="btn-close" onclick="window.closeCopyright()">Close</button>
         </div>
     </div>
 
-    <!-- NEW PRIVACY POLICY MODAL -->
+    <!-- PRIVACY POLICY MODAL -->
     <div id="privacyModal" class="modal-overlay">
         <div class="copyright-card">
             <h2 style="margin-top:0;">🔒 Privacy Policy</h2>
@@ -189,7 +214,6 @@
                     <li><strong>Ad Interaction:</strong> Number of ads watched per day and the timestamp of the last ad viewed (used to enforce cooldown and daily limits).</li>
                     <li><strong>Usage Data:</strong> Categories you browse, search queries, and image view history (stored locally on your device).</li>
                 </ul>
-
                 <p><strong>How We Use Your Data</strong><br>
                 Your information is used solely to:</p>
                 <ul>
@@ -199,26 +223,21 @@
                     <li>Improve content discovery and app performance.</li>
                     <li>Respond to support inquiries or copyright claims.</li>
                 </ul>
-
                 <p><strong>Data Sharing</strong><br>
                 We do <strong>not</strong> sell or rent your personal data to third parties. We may share limited data (e.g., user ID) with our payment provider (Telegram Stars) to complete transactions. Aggregated, anonymized statistics may be used for internal analytics.</p>
-
                 <p><strong>Data Retention</strong><br>
                 Your Telegram user data is retained as long as you use the app. Premium records are kept for financial and legal compliance. You may request deletion of your data by contacting support.</p>
-
                 <p><strong>Your Rights</strong><br>
                 You have the right to access, correct, or delete your personal data. To exercise these rights, please contact us via Telegram <a href="https://t.me/ojareridominion" target="_blank">support</a>.</p>
-
                 <p><strong>Changes to This Policy</strong><br>
                 We may update this Privacy Policy from time to time. Continued use of the app constitutes acceptance of the revised policy.</p>
-
                 <p><em>Last updated: April 2026</em></p>
             </div>
-            <button class="btn-close" onclick="closePrivacy()">Close</button>
+            <button class="btn-close" onclick="window.closePrivacy()">Close</button>
         </div>
     </div>
 
-    <!-- NEW: GIFT DRAWER (slide down) -->
+    <!-- GIFT DRAWER -->
     <div id="giftDrawer" class="gift-drawer">
         <div class="gift-drawer-header">
             <h3>🎁 Send us a Gift</h3>
@@ -236,8 +255,7 @@
     </div>
 
     <script type="module" src="script.js"></script>
-    <script type="module" src="giftManager.js"></script>  <!-- NEW -->
-    
+    <script type="module" src="giftManager.js"></script>
 </body>
-    </html>
-    
+                    </html>
+                    
