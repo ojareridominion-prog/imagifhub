@@ -1,11 +1,13 @@
-// giftManager.js
+// giftManager.js - Gifting system (with larger confetti)
 import { state } from './state.js';
 import { verifyPremiumStatus } from './premiumManager.js';
 
 const API_URL = "https://imagifhub.onrender.com";
+
 let giftList = [];
 let currentGiftDrawerOpen = false;
 
+// Helper: close menu if open
 function closeMenuIfOpen() {
     const panel = document.getElementById('menuPanel');
     if (panel && panel.classList.contains('open')) {
@@ -13,6 +15,7 @@ function closeMenuIfOpen() {
     }
 }
 
+// Detect current season
 function getCurrentSeason() {
     const now = new Date();
     const month = now.getMonth() + 1;
@@ -25,6 +28,7 @@ function getCurrentSeason() {
     return null;
 }
 
+// Organise gifts by category
 function organizeGifts(gifts, currentSeason) {
     const categories = {};
     for (const gift of gifts) {
@@ -49,6 +53,7 @@ function organizeGifts(gifts, currentSeason) {
     return ordered;
 }
 
+// Load gifts from backend
 export async function loadGifts() {
     try {
         const res = await fetch(`${API_URL}/api/gifts`);
@@ -60,6 +65,7 @@ export async function loadGifts() {
     }
 }
 
+// Open gift drawer
 export function showGiftDrawer() {
     if (currentGiftDrawerOpen) return;
     closeMenuIfOpen();
@@ -70,81 +76,40 @@ export function showGiftDrawer() {
     renderGiftDrawerContent();
 }
 
+// Close gift drawer
 function closeGiftDrawer() {
     const drawer = document.getElementById('giftDrawer');
     if (drawer) drawer.classList.remove('open');
     currentGiftDrawerOpen = false;
 }
 
-function showThankYouModal(giftEmoji, giftName) {
-    const modal = document.createElement('div');
-    modal.className = 'thankyou-modal';
-    modal.innerText = `🎁 ${giftEmoji} ${giftName} sent! Thank you!`;
-    document.body.appendChild(modal);
-    setTimeout(() => modal.remove(), 2000);
-}
-
+// Render gift items inside drawer
 async function renderGiftDrawerContent() {
     const container = document.getElementById('giftDrawerContent');
     if (!container) return;
     if (!giftList.length) await loadGifts();
     const currentSeason = getCurrentSeason();
     const categories = organizeGifts(giftList, currentSeason);
-    
-    const tabNames = ['everyday', 'fun', 'overpriced'];
-    if (categories.some(c => c.title.includes('This Season'))) tabNames.unshift('seasonal');
-    let activeTab = tabNames[0];
-    
-    const renderByTab = (tab) => {
-        let items = [];
-        if (tab === 'seasonal') {
-            const seasonCat = categories.find(c => c.title.includes('This Season'));
-            items = seasonCat ? seasonCat.items : [];
-        } else if (tab === 'everyday') {
-            const cat = categories.find(c => c.title === '🧸 Everyday Gifts');
-            items = cat ? cat.items : [];
-        } else if (tab === 'fun') {
-            const cat = categories.find(c => c.title === '😎 Fun Gifts');
-            items = cat ? cat.items : [];
-        } else if (tab === 'overpriced') {
-            const cat = categories.find(c => c.title === '💎 Overpriced Gifts');
-            items = cat ? cat.items : [];
+    if (categories.length === 0) {
+        container.innerHTML = '<div class="gift-empty">No gifts available</div>';
+        return;
+    }
+    let html = '';
+    for (const cat of categories) {
+        html += `<div class="gift-category"><div class="gift-category-title">${cat.title}</div><div class="gift-items-grid">`;
+        for (const gift of cat.items) {
+            html += `
+                <div class="gift-item" data-gift-id="${gift.id}" data-gift-name="${gift.name}" data-gift-emoji="${gift.emoji}" data-gift-price="${gift.price}" data-category="${gift.category}">
+                    <div class="gift-emoji">${gift.emoji}</div>
+                    <div class="gift-name">${gift.name}</div>
+                    <div class="gift-price">${gift.price} ⭐</div>
+                    <button class="gift-send-btn">Send</button>
+                </div>
+            `;
         }
-        return `
-            <div class="gift-items-grid">
-                ${items.map(gift => `
-                    <div class="gift-item" data-gift-id="${gift.id}" data-gift-name="${gift.name}" data-gift-emoji="${gift.emoji}" data-gift-price="${gift.price}" data-category="${gift.category}">
-                        <div class="gift-emoji">${gift.emoji}</div>
-                        <div class="gift-name">${gift.name}</div>
-                        <div class="gift-price">${gift.price} ⭐</div>
-                        <button class="gift-send-btn">Send</button>
-                    </div>
-                `).join('')}
-            </div>
-        `;
-    };
-    
-    const tabsHtml = `
-        <div class="gift-tabs">
-            ${tabNames.map(tab => `<button class="gift-tab ${tab === activeTab ? 'active' : ''}" data-tab="${tab}">${tab === 'seasonal' ? '🎀 Seasonal' : tab === 'everyday' ? '🧸 Everyday' : tab === 'fun' ? '😎 Fun' : '💎 Overpriced'}</button>`).join('')}
-        </div>
-        <div id="giftTabContent">${renderByTab(activeTab)}</div>
-    `;
-    container.innerHTML = tabsHtml;
-    
-    document.querySelectorAll('.gift-tab').forEach(btn => {
-        btn.addEventListener('click', () => {
-            document.querySelectorAll('.gift-tab').forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-            const tab = btn.dataset.tab;
-            document.getElementById('giftTabContent').innerHTML = renderByTab(tab);
-            attachSendEvents();
-        });
-    });
-    attachSendEvents();
-}
-
-function attachSendEvents() {
+        html += `</div></div>`;
+    }
+    container.innerHTML = html;
     document.querySelectorAll('.gift-send-btn').forEach(btn => {
         btn.addEventListener('click', async (e) => {
             e.stopPropagation();
@@ -160,6 +125,7 @@ function attachSendEvents() {
     });
 }
 
+// Send gift – with BIG confetti (normal and overpriced)
 async function sendGift(giftId, giftName, giftEmoji, giftPrice, category) {
     const tg = window.Telegram.WebApp;
     try {
@@ -168,35 +134,95 @@ async function sendGift(giftId, giftName, giftEmoji, giftPrice, category) {
             headers: { 'Content-Type': 'application/json', 'X-Telegram-Init-Data': tg.initData },
             body: JSON.stringify({ giftId })
         });
-        if (!response.ok) throw new Error();
+        if (!response.ok) throw new Error('Failed to create invoice');
         const data = await response.json();
         tg.openInvoice(data.invoice_link, async (status) => {
             if (status === 'paid' || status === 'paid_in_chat') {
-                if (tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
+                // 1. Haptic success
+                if (tg.HapticFeedback) {
+                    tg.HapticFeedback.notificationOccurred('success');
+                }
+
+                // 2. Confetti – bigger for all gifts
                 if (typeof confetti === 'function') {
-                    confetti({ particleCount: 300, spread: 100, origin: { y: 0.5 }, startVelocity: 20, zIndex: 2147483647 });
-                    confetti({ particleCount: 200, spread: 80, origin: { y: 0.5, x: 0.2 }, startVelocity: 25, zIndex: 2147483647 });
-                    confetti({ particleCount: 200, spread: 80, origin: { y: 0.5, x: 0.8 }, startVelocity: 25, zIndex: 2147483647 });
+                    // Primary burst (all gifts)
+                    confetti({
+                        particleCount: 300,      // was 150
+                        spread: 100,             // was 70
+                        origin: { y: 0.5 },
+                        startVelocity: 20,       // faster
+                        zIndex: 2147483647
+                    });
+                    // Secondary burst from sides
+                    confetti({
+                        particleCount: 200,
+                        spread: 80,
+                        origin: { y: 0.5, x: 0.2 },
+                        startVelocity: 25,
+                        zIndex: 2147483647
+                    });
+                    confetti({
+                        particleCount: 200,
+                        spread: 80,
+                        origin: { y: 0.5, x: 0.8 },
+                        startVelocity: 25,
+                        zIndex: 2147483647
+                    });
+
+                    // Overpriced: extra massive burst + gold colors
                     if (category === 'overpriced') {
                         setTimeout(() => {
-                            confetti({ particleCount: 600, spread: 140, origin: { y: 0.5 }, colors: ['#ffd700','#ffaa00'], zIndex: 2147483647 });
+                            confetti({
+                                particleCount: 600,
+                                spread: 140,
+                                origin: { y: 0.5 },
+                                startVelocity: 30,
+                                colors: ['#ffd700', '#ffaa00', '#ff5500', '#ffffff'],
+                                zIndex: 2147483647
+                            });
+                            // And a third big burst from top
+                            setTimeout(() => {
+                                confetti({
+                                    particleCount: 400,
+                                    spread: 120,
+                                    origin: { y: 0.2 },
+                                    startVelocity: 25,
+                                    colors: ['#ffd700', '#ffaa00', '#ff5500'],
+                                    zIndex: 2147483647
+                                });
+                            }, 300);
                         }, 200);
                     }
+                } else {
+                    console.warn("confetti function not available");
                 }
+
+                // 3. Close drawer
                 closeGiftDrawer();
+
+                // 4. Refresh recent gift
                 await refreshRecentGiftCard();
-                if (category === 'overpriced') await verifyPremiumStatus();
-                showThankYouModal(giftEmoji, giftName);
+
+                // 5. Grant premium if overpriced
+                if (category === 'overpriced') {
+                    await verifyPremiumStatus();
+                }
+
+                // 6. Optional alert
+                if (tg.showAlert) {
+                    tg.showAlert(`🎁 ${giftEmoji} ${giftName} sent! Thank you!`);
+                }
             } else {
                 if (tg.showAlert) tg.showAlert("Gift purchase cancelled or failed.");
             }
         });
     } catch (err) {
-        console.error(err);
+        console.error("Gift error:", err);
         if (tg.showAlert) tg.showAlert("Error sending gift. Please try again.");
     }
 }
 
+// Refresh "Recent Gift" card in menu
 export async function refreshRecentGiftCard() {
     const tg = window.Telegram.WebApp;
     try {
@@ -225,9 +251,10 @@ export async function refreshRecentGiftCard() {
     }
 }
 
+// Initialize gift system
 export async function initGiftSystem() {
     await loadGifts();
-    document.getElementById('feed')?.addEventListener('click', (e) => {
+    document.getElementById('feed').addEventListener('click', (e) => {
         const giftBtn = e.target.closest('.gift-icon-btn');
         if (giftBtn) {
             e.preventDefault();
@@ -244,4 +271,4 @@ export async function initGiftSystem() {
         });
     }
     await refreshRecentGiftCard();
-                                     }
+                                   }
