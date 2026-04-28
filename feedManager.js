@@ -49,7 +49,34 @@ async function fetchRandomImages(category = state.currentCategory, search = "", 
   }
 }
 
-function escapeHtml(str) { /* unchanged */ }
+// Add this helper function if missing
+function escapeHtml(str) {
+    if (!str) return '';
+    return str.replace(/[&<>]/g, function(m) {
+        if (m === '&') return '&amp;';
+        if (m === '<') return '&lt;';
+        if (m === '>') return '&gt;';
+        return m;
+    }).replace(/[\uD800-\uDBFF][\uDC00-\uDFFF]/g, function(c) {
+        return c;
+    });
+}
+
+// Add this function (place it before generateImageSlide)
+function generateAdSlide(ad, adIndex) {
+    return `
+        <div class="swiper-slide" data-type="ad" data-ad-index="${adIndex}">
+            <img src="${ad.image}" alt="Ad" style="width:100%; height:100%; object-fit:cover;">
+            <div class="ad-overlay">
+                <div class="ad-sponsored">Sponsored</div>
+                <div class="ad-title">${escapeHtml(ad.title)}</div>
+                <div class="ad-description">${escapeHtml(ad.subtitle)}</div>
+                <button class="ad-action-btn">${escapeHtml(ad.buttonLabel || 'Open')}</button>
+            </div>
+            <button class="remove-ads-btn">Remove Ads</button>
+        </div>
+    `;
+}
 
 function generateImageSlide(img) {
   const keyword = img.Keyword || '';
