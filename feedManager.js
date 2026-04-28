@@ -49,6 +49,19 @@ async function fetchRandomImages(category = state.currentCategory, search = "", 
     }
 }
 
+function escapeHtml(str) {
+    if (!str) return '';
+    return str.replace(/[&<>]/g, function(m) {
+        if (m === '&') return '&amp;';
+        if (m === '<') return '&lt;';
+        if (m === '>') return '&gt;';
+        return m;
+    }).replace(/[\uD800-\uDBFF][\uDC00-\uDFFF]/g, function(c) {
+        return c;
+    });
+}
+
+// UPDATED: gift button added to image slide
 function generateImageSlide(img) {
     const keyword = img.Keyword || '';
     const maxLength = 100;
@@ -67,6 +80,7 @@ function generateImageSlide(img) {
     return `
         <div class="swiper-slide" data-type="image">
             <img src="${img.url}" alt="${escapeHtml(img.category)}" style="width:100%; height:100%; object-fit:cover;">
+            <button class="gift-icon-btn" aria-label="Send Gift">🎁</button>
             <div class="meta-overlay">
                 <div class="category-tag">#${escapeHtml(img.category)}</div>
                 <div class="keyword-container">${keywordHtml}</div>
@@ -90,18 +104,6 @@ function generateAdSlide(ad, adIndex) {
     `;
 }
 
-function escapeHtml(str) {
-    if (!str) return '';
-    return str.replace(/[&<>]/g, function(m) {
-        if (m === '&') return '&amp;';
-        if (m === '<') return '&lt;';
-        if (m === '>') return '&gt;';
-        return m;
-    }).replace(/[\uD800-\uDBFF][\uDC00-\uDFFF]/g, function(c) {
-        return c;
-    });
-}
-
 async function appendMoreImages(newImages) {
     if (!state.activeSwiper || newImages.length === 0) return false;
 
@@ -112,11 +114,10 @@ async function appendMoreImages(newImages) {
 
     for (let i = 0; i < newImages.length; i++) {
         const img = newImages[i];
-        // Generate image slide
         htmlSlides.push(generateImageSlide(img));
 
         // Insert native ad after every AD_FREQUENCY images (continuing pattern)
-        const position = oldImageCount + i + 1; // 1‑based position of this image
+        const position = oldImageCount + i + 1;
         if (!state.isPremiumUser && position % AD_FREQUENCY === 0) {
             const ad = state.nativeAds[localAdIndex % state.nativeAds.length];
             htmlSlides.push(generateAdSlide(ad, localAdIndex % state.nativeAds.length));
@@ -126,11 +127,9 @@ async function appendMoreImages(newImages) {
 
     if (htmlSlides.length === 0) return false;
 
-    // Append all new slides at once
     swiper.appendSlide(htmlSlides);
-    swiper.update(); // Update Swiper internal layout
+    swiper.update();
 
-    // Update global state
     state.currentAdIndex = localAdIndex;
     state.allImages.push(...newImages);
     newImages.forEach(img => state.sessionSeenUrls.add(img.url));
@@ -231,4 +230,4 @@ export async function resetAndLoadFeed(cat, search = "", skipAd = false) {
 
 export async function loadFeed(cat, search = "", skipAd = false) {
     await resetAndLoadFeed(cat, search, skipAd);
-}
+        }
