@@ -5,12 +5,12 @@ import aiohttp
 import json
 from datetime import datetime, timedelta
 from aiogram import F
-from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton, PreCheckoutQuery, ContentType
+from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton, PreCheckoutQuery, ContentType, LabeledPrice
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from config import bot, dp, supabase, ADMIN_ID, IMGBB_API_KEY, BOT_TOKEN, CATEGORIES
-from aiogram.types import LabeledPrice
-from ad_utils import send_banner_ad   # <-- NEW IMPORT
+from ad_utils import send_banner_ad
+from gifts_data import GIFTS   # NEW import for gift validation
 
 # Warn if ImgBB API key is missing (for debugging)
 if not IMGBB_API_KEY:
@@ -22,7 +22,7 @@ class AdminUpload(StatesGroup):
     waiting_category = State()
     waiting_keywords = State()
 
-# ==================== PAYMENT HANDLERS ====================
+# ==================== PAYMENT HANDLERS (UNIFIED) ====================
 
 @dp.pre_checkout_query()
 async def on_pre_checkout_query(pre_checkout_query: PreCheckoutQuery):
@@ -35,46 +35,109 @@ async def on_pre_checkout_query(pre_checkout_query: PreCheckoutQuery):
 
 @dp.message(F.content_type == ContentType.SUCCESSFUL_PAYMENT)
 async def on_successful_payment(message: Message):
-    """Handle successful payment – grant or extend premium access."""
+    """Handle successful payment – gifts or premium."""
     try:
         payment = message.successful_payment
         telegram_id = message.from_user.id
+        payload = payment.invoice_payload
         now = datetime.utcnow()
-        new_expiry = now + timedelta(days=30)
 
-        logging.info(f"💰 Successful payment from user {telegram_id}, amount={payment.total_amount} {payment.currency}")
+        # --- Check if this is a GIFT payment ---
+        if payload.startswith("gift_"):
+            # Format: gift_{gift_id}_{user_id}
+            parts = payload.split("_")
+            if len(parts) >= 3:
+                gift_id = parts[1]
+                buyer_id = int(parts[2])
+                gift = next((g for g in GIFTS if g["id"] == gift_id), None)
+                if not gift:
+                    logging.error(f"Unknown gift_id in payload: {gift_id}")
+                    await message.answer("❌ Gift not recognized. Please contact support.")
+                    return
 
-        # --- STEP 1: Get existing user (if any) ---
+                # Record gift purchase
+                gift_record = {
+                    "user_id": buyer_id,
+                    "gift_id": gift["id"],
+                    "gift_name": gift["name"],
+                    "gift_emoji": gift["emoji"],
+                    "gift_price": gift["price"],
+                    "created_at": now.isoformat()
+                }
+                supabase.table("gift_purchases").insert(gift_record).execute()
+                logging.info(f"🎁 Gift purchase recorded: {gift['name']} for user {buyer_id}")
+
+                # If overpriced category → grant 30 days premium
+                if gift["category"] == "overpriced":
+                    # Get existing expiry
+                    user_result = supabase.table("users").select("premium_expires_at").eq("telegram_id", buyer_id).execute()
+                    new_expiry = now + timedelta(days=30)
+                    if user_result.data and user_result.data[0].get("premium_expires_at"):
+                        current_expiry_str = user_result.data[0]["premium_expires_at"]
+                        try:
+                            if current_expiry_str.endswith('Z'):
+                                current_expiry_str = current_expiry_str.replace('Z', '+00:00')
+                            current_expiry = datetime.fromisoformat(current_expiry_str)
+                            if current_expiry.tzinfo:
+                                current_expiry = current_expiry.replace(tzinfo=None)
+                            if current_expiry > now and current_expiry > new_expiry:
+                                new_expiry = current_expiry + timedelta(days=30)
+                        except Exception:
+                            pass
+                    supabase.table("users").upsert({
+                        "telegram_id": buyer_id,
+                        "is_premium": True,
+                        "premium_expires_at": new_expiry.isoformat(),
+                        "updated_at": now.isoformat()
+                    }).execute()
+                    logging.info(f"✨ Granted 30-day premium to user {buyer_id} for overpriced gift")
+                    await message.answer(
+                        f"🎁 Thank you for the {gift['emoji']} {gift['name']}!\n"
+                        f"✨ As a bonus, you've received <b>30 days of IMAGIFHUB Premium</b>! ✨\n\n"
+                        f"Refresh your mini app to enjoy ad-free experience.",
+                        parse_mode="HTML"
+                    )
+                else:
+                    await message.answer(
+                        f"🎁 Thank you for sending {gift['emoji']} {gift['name']}!\n"
+                        f"Your gift has been recorded. Enjoy the confetti! 🎉"
+                    )
+                return
+
+        # --- Else it's a PREMIUM payment (original logic) ---
+        # (Keep your existing premium payment code exactly as it was)
+        # I'll paste the original premium payment block below.
+        logging.info(f"💰 Successful premium payment from user {telegram_id}, amount={payment.total_amount} {payment.currency}")
+
+        # Get existing user (if any)
         user_result = supabase.table("users").select("premium_expires_at").eq("telegram_id", telegram_id).execute()
-        
+        new_expiry = now + timedelta(days=30)
         if user_result.data:
             current_expiry_str = user_result.data[0].get("premium_expires_at")
             if current_expiry_str:
                 try:
-                    # Parse existing expiry
                     if current_expiry_str.endswith('Z'):
                         current_expiry_str = current_expiry_str.replace('Z', '+00:00')
                     current_expiry = datetime.fromisoformat(current_expiry_str)
                     if current_expiry.tzinfo:
                         current_expiry = current_expiry.replace(tzinfo=None)
-                    # If current expiry is still in the future, extend from that date
                     if current_expiry > now:
                         new_expiry = current_expiry + timedelta(days=30)
                         logging.info(f"Extending premium for user {telegram_id} from {current_expiry} to {new_expiry}")
                 except Exception as e:
                     logging.warning(f"Could not parse existing expiry, using 30 days from now: {e}")
-        
-        # --- STEP 2: Upsert user (set premium and expiry) ---
+
+        # Upsert user
         user_data = {
             "telegram_id": telegram_id,
             "is_premium": True,
             "premium_expires_at": new_expiry.isoformat(),
-            "updated_at": datetime.utcnow().isoformat()
+            "updated_at": now.isoformat()
         }
         supabase.table("users").upsert(user_data).execute()
         logging.info(f"✅ User {telegram_id} premium activated/updated until {new_expiry.isoformat()}")
 
-        # --- STEP 3: Insert payment record ---
+        # Insert payment record
         payment_record = {
             "telegram_id": telegram_id,
             "provider": "telegram_stars",
@@ -373,9 +436,8 @@ async def up_final(message: Message, state: FSMContext):
     user_data = await state.get_data()
     supabase.table('media_content').insert({
         "url": user_data['url'],
-        "category": user_data['category'],
-        "Keyword": message.text
-    }).execute()
-    await message.answer(f"✅ Successfully added to {user_data['category']}!")
-    await state.clear()
-    
+        "category": user_data['categcategory'],
+‎        "Keyword": message.text
+‎    }).execute()
+‎    await message.answer(f"✅ Successfully added to {user_data['category']}!")
+‎    await state.clear()
