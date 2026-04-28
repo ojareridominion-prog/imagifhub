@@ -178,21 +178,23 @@ window.onload = async () => {
     if (openGiftMenuBtn) openGiftMenuBtn.addEventListener('click', () => showGiftDrawer());
 
     // Welcome overlay
-    const welcomeOverlay = document.getElementById('welcomeOverlay');
-    const continueBtn = document.getElementById('welcomeContinueBtn');
-    if (welcomeOverlay && continueBtn) {
-        welcomeOverlay.style.backgroundImage = `url('${getHolidayImage()}')`;
-        continueBtn.addEventListener('click', () => {
-            welcomeOverlay.classList.add('hidden');
-            fetch(`${API_URL}/api/trigger-ad`, {
-                method: 'POST',
-                headers: { 'X-Telegram-Init-Data': tg.initData }
-            }).catch(() => {});
-            loadFeed("Discover", "", true);
-        });
-    } else {
+    // Welcome overlay
+const welcomeOverlay = document.getElementById('welcomeOverlay');
+const continueBtn = document.getElementById('welcomeContinueBtn');
+if (welcomeOverlay && continueBtn) {
+    welcomeOverlay.style.backgroundImage = `url('${getHolidayImage()}')`;
+    continueBtn.addEventListener('click', () => {
+        welcomeOverlay.classList.add('hidden');
+        welcomeOverlay.style.display = 'none'; // force hide
+        fetch(`${API_URL}/api/trigger-ad`, {
+            method: 'POST',
+            headers: { 'X-Telegram-Init-Data': tg.initData }
+        }).catch(() => {});
         loadFeed("Discover", "", true);
-    }
+    });
+} else {
+    loadFeed("Discover", "", true);
+}
 
     document.querySelector('.top-bar h2').innerText = getFestiveTitle();
 
