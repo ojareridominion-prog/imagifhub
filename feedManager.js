@@ -151,6 +151,9 @@ function renderSlides(slides) {
     state.activeSwiper = new Swiper('#swiper', {
         direction: 'vertical',
         mousewheel: true,
+        effect: 'fade',               // <-- NEW: fade effect between slides
+        fadeEffect: { crossFade: true }, // smooth crossfade
+        speed: 400,                   // transition duration (ms)
         on: {
             reachEnd: async () => {
                 if (state.activeSearchQuery) return;
@@ -230,4 +233,4 @@ export async function resetAndLoadFeed(cat, search = "", skipAd = false) {
 
 export async function loadFeed(cat, search = "", skipAd = false) {
     await resetAndLoadFeed(cat, search, skipAd);
-            }
+                        }
