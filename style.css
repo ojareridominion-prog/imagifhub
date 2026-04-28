@@ -569,15 +569,15 @@ body.dark-text .description-text {
     100% { text-shadow: 0 0 0 gold; transform: scale(1); }
 }
 
-/* ========== GIFT ICON BUTTON (bigger + violent shake every 1 second) ========== */
+/* ========== GIFT ICON BUTTON – TRANSPARENT, PULSING, GLOWING (NO VIOLENT SHAKE) ========== */
 .gift-icon-btn {
     position: absolute;
     top: 16px;
     right: 16px;
-    background: rgba(0,0,0,0.6);
+    background: rgba(0, 0, 0, 0.35);       /* transparent dark background */
     backdrop-filter: blur(8px);
     border: none;
-    font-size: 44px;          /* much bigger */
+    font-size: 44px;
     cursor: pointer;
     z-index: 20;
     border-radius: 50%;
@@ -586,18 +586,29 @@ body.dark-text .description-text {
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: transform 0.1s;
     color: white;
     text-shadow: 0 0 4px rgba(0,0,0,0.5);
-    animation: violentShake 1s infinite;
+    transition: transform 0.2s, box-shadow 0.2s, background 0.2s;
+    animation: pulseGlow 1.5s infinite ease-in-out;
 }
-/* Violent shake keyframes – one full shake cycle every second */
-@keyframes violentShake {
-    0%, 100% { transform: translateX(0) rotate(0deg); }
-    10%, 30%, 50%, 70%, 90% { transform: translateX(-4px) rotate(-3deg); }
-    20%, 40%, 60%, 80% { transform: translateX(4px) rotate(3deg); }
+@keyframes pulseGlow {
+    0% {
+        transform: scale(1);
+        box-shadow: 0 0 0 0 rgba(255, 215, 0, 0.4);
+        background: rgba(0, 0, 0, 0.35);
+    }
+    50% {
+        transform: scale(1.08);
+        box-shadow: 0 0 12px 6px rgba(255, 215, 0, 0.7);
+        background: rgba(0, 0, 0, 0.5);
+    }
+    100% {
+        transform: scale(1);
+        box-shadow: 0 0 0 0 rgba(255, 215, 0, 0);
+        background: rgba(0, 0, 0, 0.35);
+    }
 }
 .gift-icon-btn:active {
-    transform: scale(0.9);
-    animation: none;   /* stop shake while tapping */
-  }
+    transform: scale(0.94);
+    animation: none;
+    }
