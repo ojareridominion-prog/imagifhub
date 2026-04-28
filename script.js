@@ -7,6 +7,7 @@ import { fetchNativeAds, setupAdButtonListeners } from './adsManager.js';   // r
 import { verifyPremiumStatus, updateWatchAdCard, startTempPremiumCountdown, showRewardedAdWrapper as premiumRewardedWrapper } from './premiumManager.js';
 import { loadFeed, resetAndLoadFeed } from './feedManager.js';
 import { toggleMenu, applyTheme, triggerSearch, shareBot, openPremium, closePremium, openCopyright, closeCopyright, openPrivacy, closePrivacy, copyUserId, toggleDarkText, initUI } from './uiManager.js';
+import { initGiftSystem, refreshRecentGiftCard, showGiftDrawer } from './giftManager.js';   // NEW
 
 const API_URL = "https://imagifhub.onrender.com";
 
@@ -136,6 +137,12 @@ window.onload = async () => {
     initWatchAdButton();
     setupAdButtonListeners();
     addManualPremiumCheck();
+
+    // Initialize gift system
+    await initGiftSystem();
+    // Attach menu button for gift drawer
+    const openGiftMenuBtn = document.getElementById('openGiftFromMenuBtn');
+    if (openGiftMenuBtn) openGiftMenuBtn.addEventListener('click', () => showGiftDrawer());
 
     // Welcome overlay
     const welcomeOverlay = document.getElementById('welcomeOverlay');
