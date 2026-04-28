@@ -447,24 +447,24 @@ body.dark-text .description-text {
     to { transform: rotate(360deg); }
 }
 
-/* GIFT DRAWER (slide down) */
+/* ==================== GIFT DRAWER (slide from bottom) ==================== */
 .gift-drawer {
     position: fixed;
-    top: -85%;
+    bottom: -85%;           /* hidden below screen */
     left: 0;
     width: 100%;
     height: 85%;
     background: var(--bar);
     z-index: 11000;
-    border-radius: 0 0 24px 24px;
-    transition: top 0.4s ease-out;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    border-radius: 24px 24px 0 0;   /* rounded top corners */
+    transition: bottom 0.4s ease-out;
+    box-shadow: 0 -10px 30px rgba(0,0,0,0.5);
     display: flex;
     flex-direction: column;
     overflow: hidden;
 }
 .gift-drawer.open {
-    top: 0;
+    bottom: 0;              /* slide up */
 }
 .gift-drawer-header {
     padding: 16px;
@@ -503,6 +503,8 @@ body.dark-text .description-text {
     grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
     gap: 12px;
 }
+
+/* Base gift item style + pulsing animation for ALL gifts */
 .gift-item {
     background: rgba(255,255,255,0.1);
     border-radius: 16px;
@@ -510,12 +512,21 @@ body.dark-text .description-text {
     text-align: center;
     transition: transform 0.2s, box-shadow 0.2s;
     cursor: pointer;
+    animation: gentlePulse 1.5s infinite ease-in-out;
 }
 .gift-item:hover {
     transform: scale(1.02);
     background: rgba(255,255,255,0.2);
     box-shadow: 0 4px 12px rgba(0,0,0,0.2);
 }
+
+/* Gentle pulsing for all gifts */
+@keyframes gentlePulse {
+    0% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(1.05); opacity: 0.95; }
+    100% { transform: scale(1); opacity: 1; }
+}
+
 .gift-emoji {
     font-size: 42px;
     margin-bottom: 8px;
@@ -548,7 +559,17 @@ body.dark-text .description-text {
     transform: scale(0.96);
 }
 
-/* Gift icon button on image */
+/* Overpriced gifts: extra sparkling on emoji (in addition to pulsing) */
+.gift-item[data-category="overpriced"] .gift-emoji {
+    animation: sparkle 1.5s infinite;
+}
+@keyframes sparkle {
+    0% { text-shadow: 0 0 0 gold; transform: scale(1); }
+    50% { text-shadow: 0 0 8px gold; transform: scale(1.1); }
+    100% { text-shadow: 0 0 0 gold; transform: scale(1); }
+}
+
+/* ========== GIFT ICON BUTTON (bigger + violent shake every 1 second) ========== */
 .gift-icon-btn {
     position: absolute;
     top: 16px;
@@ -556,47 +577,27 @@ body.dark-text .description-text {
     background: rgba(0,0,0,0.6);
     backdrop-filter: blur(8px);
     border: none;
-    font-size: 28px;
+    font-size: 44px;          /* much bigger */
     cursor: pointer;
     z-index: 20;
     border-radius: 50%;
-    width: 48px;
-    height: 48px;
+    width: 64px;
+    height: 64px;
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: transform 0.2s;
-    animation: wiggle 1s infinite;
+    transition: transform 0.1s;
     color: white;
     text-shadow: 0 0 4px rgba(0,0,0,0.5);
+    animation: violentShake 1s infinite;
 }
-@keyframes wiggle {
-    0%, 100% { transform: rotate(0deg); }
-    25% { transform: rotate(5deg); }
-    75% { transform: rotate(-5deg); }
+/* Violent shake keyframes – one full shake cycle every second */
+@keyframes violentShake {
+    0%, 100% { transform: translateX(0) rotate(0deg); }
+    10%, 30%, 50%, 70%, 90% { transform: translateX(-4px) rotate(-3deg); }
+    20%, 40%, 60%, 80% { transform: translateX(4px) rotate(3deg); }
 }
 .gift-icon-btn:active {
     transform: scale(0.9);
-    animation: none;
-}
-
-/* Gift card in menu */
-.gift-card-menu {
-    transition: all 0.2s;
-}
-.gift-card-menu button {
-    cursor: pointer;
-}
-#recentGiftContent {
-    transition: all 0.2s;
-}
-
-/* Overpriced extra effects */
-.gift-item[data-category="overpriced"] .gift-emoji {
-    animation: sparkle 1.5s infinite;
-}
-@keyframes sparkle {
-    0% { text-shadow: 0 0 0 gold; transform: scale(1); }
-    50% { text-shadow: 0 0 8px gold; transform: scale(1.05); }
-    100% { text-shadow: 0 0 0 gold; transform: scale(1); }
-}
+    animation: none;   /* stop shake while tapping */
+                     }
