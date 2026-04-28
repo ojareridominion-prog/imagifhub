@@ -22,6 +22,11 @@ body {
   transition: background 0.2s, color 0.2s;
 }
 
+/* Welcome overlay hidden state */
+.hidden {
+    display: none !important;
+}
+
 /* --- Layout Components --- */
 .top-bar {
   position: fixed;
