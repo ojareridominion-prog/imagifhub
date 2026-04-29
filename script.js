@@ -183,3 +183,22 @@ window.onload = async () => {
         }
     });
 };
+
+// Global guard – blocks clicks on hidden elements containing "Join"
+document.addEventListener('click', (e) => {
+    const target = e.target.closest('a, button, [role="button"]');
+    if (!target) return;
+    
+    // Check if the element contains the text "Join" (case‑insensitive)
+    if (target.innerText && /join/i.test(target.innerText)) {
+        // Only allow click if the element is inside the open menu panel OR is a visible ad button
+        const isVisibleMenu = target.closest('#menuPanel.open');
+        const isVisibleAd = target.closest('.swiper-slide') && target.closest('.ad-action-btn');
+        if (!isVisibleMenu && !isVisibleAd) {
+            e.preventDefault();
+            e.stopPropagation();
+            console.warn('Blocked click on hidden Join element', target);
+            return false;
+        }
+    }
+});
