@@ -681,3 +681,53 @@ body.dark-text .description-text {
     user-select: text !important;  /* allows keyword selection */
     z-index: 2;
 }
+
+/* ==================== RIPPLE EFFECT (Material Design) ==================== */
+/* Make all interactive elements ripple‑ready */
+button,
+.cat-btn,
+.menu-link,
+.theme-circle,
+.gift-send-btn,
+.ad-action-btn,
+.premium-btn-menu,
+.btn-buy,
+.btn-close,
+.welcome-button,
+.gift-icon-btn,
+.close-drawer-btn,
+.drawer-drag-handle,
+.user-id-row button,
+.remove-ads-btn,
+.more-btn,
+.less-btn,
+.keyword-container button,
+#muteBtn,
+[onclick] {
+    position: relative;
+    overflow: hidden;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.ripple {
+    position: absolute;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.5);
+    transform: scale(0);
+    animation: ripple-animation 0.5s linear;
+    pointer-events: none;
+    z-index: 9999;
+}
+
+/* Dark text mode – slightly darker ripple for visibility */
+body.dark-text .ripple {
+    background: rgba(0, 0, 0, 0.4);
+}
+
+@keyframes ripple-animation {
+    to {
+        transform: scale(4);
+        opacity: 0;
+    }
+}
