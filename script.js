@@ -6,7 +6,7 @@ import { playRandomMusic, toggleMute } from './musicManager.js';
 import { fetchNativeAds, setupAdButtonListeners } from './adsManager.js';   // removed showRewardedAdWrapper
 import { verifyPremiumStatus, updateWatchAdCard, startTempPremiumCountdown, showRewardedAdWrapper as premiumRewardedWrapper } from './premiumManager.js';
 import { loadFeed, resetAndLoadFeed } from './feedManager.js';
-import { toggleMenu, applyTheme, triggerSearch, shareBot, openPremium, closePremium, openCopyright, closeCopyright, openPrivacy, closePrivacy, copyUserId, toggleDarkText, initUI } from './uiManager.js';
+import { toggleMenu, applyTheme, triggerSearch, shareBot, openPremium, closePremium, openCopyright, closeCopyright, openPrivacy, closePrivacy, copyUserId, toggleDarkText, initUI, closeSearchPanel } from './uiManager.js';
 import { initGiftSystem, refreshRecentGiftCard, showGiftDrawer } from './giftManager.js';   // NEW
 
 const API_URL = "https://imagifhub.onrender.com";
@@ -28,6 +28,7 @@ window.closeCopyright = closeCopyright;
 window.copyUserId = copyUserId;
 window.openPrivacy = openPrivacy;
 window.closePrivacy = closePrivacy;
+window.closeSearchPanel = closeSearchPanel;   // expose for any external calls
 
 // Payment / invoice function (needs API call)
 async function goPremium() {
@@ -202,4 +203,3 @@ document.addEventListener('click', (e) => {
         }
     }
 });
-
