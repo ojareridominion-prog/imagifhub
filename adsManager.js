@@ -47,11 +47,21 @@ export function setupAdButtonListeners() {
         const target = e.target;
         const slide = target.closest('.swiper-slide');
         if (!slide) return;
+        
+        // ✅ NEW: Only allow click if this slide is the current active slide
+        if (state.activeSwiper && state.activeSwiper.activeIndex !== [...state.activeSwiper.slides].indexOf(slide)) {
+            e.preventDefault();
+            e.stopPropagation();
+            console.warn("Blocked click on non‑active ad slide");
+            return;
+        }
+
         if (target.classList.contains('remove-ads-btn')) {
             window.openPremium();
             e.stopPropagation();
             return;
         }
+        
         if (target.classList.contains('ad-action-btn')) {
             const adIndex = parseInt(slide.dataset.adIndex);
             if (!isNaN(adIndex) && state.nativeAds[adIndex]) {
