@@ -666,3 +666,9 @@ body.dark-text .description-text {
     visibility: visible !important;
     opacity: 1 !important;
     }
+
+/* Prevent clicks/selection on invisible Swiper slides (fade effect) */
+.swiper-slide:not(.swiper-slide-active) {
+    pointer-events: none;
+    user-select: none;      /* also prevents text selection from hidden slides */
+}
