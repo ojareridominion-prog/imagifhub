@@ -139,21 +139,30 @@ async function appendMoreImages(newImages) {
 
 function renderSlides(slides) {
     const feed = document.getElementById('feed');
-    feed.innerHTML = slides.map(slide => {
-        if (slide.type === 'image') {
-            return generateImageSlide(slide.item);
-        } else {
-            return generateAdSlide(slide.item, slide.item.index);
-        }
-    }).join('');
+    // Clear the feed container completely before adding new slides to prevent overlapping ghost elements
+    feed.innerHTML = '';
 
-    if (state.activeSwiper) state.activeSwiper.destroy(true, true);
+    // Destroy existing Swiper instance to avoid memory leaks and stale event listeners
+    if (state.activeSwiper) {
+        state.activeSwiper.destroy(true, true);
+        state.activeSwiper = null;
+    }
+
+    // Build fresh DOM elements
+    slides.forEach(slide => {
+        const slideHtml = slide.type === 'image'
+            ? generateImageSlide(slide.item)
+            : generateAdSlide(slide.item, slide.item.index);
+        feed.insertAdjacentHTML('beforeend', slideHtml);
+    });
+
+    // Create new Swiper instance
     state.activeSwiper = new Swiper('#swiper', {
         direction: 'vertical',
         mousewheel: true,
-        effect: 'fade',               // <-- NEW: fade effect between slides
-        fadeEffect: { crossFade: true }, // smooth crossfade
-        speed: 400,                   // transition duration (ms)
+        effect: 'fade',               // keep fade effect (overlap is resolved by CSS rule on non‑active slides)
+        fadeEffect: { crossFade: true },
+        speed: 400,
         on: {
             reachEnd: async () => {
                 if (state.activeSearchQuery) return;
@@ -233,4 +242,4 @@ export async function resetAndLoadFeed(cat, search = "", skipAd = false) {
 
 export async function loadFeed(cat, search = "", skipAd = false) {
     await resetAndLoadFeed(cat, search, skipAd);
-                        }
+}
