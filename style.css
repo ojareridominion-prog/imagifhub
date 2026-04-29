@@ -710,6 +710,12 @@ button,
     -webkit-tap-highlight-color: transparent;
 }
 
+/* FIX: Restore absolute positioning for elements that require it */
+.gift-icon-btn,
+.remove-ads-btn {
+    position: absolute !important;
+}
+
 .ripple {
     position: absolute;
     border-radius: 50%;
@@ -730,4 +736,4 @@ body.dark-text .ripple {
         transform: scale(4);
         opacity: 0;
     }
-}
+    }
