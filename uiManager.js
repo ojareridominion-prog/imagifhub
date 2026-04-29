@@ -21,22 +21,29 @@ function getMenuOverlay() {
 
 export function toggleMenu() {
     const panel = document.getElementById('menuPanel');
-    const overlay = getMenuOverlay();
+    const overlay = document.getElementById('menuOverlay');
     if (!panel || !overlay) return;
-    
+
     const isOpen = panel.classList.contains('open');
-    
+
     if (!isOpen) {
-        // Open menu
         panel.classList.add('open');
         overlay.classList.add('active');
-        document.body.style.overflow = 'hidden'; // prevent background scroll
+        document.body.style.overflow = 'hidden';
         verifyPremiumStatus();
     } else {
-        // Close menu
         panel.classList.remove('open');
         overlay.classList.remove('active');
         document.body.style.overflow = '';
+    }
+
+    // ✅ Safety: guarantee that overlay loses pointer events when closed
+    if (!panel.classList.contains('open')) {
+        overlay.style.pointerEvents = 'none';
+        overlay.style.visibility = 'hidden';
+    } else {
+        overlay.style.pointerEvents = '';
+        overlay.style.visibility = '';
     }
 }
 
