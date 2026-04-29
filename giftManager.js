@@ -76,21 +76,25 @@ function closeGiftDrawer() {
     const drawer = document.getElementById('giftDrawer');
     const overlay = document.getElementById('drawerOverlay');
     if (drawer) drawer.classList.remove('open');
-    if (overlay) overlay.classList.remove('active');
+    if (overlay) {
+        overlay.classList.remove('active');
+        overlay.style.pointerEvents = 'none';
+    }
     document.body.style.overflow = '';
     currentGiftDrawerOpen = false;
 }
 
-// Open gift drawer
+// When opening, ensure pointer events are re-enabled
 export function showGiftDrawer() {
     if (currentGiftDrawerOpen) return;
-    closeMenuIfOpen(); // close side menu if open
+    closeMenuIfOpen();
     const drawer = document.getElementById('giftDrawer');
     const overlay = document.getElementById('drawerOverlay');
     if (!drawer) return;
     drawer.classList.add('open');
     overlay.classList.add('active');
-    document.body.style.overflow = 'hidden'; // prevent background scrolling
+    overlay.style.pointerEvents = 'auto';   // allow overlay to catch backdrop clicks
+    document.body.style.overflow = 'hidden';
     currentGiftDrawerOpen = true;
     renderGiftDrawerContent();
 }
