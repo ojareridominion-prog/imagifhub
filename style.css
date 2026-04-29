@@ -654,3 +654,15 @@ body.dark-text .description-text {
     transform: scale(0.94);
     animation: none;
     }
+/* In style.css */
+.menu-panel:not(.open) {
+    pointer-events: none !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+}
+
+.menu-panel.open {
+    pointer-events: auto !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+}
