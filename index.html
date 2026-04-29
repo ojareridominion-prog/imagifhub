@@ -224,17 +224,17 @@
     <!-- DRAWER OVERLAY (blur background for gift drawer) -->
     <div id="drawerOverlay" class="drawer-overlay"></div>
 
-    <!-- GIFT DRAWER (slide from bottom with drag handle) -->
-    <div id="giftDrawer" class="gift-drawer">
-        <div class="drawer-drag-handle" id="drawerDragHandle"></div>
-        <div class="gift-drawer-header">
-            <h3>🎁 Send us a Gift</h3>
-            <button id="closeGiftDrawer" class="close-drawer-btn">✕</button>
-        </div>
-        <div class="gift-drawer-body" id="giftDrawerContent">
-            <div class="gift-loading">Loading gifts...</div>
-        </div>
+    <!-- GIFT DRAWER (slide from bottom with drag handle, no X button) -->
+<div id="giftDrawer" class="gift-drawer">
+    <div class="drawer-drag-handle" id="drawerDragHandle"></div>
+    <div class="gift-drawer-header">
+        <h3>🎁 Send us a Gift</h3>
+        <!-- X button removed as requested -->
     </div>
+    <div class="gift-drawer-body" id="giftDrawerContent">
+        <div class="gift-loading">Loading gifts...</div>
+    </div>
+</div>
 
     <div id="welcomeOverlay" class="welcome-overlay">
         <div class="overlay-content">
