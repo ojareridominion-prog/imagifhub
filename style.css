@@ -665,11 +665,4 @@ body.dark-text .description-text {
     pointer-events: auto !important;
     visibility: visible !important;
     opacity: 1 !important;
-}
-
-/* Hide ad buttons that are not in the currently active slide */
-.swiper-slide:not(.swiper-slide-active) .ad-action-btn {
-    pointer-events: none !important;
-    visibility: hidden !important;
-    display: none !important;
-}
+    }
