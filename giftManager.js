@@ -1,4 +1,4 @@
-// giftManager.js - Gifting system (with larger confetti)
+// giftManager.js - Gifting system (with working drag-to-close drawer)
 import { state } from './state.js';
 import { verifyPremiumStatus } from './premiumManager.js';
 
@@ -6,12 +6,18 @@ const API_URL = "https://imagifhub.onrender.com";
 
 let giftList = [];
 let currentGiftDrawerOpen = false;
+let dragStartY = 0;
+let drawerHeight = 0;
+let isDragging = false;
 
 // Helper: close menu if open
 function closeMenuIfOpen() {
     const panel = document.getElementById('menuPanel');
     if (panel && panel.classList.contains('open')) {
         panel.classList.remove('open');
+        const overlay = document.getElementById('menuOverlay');
+        if (overlay) overlay.classList.remove('active');
+        document.body.style.overflow = '';
     }
 }
 
@@ -65,22 +71,69 @@ export async function loadGifts() {
     }
 }
 
+// Close gift drawer (internal)
+function closeGiftDrawer() {
+    const drawer = document.getElementById('giftDrawer');
+    const overlay = document.getElementById('drawerOverlay');
+    if (drawer) drawer.classList.remove('open');
+    if (overlay) overlay.classList.remove('active');
+    document.body.style.overflow = '';
+    currentGiftDrawerOpen = false;
+}
+
 // Open gift drawer
 export function showGiftDrawer() {
     if (currentGiftDrawerOpen) return;
-    closeMenuIfOpen();
+    closeMenuIfOpen(); // close side menu if open
     const drawer = document.getElementById('giftDrawer');
+    const overlay = document.getElementById('drawerOverlay');
     if (!drawer) return;
     drawer.classList.add('open');
+    overlay.classList.add('active');
+    document.body.style.overflow = 'hidden'; // prevent background scrolling
     currentGiftDrawerOpen = true;
     renderGiftDrawerContent();
 }
 
-// Close gift drawer
-function closeGiftDrawer() {
+// Setup drag-to-close on the drag handle
+function initDrawerDrag() {
     const drawer = document.getElementById('giftDrawer');
-    if (drawer) drawer.classList.remove('open');
-    currentGiftDrawerOpen = false;
+    const handle = document.getElementById('drawerDragHandle');
+    if (!drawer || !handle) return;
+
+    const onTouchStart = (e) => {
+        e.preventDefault();
+        isDragging = true;
+        dragStartY = e.touches[0].clientY;
+        drawerHeight = drawer.offsetHeight;
+        drawer.style.transition = 'none';
+    };
+
+    const onTouchMove = (e) => {
+        if (!isDragging) return;
+        const currentY = e.touches[0].clientY;
+        const delta = currentY - dragStartY;
+        if (delta > 0) {
+            const translateY = Math.min(delta, drawerHeight * 0.8);
+            drawer.style.transform = `translateY(${translateY}px)`;
+        }
+    };
+
+    const onTouchEnd = (e) => {
+        if (!isDragging) return;
+        isDragging = false;
+        const finalTransform = drawer.style.transform;
+        const translateY = finalTransform ? parseInt(finalTransform.match(/translateY\(([\d.]+)px\)/)?.[1] || 0) : 0;
+        drawer.style.transition = '';
+        drawer.style.transform = '';
+        if (translateY > drawerHeight * 0.25) {
+            closeGiftDrawer();
+        }
+    };
+
+    handle.addEventListener('touchstart', onTouchStart, { passive: false });
+    handle.addEventListener('touchmove', onTouchMove);
+    handle.addEventListener('touchend', onTouchEnd);
 }
 
 // Render gift items inside drawer
@@ -147,10 +200,10 @@ async function sendGift(giftId, giftName, giftEmoji, giftPrice, category) {
                 if (typeof confetti === 'function') {
                     // Primary burst (all gifts)
                     confetti({
-                        particleCount: 300,      // was 150
-                        spread: 100,             // was 70
+                        particleCount: 300,
+                        spread: 100,
                         origin: { y: 0.5 },
-                        startVelocity: 20,       // faster
+                        startVelocity: 20,
                         zIndex: 2147483647
                     });
                     // Secondary burst from sides
@@ -180,7 +233,6 @@ async function sendGift(giftId, giftName, giftEmoji, giftPrice, category) {
                                 colors: ['#ffd700', '#ffaa00', '#ff5500', '#ffffff'],
                                 zIndex: 2147483647
                             });
-                            // And a third big burst from top
                             setTimeout(() => {
                                 confetti({
                                     particleCount: 400,
@@ -254,6 +306,8 @@ export async function refreshRecentGiftCard() {
 // Initialize gift system
 export async function initGiftSystem() {
     await loadGifts();
+    
+    // Gift icon click on images
     document.getElementById('feed').addEventListener('click', (e) => {
         const giftBtn = e.target.closest('.gift-icon-btn');
         if (giftBtn) {
@@ -262,13 +316,15 @@ export async function initGiftSystem() {
             showGiftDrawer();
         }
     });
-    const drawer = document.getElementById('giftDrawer');
-    const closeBtn = document.getElementById('closeGiftDrawer');
-    if (closeBtn) closeBtn.addEventListener('click', closeGiftDrawer);
-    if (drawer) {
-        drawer.addEventListener('click', (e) => {
-            if (e.target === drawer) closeGiftDrawer();
-        });
+    
+    // Close drawer when clicking on overlay background
+    const overlay = document.getElementById('drawerOverlay');
+    if (overlay) {
+        overlay.addEventListener('click', closeGiftDrawer);
     }
+    
+    // Drag-to-close initialization
+    initDrawerDrag();
+    
     await refreshRecentGiftCard();
-                                   }
+                    }
