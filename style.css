@@ -672,3 +672,16 @@ body.dark-text .description-text {
     pointer-events: none;
     user-select: none;      /* also prevents text selection from hidden slides */
 }
+
+/* Completely hide non-active slides – they won't steal clicks or selection */
+.swiper-slide:not(.swiper-slide-active) {
+    visibility: hidden !important;
+    pointer-events: none !important;
+    user-select: none !important;
+}
+
+/* Ensure active slide remains fully interactive */
+.swiper-slide-active {
+    visibility: visible !important;
+    pointer-events: auto !important;
+}
