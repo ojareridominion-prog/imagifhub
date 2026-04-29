@@ -8,6 +8,14 @@
         "action": "https://temu.to/k/e3zj4ye9770"
     },
     {
+        "id": "telegramchannel",
+        "image": "ads/channel.png",
+        "title": "Our channel",
+        "subtitle": "join our telegram channel and get the latest updates",
+        "buttonLabel": "Join",
+        "action": "https://t.me/imagifhub"
+    },
+    {
         "id": "STAKE.COM",
         "image": "ads/stake.png",
         "title": "Stake.com",
@@ -30,13 +38,5 @@
         "subtitle": "play games, chat and earn",
         "buttonLabel": "Play Games",
         "action": "https://getblock.me/u/24239713"
-    },
-    {
-        "id": "telegramchannel",
-        "image": "ads/channel.png",
-        "title": "Our channel",
-        "subtitle": "join our telegram channel and get the latest updates",
-        "buttonLabel": "Join",
-        "action": "https://t.me/imagifhub"
     }
 ]
