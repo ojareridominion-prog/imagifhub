@@ -7,7 +7,7 @@ import { fetchNativeAds, setupAdButtonListeners } from './adsManager.js';   // r
 import { verifyPremiumStatus, updateWatchAdCard, startTempPremiumCountdown, showRewardedAdWrapper as premiumRewardedWrapper } from './premiumManager.js';
 import { loadFeed, resetAndLoadFeed } from './feedManager.js';
 import { toggleMenu, applyTheme, triggerSearch, shareBot, openPremium, closePremium, openCopyright, closeCopyright, openPrivacy, closePrivacy, copyUserId, toggleDarkText, initUI } from './uiManager.js';
-import { initGiftSystem, refreshRecentGiftCard, showGiftDrawer } from './giftManager.js';
+import { initGiftSystem, refreshRecentGiftCard, showGiftDrawer } from './giftManager.js';   // NEW
 
 const API_URL = "https://imagifhub.onrender.com";
 
@@ -28,62 +28,6 @@ window.closeCopyright = closeCopyright;
 window.copyUserId = copyUserId;
 window.openPrivacy = openPrivacy;
 window.closePrivacy = closePrivacy;
-
-// ==== NEW: Ripple effect helper functions =====
-const interactiveSelectors = [
-    'button', '.cat-btn', '.menu-link', '.theme-circle', '.gift-send-btn',
-    '.ad-action-btn', '.premium-btn-menu', '.btn-buy', '.btn-close',
-    '.welcome-button', '.gift-icon-btn', '.close-drawer-btn', '.drawer-drag-handle',
-    '.user-id-row button', '.remove-ads-btn', '.more-btn', '.less-btn',
-    '.keyword-container button', '#muteBtn', '[onclick]'
-];
-
-function getInteractiveElement(target) {
-    if (target && target.matches && target.matches(interactiveSelectors.join(','))) {
-        return target;
-    }
-    let el = target;
-    while (el && el !== document.body) {
-        if (el.matches && el.matches(interactiveSelectors.join(','))) {
-            return el;
-        }
-        el = el.parentElement;
-    }
-    return null;
-}
-
-function createRipple(event, element) {
-    // Remove any existing ripple to avoid duplicates
-    const existingRipple = element.querySelector('.ripple');
-    if (existingRipple) existingRipple.remove();
-
-    const rect = element.getBoundingClientRect();
-    const size = Math.max(rect.width, rect.height);
-    const x = event.clientX - rect.left - size / 2;
-    const y = event.clientY - rect.top - size / 2;
-
-    const ripple = document.createElement('span');
-    ripple.className = 'ripple';
-    ripple.style.width = ripple.style.height = `${size}px`;
-    ripple.style.left = `${x}px`;
-    ripple.style.top = `${y}px`;
-    element.appendChild(ripple);
-
-    // Remove after animation ends
-    ripple.addEventListener('animationend', () => {
-        ripple.remove();
-    });
-}
-
-function initRippleEffect() {
-    document.body.addEventListener('click', (event) => {
-        const interactiveEl = getInteractiveElement(event.target);
-        if (interactiveEl) {
-            createRipple(event, interactiveEl);
-        }
-    });
-}
-// ==== End of ripple helpers ====
 
 // Payment / invoice function (needs API call)
 async function goPremium() {
@@ -238,9 +182,6 @@ window.onload = async () => {
             e.stopPropagation();
         }
     });
-
-    // ==== NEW: Activate ripple effect =====
-    initRippleEffect();
 };
 
 // Global guard – blocks clicks on hidden elements containing "Join"
@@ -261,3 +202,4 @@ document.addEventListener('click', (e) => {
         }
     }
 });
+
