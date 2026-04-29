@@ -31,13 +31,14 @@ export function toggleMenu() {
         overlay.classList.add('active');
         document.body.style.overflow = 'hidden';
         verifyPremiumStatus();
+        // Close search panel if open when opening menu
+        closeSearchPanel();
     } else {
         panel.classList.remove('open');
         overlay.classList.remove('active');
         document.body.style.overflow = '';
     }
 
-    // ✅ Safety: guarantee that overlay loses pointer events when closed
     if (!panel.classList.contains('open')) {
         overlay.style.pointerEvents = 'none';
         overlay.style.visibility = 'hidden';
@@ -65,10 +66,126 @@ export function applyTheme(themeId) {
     localStorage.setItem("imagifhub-theme", themeId);
 }
 
-export function triggerSearch() {
-    let q = prompt("Search images:");
-    if (q) window.loadFeed("Discover", q, true);
+// ==================== EXPANDABLE SEARCH PANEL ====================
+let isSearchPanelOpen = false;
+let searchCloseHandler = null;
+
+function closeSearchPanel() {
+    const panel = document.getElementById('searchPanel');
+    const catBar = document.getElementById('catBar');
+    const searchBtn = document.getElementById('searchBtn');
+    if (!panel || !catBar || !searchBtn) return;
+    
+    panel.classList.remove('active');
+    catBar.classList.remove('search-hidden');
+    searchBtn.innerText = '🔍';
+    isSearchPanelOpen = false;
+    
+    // Remove global click listener
+    if (searchCloseHandler) {
+        document.removeEventListener('click', searchCloseHandler);
+        searchCloseHandler = null;
+    }
+    // Remove escape listener
+    document.removeEventListener('keydown', handleEscape);
 }
+
+function openSearchPanel() {
+    const panel = document.getElementById('searchPanel');
+    const catBar = document.getElementById('catBar');
+    const searchBtn = document.getElementById('searchBtn');
+    const input = document.getElementById('searchInput');
+    if (!panel || !catBar || !searchBtn) return;
+    
+    // If already open, just focus
+    if (isSearchPanelOpen) {
+        input?.focus();
+        return;
+    }
+    
+    panel.classList.add('active');
+    catBar.classList.add('search-hidden');
+    searchBtn.innerText = '✕';
+    isSearchPanelOpen = true;
+    
+    // Focus input after animation
+    setTimeout(() => input?.focus(), 100);
+    
+    // Setup global close on outside click
+    if (searchCloseHandler) document.removeEventListener('click', searchCloseHandler);
+    searchCloseHandler = (e) => {
+        const target = e.target;
+        // Don't close if click is inside panel or on search button
+        if (target.closest('#searchPanel') || target.id === 'searchBtn') return;
+        closeSearchPanel();
+    };
+    document.addEventListener('click', searchCloseHandler);
+    
+    // Escape key
+    document.removeEventListener('keydown', handleEscape);
+    document.addEventListener('keydown', handleEscape);
+}
+
+function handleEscape(e) {
+    if (e.key === 'Escape' && isSearchPanelOpen) {
+        closeSearchPanel();
+    }
+}
+
+function submitSearch() {
+    const input = document.getElementById('searchInput');
+    const query = input.value.trim();
+    if (query) {
+        // Close panel and trigger search
+        closeSearchPanel();
+        resetAndLoadFeed(state.currentCategory, query);
+    } else {
+        // If empty, just close
+        closeSearchPanel();
+    }
+}
+
+export function triggerSearch() {
+    // Toggle search panel
+    if (isSearchPanelOpen) {
+        closeSearchPanel();
+    } else {
+        openSearchPanel();
+    }
+}
+
+// Expose globally
+window.triggerSearch = triggerSearch;
+window.closeSearchPanel = closeSearchPanel;
+
+// Initialize search button listener
+function initSearchPanel() {
+    const searchBtn = document.getElementById('searchBtn');
+    const submitBtn = document.getElementById('searchSubmitBtn');
+    const searchInput = document.getElementById('searchInput');
+    if (searchBtn) {
+        // Remove any existing inline onclick, use our listener
+        searchBtn.onclick = (e) => {
+            e.stopPropagation();
+            triggerSearch();
+        };
+    }
+    if (submitBtn) {
+        submitBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            submitSearch();
+        });
+    }
+    if (searchInput) {
+        searchInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                submitSearch();
+            }
+        });
+    }
+}
+// ================================================================
 
 export async function shareBot() {
     const shareData = {
@@ -173,4 +290,7 @@ export function initUI() {
     
     // Initialize menu overlay click handler
     initMenuOverlay();
-}
+    
+    // Initialize search panel
+    initSearchPanel();
+        }
