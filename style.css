@@ -668,16 +668,16 @@ body.dark-text .description-text {
     }
 
 
-/* Completely hide non-active slides – they won't steal clicks or selection */
+/* Prevent interactions with inactive slides – preserves fade transition */
 .swiper-slide:not(.swiper-slide-active) {
-    visibility: hidden !important;
     pointer-events: none !important;
     user-select: none !important;
+    -webkit-user-select: none !important;
 }
 
-/* Ensure active slide remains fully interactive */
+/* Active slide remains fully interactive and on top */
 .swiper-slide-active {
-    visibility: visible !important;
     pointer-events: auto !important;
+    user-select: text !important;  /* allows keyword selection */
+    z-index: 2;
 }
-
