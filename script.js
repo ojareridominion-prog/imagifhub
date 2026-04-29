@@ -203,15 +203,3 @@ document.addEventListener('click', (e) => {
     }
 });
 
-// TEMP: Find all elements that contain "Join" and are visible (or hidden but clickable)
-document.querySelectorAll('*').forEach(el => {
-    if (el.innerText && /join/i.test(el.innerText)) {
-        const style = getComputedStyle(el);
-        const isHidden = style.display === 'none' || style.visibility === 'hidden' || style.opacity === '0';
-        if (!isHidden || style.pointerEvents !== 'none') {
-            console.warn('Potential overlay:', el);
-            el.style.outline = '3px solid red';
-            el.style.backgroundColor = 'rgba(255,0,0,0.3)';
-        }
-    }
-});
