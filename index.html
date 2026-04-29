@@ -47,15 +47,23 @@
         <h2 style="flex:1; text-align:center; font-size:16px; margin:0;">IMAGIFHUB</h2>
         <div id="premiumIndicator" style="display:none;">⭐</div>
         <button id="muteBtn" onclick="toggleMute()" style="background:none; border:none; color:#fff; font-size:22px; padding:15px; cursor:pointer;">🔊</button>
-        <button onclick="triggerSearch()" style="background:none; border:none; color:#fff; font-size:22px; padding:15px; cursor:pointer;">🔍</button>
+        <button id="searchBtn" style="background:none; border:none; color:#fff; font-size:22px; padding:15px; cursor:pointer;">🔍</button>
     </div>
 
     <div class="cat-bar" id="catBar"></div>
 
+    <!-- Search Panel (initially hidden) -->
+    <div id="searchPanel" class="search-panel">
+        <div class="search-container">
+            <input type="text" id="searchInput" placeholder="Search images..." autocomplete="off">
+            <button id="searchSubmitBtn">Search</button>
+        </div>
+    </div>
+
     <!-- MENU OVERLAY (blur background) -->
     <div id="menuOverlay" class="menu-overlay"></div>
 
-    <!-- MENU PANEL -->
+    <!-- MENU PANEL (rest unchanged) -->
     <div id="menuPanel" class="menu-panel">
         <a href="#" class="menu-link" onclick="toggleMenu()" style="color:var(--accent)">✕ Close Menu</a>
         
@@ -119,7 +127,7 @@
     
     <audio id="bgMusic"></audio>
 
-    <!-- PREMIUM MODAL -->
+    <!-- PREMIUM MODAL (unchanged) -->
     <div id="premiumModal" class="modal-overlay">
         <div class="premium-card">
             <h1>✨ ImagifHub Premium</h1>
@@ -146,7 +154,7 @@
         </div>
     </div>
 
-    <!-- COPYRIGHT MODAL -->
+    <!-- COPYRIGHT MODAL (unchanged) -->
     <div id="copyrightModal" class="modal-overlay">
         <div class="copyright-card">
             <h2 style="margin-top:0;">⚖️ ImagifHub: Intellectual Property Policy</h2>
@@ -178,7 +186,7 @@
         </div>
     </div>
 
-    <!-- PRIVACY POLICY MODAL -->
+    <!-- PRIVACY POLICY MODAL (unchanged) -->
     <div id="privacyModal" class="modal-overlay">
         <div class="copyright-card">
             <h2 style="margin-top:0;">🔒 Privacy Policy</h2>
@@ -224,17 +232,16 @@
     <!-- DRAWER OVERLAY (blur background for gift drawer) -->
     <div id="drawerOverlay" class="drawer-overlay"></div>
 
-    <!-- GIFT DRAWER (slide from bottom with drag handle, no X button) -->
-<div id="giftDrawer" class="gift-drawer">
-    <div class="drawer-drag-handle" id="drawerDragHandle"></div>
-    <div class="gift-drawer-header">
-        <h3>🎁 Send us a Gift</h3>
-        <!-- X button removed as requested -->
+    <!-- GIFT DRAWER -->
+    <div id="giftDrawer" class="gift-drawer">
+        <div class="drawer-drag-handle" id="drawerDragHandle"></div>
+        <div class="gift-drawer-header">
+            <h3>🎁 Send us a Gift</h3>
+        </div>
+        <div class="gift-drawer-body" id="giftDrawerContent">
+            <div class="gift-loading">Loading gifts...</div>
+        </div>
     </div>
-    <div class="gift-drawer-body" id="giftDrawerContent">
-        <div class="gift-loading">Loading gifts...</div>
-    </div>
-</div>
 
     <div id="welcomeOverlay" class="welcome-overlay">
         <div class="overlay-content">
@@ -246,4 +253,5 @@
     <script type="module" src="giftManager.js"></script>
     
 </body>
-</html>
+        </html>
+        
