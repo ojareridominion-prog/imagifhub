@@ -681,3 +681,80 @@ body.dark-text .description-text {
     user-select: text !important;  /* allows keyword selection */
     z-index: 2;
     }
+
+/* Add these at the end of style.css or appropriate section */
+
+/* ==================== EXPANDABLE SEARCH PANEL ==================== */
+.search-panel {
+    position: fixed;
+    top: 56px;          /* just below top bar */
+    left: 0;
+    right: 0;
+    background: rgba(0, 0, 0, 0.85);
+    backdrop-filter: blur(16px);
+    z-index: 950;
+    overflow: hidden;
+    max-height: 0;
+    opacity: 0;
+    transition: max-height 0.3s ease-out, opacity 0.2s ease;
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+    pointer-events: none;
+}
+.search-panel.active {
+    max-height: 120px;   /* enough for input+button */
+    opacity: 1;
+    pointer-events: auto;
+}
+.search-container {
+    display: flex;
+    padding: 12px 16px;
+    gap: 12px;
+    align-items: center;
+}
+#searchInput {
+    flex: 1;
+    background: rgba(255,255,255,0.15);
+    border: 1px solid rgba(255,255,255,0.3);
+    border-radius: 30px;
+    padding: 12px 18px;
+    font-size: 16px;
+    color: var(--text);
+    outline: none;
+    transition: 0.2s;
+}
+#searchInput:focus {
+    border-color: var(--accent);
+    background: rgba(255,255,255,0.25);
+}
+#searchInput::placeholder {
+    color: rgba(255,255,255,0.6);
+}
+#searchSubmitBtn {
+    background: var(--accent);
+    border: none;
+    color: white;
+    font-weight: bold;
+    padding: 0 20px;
+    border-radius: 30px;
+    height: 46px;
+    font-size: 16px;
+    cursor: pointer;
+    transition: 0.2s;
+}
+#searchSubmitBtn:active {
+    transform: scale(0.96);
+}
+
+/* When dark text is enabled, adjust input text color */
+body.dark-text #searchInput {
+    color: #000;
+    background: rgba(255,255,255,0.8);
+}
+body.dark-text #searchInput::placeholder {
+    color: #555;
+}
+
+/* Category bar hidden while search panel is active */
+.cat-bar.search-hidden {
+    display: none;
+}
