@@ -761,11 +761,11 @@ body.dark-text .description-text {
     background: var(--accent, #9c4dff);
     color: white;
     border: none;
-    padding: 10px 20px;
-    margin-right: 8px;
+    padding: 8px 16px;
+    margin-right: 4px;
     border-radius: 8px;
     font-weight: 600;
-    font-size: 14px;
+    font-size: 13px;
     cursor: pointer;
     transition: background 0.2s, transform 0.1s;
     font-family: inherit;
