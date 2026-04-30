@@ -14,62 +14,15 @@ const themesList = [
     {id: "theme-violet", top: "#16001f", bottom: "#f0b3ff"}
 ];
 
-// Get menu overlay element
 function getMenuOverlay() {
     return document.getElementById('menuOverlay');
 }
 
-export function toggleMenu() {
-    const panel = document.getElementById('menuPanel');
-    const overlay = document.getElementById('menuOverlay');
-    if (!panel || !overlay) return;
-
-    const isOpen = panel.classList.contains('open');
-
-    if (!isOpen) {
-        panel.classList.add('open');
-        overlay.classList.add('active');
-        document.body.style.overflow = 'hidden';
-        verifyPremiumStatus();
-        // Close search panel if open when opening menu
-        closeSearchPanel();
-    } else {
-        panel.classList.remove('open');
-        overlay.classList.remove('active');
-        document.body.style.overflow = '';
-    }
-
-    if (!panel.classList.contains('open')) {
-        overlay.style.pointerEvents = 'none';
-        overlay.style.visibility = 'hidden';
-    } else {
-        overlay.style.pointerEvents = '';
-        overlay.style.visibility = '';
-    }
-}
-
-// Close menu when clicking on overlay
-function initMenuOverlay() {
-    const overlay = getMenuOverlay();
-    if (overlay) {
-        overlay.addEventListener('click', () => {
-            if (document.getElementById('menuPanel').classList.contains('open')) {
-                toggleMenu();
-            }
-        });
-    }
-}
-
-export function applyTheme(themeId) {
-    themesList.forEach(t => document.body.classList.remove(t.id));
-    if (themeId !== "theme-black") document.body.classList.add(themeId);
-    localStorage.setItem("imagifhub-theme", themeId);
-}
-
-// ==================== EXPANDABLE SEARCH PANEL ====================
+// ----- SEARCH PANEL STATE -----
 let isSearchPanelOpen = false;
 let searchCloseHandler = null;
 
+// ----- CLOSE SEARCH PANEL (defined first so it can be used anywhere) -----
 function closeSearchPanel() {
     const panel = document.getElementById('searchPanel');
     const catBar = document.getElementById('catBar');
@@ -90,6 +43,7 @@ function closeSearchPanel() {
     document.removeEventListener('keydown', handleEscape);
 }
 
+// ----- OPEN SEARCH PANEL -----
 function openSearchPanel() {
     const panel = document.getElementById('searchPanel');
     const catBar = document.getElementById('catBar');
@@ -97,7 +51,6 @@ function openSearchPanel() {
     const input = document.getElementById('searchInput');
     if (!panel || !catBar || !searchBtn) return;
     
-    // If already open, just focus
     if (isSearchPanelOpen) {
         input?.focus();
         return;
@@ -108,20 +61,16 @@ function openSearchPanel() {
     searchBtn.innerText = '✕';
     isSearchPanelOpen = true;
     
-    // Focus input after animation
     setTimeout(() => input?.focus(), 100);
     
-    // Setup global close on outside click
     if (searchCloseHandler) document.removeEventListener('click', searchCloseHandler);
     searchCloseHandler = (e) => {
         const target = e.target;
-        // Don't close if click is inside panel or on search button
         if (target.closest('#searchPanel') || target.id === 'searchBtn') return;
         closeSearchPanel();
     };
     document.addEventListener('click', searchCloseHandler);
     
-    // Escape key
     document.removeEventListener('keydown', handleEscape);
     document.addEventListener('keydown', handleEscape);
 }
@@ -134,19 +83,17 @@ function handleEscape(e) {
 
 function submitSearch() {
     const input = document.getElementById('searchInput');
-    const query = input.value.trim();
+    const query = input ? input.value.trim() : '';
     if (query) {
-        // Close panel and trigger search
         closeSearchPanel();
         resetAndLoadFeed(state.currentCategory, query);
     } else {
-        // If empty, just close
         closeSearchPanel();
     }
 }
 
+// ----- TRIGGER SEARCH (toggle) -----
 export function triggerSearch() {
-    // Toggle search panel
     if (isSearchPanelOpen) {
         closeSearchPanel();
     } else {
@@ -154,39 +101,59 @@ export function triggerSearch() {
     }
 }
 
-// Expose globally
+// Expose for global use (if needed)
 window.triggerSearch = triggerSearch;
 window.closeSearchPanel = closeSearchPanel;
 
-// Initialize search button listener
-function initSearchPanel() {
-    const searchBtn = document.getElementById('searchBtn');
-    const submitBtn = document.getElementById('searchSubmitBtn');
-    const searchInput = document.getElementById('searchInput');
-    if (searchBtn) {
-        // Remove any existing inline onclick, use our listener
-        searchBtn.onclick = (e) => {
-            e.stopPropagation();
-            triggerSearch();
-        };
+// ----- MENU TOGGLE (now safe because closeSearchPanel already exists) -----
+export function toggleMenu() {
+    const panel = document.getElementById('menuPanel');
+    const overlay = document.getElementById('menuOverlay');
+    if (!panel || !overlay) return;
+
+    const isOpen = panel.classList.contains('open');
+
+    if (!isOpen) {
+        panel.classList.add('open');
+        overlay.classList.add('active');
+        document.body.style.overflow = 'hidden';
+        verifyPremiumStatus();
+        // Close search panel if open
+        if (typeof closeSearchPanel === 'function') closeSearchPanel();
+    } else {
+        panel.classList.remove('open');
+        overlay.classList.remove('active');
+        document.body.style.overflow = '';
     }
-    if (submitBtn) {
-        submitBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            submitSearch();
-        });
+
+    if (!panel.classList.contains('open')) {
+        overlay.style.pointerEvents = 'none';
+        overlay.style.visibility = 'hidden';
+    } else {
+        overlay.style.pointerEvents = '';
+        overlay.style.visibility = '';
     }
-    if (searchInput) {
-        searchInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                e.preventDefault();
-                submitSearch();
+}
+
+function initMenuOverlay() {
+    const overlay = getMenuOverlay();
+    if (overlay) {
+        overlay.addEventListener('click', () => {
+            const panel = document.getElementById('menuPanel');
+            if (panel && panel.classList.contains('open')) {
+                toggleMenu();
             }
         });
     }
 }
-// ================================================================
 
+export function applyTheme(themeId) {
+    themesList.forEach(t => document.body.classList.remove(t.id));
+    if (themeId !== "theme-black") document.body.classList.add(themeId);
+    localStorage.setItem("imagifhub-theme", themeId);
+}
+
+// ----- SHARE BOT -----
 export async function shareBot() {
     const shareData = {
         title: 'IMAGIFHUB',
@@ -202,59 +169,69 @@ export async function shareBot() {
     } catch (err) { console.log('Error sharing:', err); }
 }
 
+// ----- PREMIUM MODALS -----
 export function openPremium() {
     const panel = document.getElementById('menuPanel');
     const overlay = getMenuOverlay();
-    if (panel.classList.contains('open')) {
+    if (panel && panel.classList.contains('open')) {
         panel.classList.remove('open');
-        overlay.classList.remove('active');
+        if (overlay) overlay.classList.remove('active');
         document.body.style.overflow = '';
     }
-    document.getElementById('premiumModal').classList.add('active');
+    const modal = document.getElementById('premiumModal');
+    if (modal) modal.classList.add('active');
 }
 
 export function closePremium() {
-    document.getElementById('premiumModal').classList.remove('active');
+    const modal = document.getElementById('premiumModal');
+    if (modal) modal.classList.remove('active');
 }
 
 export function openCopyright() {
     const panel = document.getElementById('menuPanel');
     const overlay = getMenuOverlay();
-    if (panel.classList.contains('open')) {
+    if (panel && panel.classList.contains('open')) {
         panel.classList.remove('open');
-        overlay.classList.remove('active');
+        if (overlay) overlay.classList.remove('active');
         document.body.style.overflow = '';
     }
-    document.getElementById('copyrightModal').classList.add('active');
+    const modal = document.getElementById('copyrightModal');
+    if (modal) modal.classList.add('active');
 }
 
 export function closeCopyright() {
-    document.getElementById('copyrightModal').classList.remove('active');
+    const modal = document.getElementById('copyrightModal');
+    if (modal) modal.classList.remove('active');
 }
 
 export function openPrivacy() {
     const panel = document.getElementById('menuPanel');
     const overlay = getMenuOverlay();
-    if (panel.classList.contains('open')) {
+    if (panel && panel.classList.contains('open')) {
         panel.classList.remove('open');
-        overlay.classList.remove('active');
+        if (overlay) overlay.classList.remove('active');
         document.body.style.overflow = '';
     }
-    document.getElementById('privacyModal').classList.add('active');
+    const modal = document.getElementById('privacyModal');
+    if (modal) modal.classList.add('active');
 }
 
 export function closePrivacy() {
-    document.getElementById('privacyModal').classList.remove('active');
+    const modal = document.getElementById('privacyModal');
+    if (modal) modal.classList.remove('active');
 }
 
 export function copyUserId() {
-    const userId = document.getElementById('userId').innerText;
+    const userIdSpan = document.getElementById('userId');
+    const userId = userIdSpan ? userIdSpan.innerText : '';
     if (userId && userId !== '-') {
         navigator.clipboard.writeText(userId).then(() => {
             const btn = document.getElementById('copyIdBtn');
-            const originalText = btn.innerText;
-            btn.innerText = '✅ Copied!';
-            setTimeout(() => { btn.innerText = originalText; }, 1500);
+            if (btn) {
+                const originalText = btn.innerText;
+                btn.innerText = '✅ Copied!';
+                setTimeout(() => { btn.innerText = originalText; }, 1500);
+            }
         }).catch(err => console.error('Failed to copy: ', err));
     }
 }
@@ -275,22 +252,49 @@ function updateDarkTextIndicator() {
     if (indicator) indicator.innerText = state.darkTextEnabled ? 'ON' : 'OFF';
 }
 
+// ----- INITIALIZE UI -----
+function initSearchPanel() {
+    const searchBtn = document.getElementById('searchBtn');
+    const submitBtn = document.getElementById('searchSubmitBtn');
+    const searchInput = document.getElementById('searchInput');
+    if (searchBtn) {
+        searchBtn.onclick = (e) => {
+            e.stopPropagation();
+            triggerSearch();
+        };
+    }
+    if (submitBtn) {
+        submitBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            submitSearch();
+        });
+    }
+    if (searchInput) {
+        searchInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                submitSearch();
+            }
+        });
+    }
+}
+
 export function initUI() {
     applyDarkText();
     updateDarkTextIndicator();
     const savedTheme = localStorage.getItem("imagifhub-theme") || "theme-black";
     applyTheme(savedTheme);
-    // Build theme grid
-    document.getElementById('themeGrid').innerHTML = themesList.map(t => `
-        <div class="theme-circle" onclick="applyTheme('${t.id}')">
-            <div style="background:${t.top}"></div>
-            <div style="background:${t.bottom}"></div>
-        </div>
-    `).join('');
     
-    // Initialize menu overlay click handler
+    const themeGrid = document.getElementById('themeGrid');
+    if (themeGrid) {
+        themeGrid.innerHTML = themesList.map(t => `
+            <div class="theme-circle" onclick="applyTheme('${t.id}')">
+                <div style="background:${t.top}"></div>
+                <div style="background:${t.bottom}"></div>
+            </div>
+        `).join('');
+    }
+    
     initMenuOverlay();
-    
-    // Initialize search panel
     initSearchPanel();
-        }
+                                     }
