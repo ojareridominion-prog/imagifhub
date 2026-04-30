@@ -46,15 +46,16 @@
         <button onclick="toggleMenu()" style="background:none; border:none; color:#fff; font-size:24px; padding:15px; cursor:pointer;">☰</button>
         <h2 style="flex:1; text-align:center; font-size:16px; margin:0;">IMAGIFHUB</h2>
         <div id="premiumIndicator" style="display:none;">⭐</div>
+        <button id="searchBtn" onclick="triggerSearch()" style="background:none; border:none; color:#fff; font-size:22px; padding:15px; cursor:pointer;">🔍</button>
         <button id="muteBtn" onclick="toggleMute()" style="background:none; border:none; color:#fff; font-size:22px; padding:15px; cursor:pointer;">🔊</button>
-        <!-- 🔍 search button with id for JS control – onclick removed, handled by event listener -->
-        <button id="searchBtn" style="background:none; border:none; color:#fff; font-size:22px; padding:15px; cursor:pointer;">🔍</button>
     </div>
 
-    <!-- EXPANDABLE SEARCH PANEL (initially hidden) -->
+    <!-- SEARCH PANEL (expandable) -->
     <div id="searchPanel" class="search-panel">
-        <input type="text" id="searchInput" placeholder="Search images..." autocomplete="off">
-        <button id="searchSubmitBtn">Search</button>
+        <div class="search-panel-inner">
+            <input type="text" id="searchInput" placeholder="Search images..." autocomplete="off">
+            <button id="searchSubmitBtn">🔍 Search</button>
+        </div>
     </div>
 
     <div class="cat-bar" id="catBar"></div>
@@ -231,16 +232,17 @@
     <!-- DRAWER OVERLAY (blur background for gift drawer) -->
     <div id="drawerOverlay" class="drawer-overlay"></div>
 
-    <!-- GIFT DRAWER -->
-    <div id="giftDrawer" class="gift-drawer">
-        <div class="drawer-drag-handle" id="drawerDragHandle"></div>
-        <div class="gift-drawer-header">
-            <h3>🎁 Send us a Gift</h3>
-        </div>
-        <div class="gift-drawer-body" id="giftDrawerContent">
-            <div class="gift-loading">Loading gifts...</div>
-        </div>
+    <!-- GIFT DRAWER (slide from bottom with drag handle, no X button) -->
+<div id="giftDrawer" class="gift-drawer">
+    <div class="drawer-drag-handle" id="drawerDragHandle"></div>
+    <div class="gift-drawer-header">
+        <h3>🎁 Send us a Gift</h3>
+        <!-- X button removed as requested -->
     </div>
+    <div class="gift-drawer-body" id="giftDrawerContent">
+        <div class="gift-loading">Loading gifts...</div>
+    </div>
+</div>
 
     <div id="welcomeOverlay" class="welcome-overlay">
         <div class="overlay-content">
@@ -252,5 +254,4 @@
     <script type="module" src="giftManager.js"></script>
     
 </body>
-    </html>
-    
+</html>
