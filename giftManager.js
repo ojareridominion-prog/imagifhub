@@ -270,8 +270,11 @@ export async function refreshRecentGiftCard() {
 
 // Gift drawer payment method toggle (Stars ↔ TON)
 function initGiftPaymentToggle() {
+function initGiftPaymentToggle() {
     const toggleContainer = document.getElementById('giftPaymentToggle');
     if (!toggleContainer) return;
+    const giftDrawer = document.getElementById('giftDrawer');
+
     toggleContainer.querySelectorAll('.seg-option').forEach(btn => {
         btn.addEventListener('click', async () => {
             // Update active state
@@ -291,10 +294,27 @@ function initGiftPaymentToggle() {
                     tonSpan.style.display = 'block';
                 }
             });
+
+            // Change drawer mode class
+            if (method === 'stars') {
+                giftDrawer.classList.remove('mode-ton');
+                giftDrawer.classList.add('mode-stars');
+            } else {
+                giftDrawer.classList.remove('mode-stars');
+                giftDrawer.classList.add('mode-ton');
+            }
         });
     });
-}
 
+    // Set initial mode based on active button
+    const activeBtn = toggleContainer.querySelector('.seg-option.active');
+    if (activeBtn && activeBtn.dataset.payment === 'stars') {
+        giftDrawer.classList.add('mode-stars');
+    } else if (activeBtn && activeBtn.dataset.payment === 'ton') {
+        giftDrawer.classList.add('mode-ton');
+    }
+}
+    
 // Open gift drawer
 export function showGiftDrawer() {
     if (currentGiftDrawerOpen) return;
