@@ -137,9 +137,17 @@
     <div id="premiumModal" class="modal-overlay">
         <div class="premium-card">
             <h1>✨ ImagifHub Premium</h1>
+            
+            <!-- SEGMENTED TOGGLE for payment method -->
+            <div class="payment-segmented" id="premiumPaymentToggle">
+                <button class="seg-option active" data-payment="stars">⭐ Telegram Stars</button>
+                <button class="seg-option" data-payment="ton">💎 TON</button>
+            </div>
+
             <div class="price-tag">
                 <span class="old-price">149 Stars</span>
-                <span class="new-price">99 Stars / 30 days</span>
+                <span class="new-price stars-price">99 Stars / 30 days</span>
+                <span class="new-price ton-price" style="display: none;">1.12 TON / 30 days</span>
             </div>
             <ul class="premium-list">
                 <li>🚫 No ads</li>
@@ -243,6 +251,11 @@
     <div class="drawer-drag-handle" id="drawerDragHandle"></div>
     <div class="gift-drawer-header">
         <h3>🎁 Send us a Gift</h3>
+        <!-- SEGMENTED TOGGLE for gift payment method -->
+        <div class="payment-segmented drawer-segmented" id="giftPaymentToggle">
+            <button class="seg-option active" data-payment="stars">⭐ Stars</button>
+            <button class="seg-option" data-payment="ton">💎 TON</button>
+        </div>
         <!-- X button removed as requested -->
     </div>
     <div class="gift-drawer-body" id="giftDrawerContent">
@@ -260,4 +273,5 @@
     <script type="module" src="giftManager.js"></script>
     
 </body>
-</html>
+    </html>
+    
