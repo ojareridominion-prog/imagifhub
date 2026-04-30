@@ -14,98 +14,11 @@ const themesList = [
     {id: "theme-violet", top: "#16001f", bottom: "#f0b3ff"}
 ];
 
+// Get menu overlay element
 function getMenuOverlay() {
     return document.getElementById('menuOverlay');
 }
 
-// ----- SEARCH PANEL STATE -----
-let isSearchPanelOpen = false;
-let searchCloseHandler = null;
-
-// ----- CLOSE SEARCH PANEL (defined first so it can be used anywhere) -----
-function closeSearchPanel() {
-    const panel = document.getElementById('searchPanel');
-    const catBar = document.getElementById('catBar');
-    const searchBtn = document.getElementById('searchBtn');
-    if (!panel || !catBar || !searchBtn) return;
-    
-    panel.classList.remove('active');
-    catBar.classList.remove('search-hidden');
-    searchBtn.innerText = '🔍';
-    isSearchPanelOpen = false;
-    
-    // Remove global click listener
-    if (searchCloseHandler) {
-        document.removeEventListener('click', searchCloseHandler);
-        searchCloseHandler = null;
-    }
-    // Remove escape listener
-    document.removeEventListener('keydown', handleEscape);
-}
-
-// ----- OPEN SEARCH PANEL -----
-function openSearchPanel() {
-    const panel = document.getElementById('searchPanel');
-    const catBar = document.getElementById('catBar');
-    const searchBtn = document.getElementById('searchBtn');
-    const input = document.getElementById('searchInput');
-    if (!panel || !catBar || !searchBtn) return;
-    
-    if (isSearchPanelOpen) {
-        input?.focus();
-        return;
-    }
-    
-    panel.classList.add('active');
-    catBar.classList.add('search-hidden');
-    searchBtn.innerText = '✕';
-    isSearchPanelOpen = true;
-    
-    setTimeout(() => input?.focus(), 100);
-    
-    if (searchCloseHandler) document.removeEventListener('click', searchCloseHandler);
-    searchCloseHandler = (e) => {
-        const target = e.target;
-        if (target.closest('#searchPanel') || target.id === 'searchBtn') return;
-        closeSearchPanel();
-    };
-    document.addEventListener('click', searchCloseHandler);
-    
-    document.removeEventListener('keydown', handleEscape);
-    document.addEventListener('keydown', handleEscape);
-}
-
-function handleEscape(e) {
-    if (e.key === 'Escape' && isSearchPanelOpen) {
-        closeSearchPanel();
-    }
-}
-
-function submitSearch() {
-    const input = document.getElementById('searchInput');
-    const query = input ? input.value.trim() : '';
-    if (query) {
-        closeSearchPanel();
-        resetAndLoadFeed(state.currentCategory, query);
-    } else {
-        closeSearchPanel();
-    }
-}
-
-// ----- TRIGGER SEARCH (toggle) -----
-export function triggerSearch() {
-    if (isSearchPanelOpen) {
-        closeSearchPanel();
-    } else {
-        openSearchPanel();
-    }
-}
-
-// Expose for global use (if needed)
-window.triggerSearch = triggerSearch;
-window.closeSearchPanel = closeSearchPanel;
-
-// ----- MENU TOGGLE (now safe because closeSearchPanel already exists) -----
 export function toggleMenu() {
     const panel = document.getElementById('menuPanel');
     const overlay = document.getElementById('menuOverlay');
@@ -118,14 +31,13 @@ export function toggleMenu() {
         overlay.classList.add('active');
         document.body.style.overflow = 'hidden';
         verifyPremiumStatus();
-        // Close search panel if open
-        if (typeof closeSearchPanel === 'function') closeSearchPanel();
     } else {
         panel.classList.remove('open');
         overlay.classList.remove('active');
         document.body.style.overflow = '';
     }
 
+    // ✅ Safety: guarantee that overlay loses pointer events when closed
     if (!panel.classList.contains('open')) {
         overlay.style.pointerEvents = 'none';
         overlay.style.visibility = 'hidden';
@@ -135,12 +47,12 @@ export function toggleMenu() {
     }
 }
 
+// Close menu when clicking on overlay
 function initMenuOverlay() {
     const overlay = getMenuOverlay();
     if (overlay) {
         overlay.addEventListener('click', () => {
-            const panel = document.getElementById('menuPanel');
-            if (panel && panel.classList.contains('open')) {
+            if (document.getElementById('menuPanel').classList.contains('open')) {
                 toggleMenu();
             }
         });
@@ -153,7 +65,11 @@ export function applyTheme(themeId) {
     localStorage.setItem("imagifhub-theme", themeId);
 }
 
-// ----- SHARE BOT -----
+export function triggerSearch() {
+    let q = prompt("Search images:");
+    if (q) window.loadFeed("Discover", q, true);
+}
+
 export async function shareBot() {
     const shareData = {
         title: 'IMAGIFHUB',
@@ -169,69 +85,59 @@ export async function shareBot() {
     } catch (err) { console.log('Error sharing:', err); }
 }
 
-// ----- PREMIUM MODALS -----
 export function openPremium() {
     const panel = document.getElementById('menuPanel');
     const overlay = getMenuOverlay();
-    if (panel && panel.classList.contains('open')) {
+    if (panel.classList.contains('open')) {
         panel.classList.remove('open');
-        if (overlay) overlay.classList.remove('active');
+        overlay.classList.remove('active');
         document.body.style.overflow = '';
     }
-    const modal = document.getElementById('premiumModal');
-    if (modal) modal.classList.add('active');
+    document.getElementById('premiumModal').classList.add('active');
 }
 
 export function closePremium() {
-    const modal = document.getElementById('premiumModal');
-    if (modal) modal.classList.remove('active');
+    document.getElementById('premiumModal').classList.remove('active');
 }
 
 export function openCopyright() {
     const panel = document.getElementById('menuPanel');
     const overlay = getMenuOverlay();
-    if (panel && panel.classList.contains('open')) {
+    if (panel.classList.contains('open')) {
         panel.classList.remove('open');
-        if (overlay) overlay.classList.remove('active');
+        overlay.classList.remove('active');
         document.body.style.overflow = '';
     }
-    const modal = document.getElementById('copyrightModal');
-    if (modal) modal.classList.add('active');
+    document.getElementById('copyrightModal').classList.add('active');
 }
 
 export function closeCopyright() {
-    const modal = document.getElementById('copyrightModal');
-    if (modal) modal.classList.remove('active');
+    document.getElementById('copyrightModal').classList.remove('active');
 }
 
 export function openPrivacy() {
     const panel = document.getElementById('menuPanel');
     const overlay = getMenuOverlay();
-    if (panel && panel.classList.contains('open')) {
+    if (panel.classList.contains('open')) {
         panel.classList.remove('open');
-        if (overlay) overlay.classList.remove('active');
+        overlay.classList.remove('active');
         document.body.style.overflow = '';
     }
-    const modal = document.getElementById('privacyModal');
-    if (modal) modal.classList.add('active');
+    document.getElementById('privacyModal').classList.add('active');
 }
 
 export function closePrivacy() {
-    const modal = document.getElementById('privacyModal');
-    if (modal) modal.classList.remove('active');
+    document.getElementById('privacyModal').classList.remove('active');
 }
 
 export function copyUserId() {
-    const userIdSpan = document.getElementById('userId');
-    const userId = userIdSpan ? userIdSpan.innerText : '';
+    const userId = document.getElementById('userId').innerText;
     if (userId && userId !== '-') {
         navigator.clipboard.writeText(userId).then(() => {
             const btn = document.getElementById('copyIdBtn');
-            if (btn) {
-                const originalText = btn.innerText;
-                btn.innerText = '✅ Copied!';
-                setTimeout(() => { btn.innerText = originalText; }, 1500);
-            }
+            const originalText = btn.innerText;
+            btn.innerText = '✅ Copied!';
+            setTimeout(() => { btn.innerText = originalText; }, 1500);
         }).catch(err => console.error('Failed to copy: ', err));
     }
 }
@@ -252,49 +158,19 @@ function updateDarkTextIndicator() {
     if (indicator) indicator.innerText = state.darkTextEnabled ? 'ON' : 'OFF';
 }
 
-// ----- INITIALIZE UI -----
-function initSearchPanel() {
-    const searchBtn = document.getElementById('searchBtn');
-    const submitBtn = document.getElementById('searchSubmitBtn');
-    const searchInput = document.getElementById('searchInput');
-    if (searchBtn) {
-        searchBtn.onclick = (e) => {
-            e.stopPropagation();
-            triggerSearch();
-        };
-    }
-    if (submitBtn) {
-        submitBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            submitSearch();
-        });
-    }
-    if (searchInput) {
-        searchInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                e.preventDefault();
-                submitSearch();
-            }
-        });
-    }
-}
-
 export function initUI() {
     applyDarkText();
     updateDarkTextIndicator();
     const savedTheme = localStorage.getItem("imagifhub-theme") || "theme-black";
     applyTheme(savedTheme);
+    // Build theme grid
+    document.getElementById('themeGrid').innerHTML = themesList.map(t => `
+        <div class="theme-circle" onclick="applyTheme('${t.id}')">
+            <div style="background:${t.top}"></div>
+            <div style="background:${t.bottom}"></div>
+        </div>
+    `).join('');
     
-    const themeGrid = document.getElementById('themeGrid');
-    if (themeGrid) {
-        themeGrid.innerHTML = themesList.map(t => `
-            <div class="theme-circle" onclick="applyTheme('${t.id}')">
-                <div style="background:${t.top}"></div>
-                <div style="background:${t.bottom}"></div>
-            </div>
-        `).join('');
-    }
-    
+    // Initialize menu overlay click handler
     initMenuOverlay();
-    initSearchPanel();
-                                     }
+}
