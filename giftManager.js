@@ -1,4 +1,4 @@
-// giftManager.js - Gifting system (with smooth drag-to-close and thank you modal)
+// giftManager.js - Gifting system (smooth drag-to-close, no alert, thank‑you modal)
 import { state } from './state.js';
 import { verifyPremiumStatus } from './premiumManager.js';
 
@@ -6,9 +6,6 @@ const API_URL = "https://imagifhub.onrender.com";
 
 let giftList = [];
 let currentGiftDrawerOpen = false;
-let dragStartY = 0;
-let drawerHeight = 0;
-let isDragging = false;
 
 // Helper: close menu if open
 function closeMenuIfOpen() {
@@ -71,11 +68,15 @@ export async function loadGifts() {
     }
 }
 
-// Close gift drawer (internal)
+// Close gift drawer – resets transform and restores transition
 function closeGiftDrawer() {
     const drawer = document.getElementById('giftDrawer');
     const overlay = document.getElementById('drawerOverlay');
-    if (drawer) drawer.classList.remove('open');
+    if (drawer) {
+        drawer.classList.remove('open');
+        drawer.style.transform = '';
+        drawer.style.transition = '';
+    }
     if (overlay) {
         overlay.classList.remove('active');
         overlay.style.pointerEvents = 'none';
@@ -84,9 +85,8 @@ function closeGiftDrawer() {
     currentGiftDrawerOpen = false;
 }
 
-// Show a temporary thank-you modal (fades after 2 seconds)
+// Show a temporary thank‑you modal (fades after 2 seconds)
 function showThankYouModal(giftName, giftEmoji) {
-    // Remove existing modal if any
     const existing = document.getElementById('giftThankYouModal');
     if (existing) existing.remove();
 
@@ -115,7 +115,6 @@ function showThankYouModal(giftName, giftEmoji) {
             🎁 ${giftEmoji} ${giftName} sent!<br>Thank you! 💖
         </div>
     `;
-    // Add keyframe animation if not already present
     if (!document.querySelector('#giftModalStyle')) {
         const style = document.createElement('style');
         style.id = 'giftModalStyle';
@@ -129,13 +128,10 @@ function showThankYouModal(giftName, giftEmoji) {
         document.head.appendChild(style);
     }
     document.body.appendChild(modal);
-    // Auto-remove after 2 seconds
-    setTimeout(() => {
-        if (modal && modal.remove) modal.remove();
-    }, 2000);
+    setTimeout(() => modal.remove(), 2000);
 }
 
-// When opening, ensure pointer events are re‑enabled
+// Open gift drawer
 export function showGiftDrawer() {
     if (currentGiftDrawerOpen) return;
     closeMenuIfOpen();
@@ -150,7 +146,7 @@ export function showGiftDrawer() {
     renderGiftDrawerContent();
 }
 
-// Smooth drag-to-close logic (professional drawer behaviour)
+// ========== SMOOTH DRAG-TO-CLOSE (professional drawer behaviour) ==========
 function initDrawerDrag() {
     const drawer = document.getElementById('giftDrawer');
     const handle = document.getElementById('drawerDragHandle');
@@ -160,23 +156,25 @@ function initDrawerDrag() {
     let currentTranslate = 0;
     let isDragging = false;
     let animationFrame = null;
+    let initialTransform = '';
 
     const onTouchStart = (e) => {
         e.preventDefault();
         startY = e.touches[0].clientY;
         isDragging = true;
+        // Save original transition and remove it during drag
+        initialTransform = drawer.style.transform;
         drawer.style.transition = 'none';
-        drawer.style.transform = 'translateY(0px)';
+        drawer.style.willChange = 'transform';
+        currentTranslate = 0;
     };
 
     const onTouchMove = (e) => {
         if (!isDragging) return;
         const deltaY = e.touches[0].clientY - startY;
         if (deltaY > 0) {
-            // Limit max drag to 80% of drawer height
             const maxDrag = drawer.offsetHeight * 0.8;
             currentTranslate = Math.min(deltaY, maxDrag);
-            // Apply transform smoothly
             if (animationFrame) cancelAnimationFrame(animationFrame);
             animationFrame = requestAnimationFrame(() => {
                 drawer.style.transform = `translateY(${currentTranslate}px)`;
@@ -191,13 +189,14 @@ function initDrawerDrag() {
 
         const threshold = drawer.offsetHeight * 0.25;
         if (currentTranslate > threshold) {
-            // Close: animate downwards and then remove drawer
-            drawer.style.transition = 'transform 0.3s ease-out';
+            // Close: animate down and then remove drawer
+            drawer.style.transition = 'transform 0.3s cubic-bezier(0.2, 0.9, 0.4, 1.1)';
             drawer.style.transform = `translateY(100%)`;
             setTimeout(() => {
                 closeGiftDrawer();
                 drawer.style.transition = '';
                 drawer.style.transform = '';
+                drawer.style.willChange = '';
             }, 300);
         } else {
             // Snap back
@@ -205,11 +204,16 @@ function initDrawerDrag() {
             drawer.style.transform = 'translateY(0px)';
             setTimeout(() => {
                 drawer.style.transition = '';
+                drawer.style.willChange = '';
             }, 250);
         }
         currentTranslate = 0;
     };
 
+    // Remove previous listeners to avoid duplicates
+    handle.removeEventListener('touchstart', onTouchStart);
+    handle.removeEventListener('touchmove', onTouchMove);
+    handle.removeEventListener('touchend', onTouchEnd);
     handle.addEventListener('touchstart', onTouchStart, { passive: false });
     handle.addEventListener('touchmove', onTouchMove);
     handle.addEventListener('touchend', onTouchEnd);
@@ -257,7 +261,7 @@ async function renderGiftDrawerContent() {
     });
 }
 
-// Send gift – with BIG confetti (normal and overpriced) and thank‑you modal (no alert)
+// Send gift – with BIG confetti and thank‑you modal (no alert)
 async function sendGift(giftId, giftName, giftEmoji, giftPrice, category) {
     const tg = window.Telegram.WebApp;
     try {
@@ -270,76 +274,27 @@ async function sendGift(giftId, giftName, giftEmoji, giftPrice, category) {
         const data = await response.json();
         tg.openInvoice(data.invoice_link, async (status) => {
             if (status === 'paid' || status === 'paid_in_chat') {
-                // 1. Haptic success
-                if (tg.HapticFeedback) {
-                    tg.HapticFeedback.notificationOccurred('success');
-                }
+                // Haptic success
+                if (tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
 
-                // 2. Confetti – bigger for all gifts
+                // Confetti
                 if (typeof confetti === 'function') {
-                    // Primary burst (all gifts)
-                    confetti({
-                        particleCount: 300,
-                        spread: 100,
-                        origin: { y: 0.5 },
-                        startVelocity: 20,
-                        zIndex: 2147483647
-                    });
-                    // Secondary burst from sides
-                    confetti({
-                        particleCount: 200,
-                        spread: 80,
-                        origin: { y: 0.5, x: 0.2 },
-                        startVelocity: 25,
-                        zIndex: 2147483647
-                    });
-                    confetti({
-                        particleCount: 200,
-                        spread: 80,
-                        origin: { y: 0.5, x: 0.8 },
-                        startVelocity: 25,
-                        zIndex: 2147483647
-                    });
-
-                    // Overpriced: extra massive burst + gold colors
+                    confetti({ particleCount: 300, spread: 100, origin: { y: 0.5 }, startVelocity: 20, zIndex: 2147483647 });
+                    confetti({ particleCount: 200, spread: 80, origin: { y: 0.5, x: 0.2 }, startVelocity: 25, zIndex: 2147483647 });
+                    confetti({ particleCount: 200, spread: 80, origin: { y: 0.5, x: 0.8 }, startVelocity: 25, zIndex: 2147483647 });
                     if (category === 'overpriced') {
                         setTimeout(() => {
-                            confetti({
-                                particleCount: 600,
-                                spread: 140,
-                                origin: { y: 0.5 },
-                                startVelocity: 30,
-                                colors: ['#ffd700', '#ffaa00', '#ff5500', '#ffffff'],
-                                zIndex: 2147483647
-                            });
+                            confetti({ particleCount: 600, spread: 140, origin: { y: 0.5 }, startVelocity: 30, colors: ['#ffd700', '#ffaa00', '#ff5500', '#ffffff'], zIndex: 2147483647 });
                             setTimeout(() => {
-                                confetti({
-                                    particleCount: 400,
-                                    spread: 120,
-                                    origin: { y: 0.2 },
-                                    startVelocity: 25,
-                                    colors: ['#ffd700', '#ffaa00', '#ff5500'],
-                                    zIndex: 2147483647
-                                });
+                                confetti({ particleCount: 400, spread: 120, origin: { y: 0.2 }, startVelocity: 25, colors: ['#ffd700', '#ffaa00', '#ff5500'], zIndex: 2147483647 });
                             }, 300);
                         }, 200);
                     }
-                } else {
-                    console.warn("confetti function not available");
                 }
 
-                // 3. Close drawer
                 closeGiftDrawer();
-
-                // 4. Refresh recent gift
                 await refreshRecentGiftCard();
-
-                // 5. Grant premium if overpriced
-                if (category === 'overpriced') {
-                    await verifyPremiumStatus();
-                }
-
-                // 6. Show custom thank‑you modal (fades after 2 seconds, no Telegram alert)
+                if (category === 'overpriced') await verifyPremiumStatus();
                 showThankYouModal(giftName, giftEmoji);
             } else {
                 if (tg.showAlert) tg.showAlert("Gift purchase cancelled or failed.");
@@ -384,7 +339,6 @@ export async function refreshRecentGiftCard() {
 export async function initGiftSystem() {
     await loadGifts();
     
-    // Gift icon click on images
     document.getElementById('feed').addEventListener('click', (e) => {
         const giftBtn = e.target.closest('.gift-icon-btn');
         if (giftBtn) {
@@ -394,14 +348,10 @@ export async function initGiftSystem() {
         }
     });
     
-    // Close drawer when clicking on overlay background
     const overlay = document.getElementById('drawerOverlay');
-    if (overlay) {
-        overlay.addEventListener('click', closeGiftDrawer);
-    }
+    if (overlay) overlay.addEventListener('click', closeGiftDrawer);
     
-    // Drag-to-close initialization
-    initDrawerDrag();
+    initDrawerDrag();  // sets up smooth drag‑to‑close
     
     await refreshRecentGiftCard();
-            }
+                    }
