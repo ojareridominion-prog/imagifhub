@@ -113,14 +113,19 @@ function initWatchAdButton() {
     }
 }
 
-// Premium modal payment method toggle (Stars ↔ TON) with mode classes
+// Premium modal payment method toggle (Stars ↔ TON)
+// Now toggles both old and new prices
 function initPremiumPaymentToggle() {
     const toggleContainer = document.getElementById('premiumPaymentToggle');
     if (!toggleContainer) return;
 
-    const starsPriceSpan = document.querySelector('.premium-card .stars-price');
-    const tonPriceSpan = document.querySelector('.premium-card .ton-price');
+    const starsOldSpan = document.querySelector('.premium-card .old-price.stars-price');
+    const tonOldSpan = document.querySelector('.premium-card .old-price.ton-price');
+    const starsNewSpan = document.querySelector('.premium-card .new-price.stars-price');
+    const tonNewSpan = document.querySelector('.premium-card .new-price.ton-price');
     const premiumCard = document.querySelector('.premium-card');
+
+    if (!starsOldSpan || !tonOldSpan || !starsNewSpan || !tonNewSpan) return;
 
     toggleContainer.querySelectorAll('.seg-option').forEach(btn => {
         btn.addEventListener('click', (e) => {
@@ -130,13 +135,17 @@ function initPremiumPaymentToggle() {
 
             const method = btn.dataset.payment;
             if (method === 'stars') {
-                starsPriceSpan.style.display = 'block';
-                tonPriceSpan.style.display = 'none';
+                starsOldSpan.style.display = 'block';
+                tonOldSpan.style.display = 'none';
+                starsNewSpan.style.display = 'block';
+                tonNewSpan.style.display = 'none';
                 premiumCard.classList.remove('payment-mode-ton');
                 premiumCard.classList.add('payment-mode-stars');
             } else {
-                starsPriceSpan.style.display = 'none';
-                tonPriceSpan.style.display = 'block';
+                starsOldSpan.style.display = 'none';
+                tonOldSpan.style.display = 'block';
+                starsNewSpan.style.display = 'none';
+                tonNewSpan.style.display = 'block';
                 premiumCard.classList.remove('payment-mode-stars');
                 premiumCard.classList.add('payment-mode-ton');
             }
