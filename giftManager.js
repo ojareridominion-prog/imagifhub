@@ -130,96 +130,13 @@ function showThankYouModal(giftName, giftEmoji) {
     setTimeout(() => modal.remove(), 2000);
 }
 
-// Open gift drawer
-export function showGiftDrawer() {
-    if (currentGiftDrawerOpen) return;
-    closeMenuIfOpen();
-    const drawer = document.getElementById('giftDrawer');
-    const overlay = document.getElementById('drawerOverlay');
-    if (!drawer) return;
-    drawer.classList.add('open');
-    overlay.classList.add('active');
-    overlay.style.pointerEvents = 'auto';
-    document.body.style.overflow = 'hidden';
-    currentGiftDrawerOpen = true;
-    renderGiftDrawerContent();
+// Helper: convert stars to TON (1.12 TON = 99 stars)
+function starsToTon(stars) {
+    const ton = (stars / 99) * 1.12;
+    return ton.toFixed(2);
 }
 
-// ========== FRICTIONLESS DRAG LOGIC ==========
-function handleDragStart(e) {
-    e.preventDefault();
-    isDragging = true;
-    dragStartY = e.type === 'touchstart' ? e.touches[0].clientY : e.clientY;
-    const drawer = document.getElementById('giftDrawer');
-    drawer.style.transition = 'none';
-}
-
-function handleDragMove(e) {
-    if (!isDragging) return;
-    
-    const clientY = e.type === 'touchmove' ? e.touches[0].clientY : e.clientY;
-    const deltaY = clientY - dragStartY;
-
-    if (deltaY > 0) {
-        const drawer = document.getElementById('giftDrawer');
-        drawer.style.transition = 'none';
-        drawer.style.transform = `translateY(${deltaY}px)`;
-    }
-}
-
-function handleDragEnd(e) {
-    if (!isDragging) return;
-    isDragging = false;
-
-    const drawer = document.getElementById('giftDrawer');
-    const overlay = document.getElementById('drawerOverlay');
-    
-    const clientY = e.type === 'touchend' ? e.changedTouches[0].clientY : e.clientY;
-    const deltaY = clientY - dragStartY;
-
-    // Re‑enable transition
-    drawer.style.transition = 'transform 0.4s cubic-bezier(0.16, 1, 0.3, 1)';
-    
-    requestAnimationFrame(() => {
-        if (deltaY > 100) {
-            // Slide all the way down
-            drawer.style.transform = `translateY(100%)`;
-            overlay.classList.remove('active');
-            
-            // After slide completes, fully close and reset
-            setTimeout(() => {
-                closeGiftDrawer();  // this resets class, transform, overlay, and state
-            }, 400);
-        } else {
-            // Snap back
-            drawer.style.transform = 'translateY(0)';
-            // No close, just reset transition after a short delay
-            setTimeout(() => {
-                if (!isDragging) drawer.style.transition = '';
-            }, 400);
-        }
-    });
-}
-
-function initDrawerDrag() {
-    const handle = document.getElementById('drawerDragHandle');
-    if (!handle) return;
-    handle.removeEventListener('touchstart', handleDragStart);
-    handle.removeEventListener('touchmove', handleDragMove);
-    handle.removeEventListener('touchend', handleDragEnd);
-    handle.removeEventListener('mousedown', handleDragStart);
-    handle.removeEventListener('mousemove', handleDragMove);
-    handle.removeEventListener('mouseup', handleDragEnd);
-    
-    handle.addEventListener('touchstart', handleDragStart, { passive: false });
-    handle.addEventListener('touchmove', handleDragMove);
-    handle.addEventListener('touchend', handleDragEnd);
-    handle.addEventListener('mousedown', handleDragStart);
-    window.addEventListener('mousemove', handleDragMove);
-    window.addEventListener('mouseup', handleDragEnd);
-}
-
-// Render gift items inside drawer
+// Render gift items inside drawer with both price options
 async function renderGiftDrawerContent() {
     const container = document.getElementById('giftDrawerContent');
     if (!container) return;
@@ -234,11 +151,15 @@ async function renderGiftDrawerContent() {
     for (const cat of categories) {
         html += `<div class="gift-category"><div class="gift-category-title">${cat.title}</div><div class="gift-items-grid">`;
         for (const gift of cat.items) {
+            const tonPrice = starsToTon(gift.price);
             html += `
-                <div class="gift-item" data-gift-id="${gift.id}" data-gift-name="${gift.name}" data-gift-emoji="${gift.emoji}" data-gift-price="${gift.price}" data-category="${gift.category}">
+                <div class="gift-item" data-gift-id="${gift.id}" data-gift-name="${gift.name}" data-gift-emoji="${gift.emoji}" data-stars-price="${gift.price}" data-ton-price="${tonPrice}" data-category="${gift.category}">
                     <div class="gift-emoji">${gift.emoji}</div>
                     <div class="gift-name">${gift.name}</div>
-                    <div class="gift-price">${gift.price} ⭐</div>
+                    <div class="gift-price-container">
+                        <span class="gift-price stars-price">${gift.price} ⭐</span>
+                        <span class="gift-price ton-price" style="display: none;">${tonPrice} TON</span>
+                    </div>
                     <button class="gift-send-btn">Send</button>
                 </div>
             `;
@@ -246,6 +167,22 @@ async function renderGiftDrawerContent() {
         html += `</div></div>`;
     }
     container.innerHTML = html;
+
+    // Apply current payment method visibility
+    const activeMethod = document.querySelector('#giftPaymentToggle .seg-option.active')?.dataset.payment || 'stars';
+    document.querySelectorAll('.gift-item').forEach(item => {
+        const starsSpan = item.querySelector('.stars-price');
+        const tonSpan = item.querySelector('.ton-price');
+        if (activeMethod === 'stars') {
+            starsSpan.style.display = 'block';
+            tonSpan.style.display = 'none';
+        } else {
+            starsSpan.style.display = 'none';
+            tonSpan.style.display = 'block';
+        }
+    });
+
+    // Attach send button listeners (unchanged)
     document.querySelectorAll('.gift-send-btn').forEach(btn => {
         btn.addEventListener('click', async (e) => {
             e.stopPropagation();
@@ -254,7 +191,7 @@ async function renderGiftDrawerContent() {
             const giftId = item.dataset.giftId;
             const giftName = item.dataset.giftName;
             const giftEmoji = item.dataset.giftEmoji;
-            const giftPrice = parseInt(item.dataset.giftPrice);
+            const giftPrice = parseInt(item.dataset.starsPrice);
             const category = item.dataset.category;
             await sendGift(giftId, giftName, giftEmoji, giftPrice, category);
         });
@@ -331,6 +268,123 @@ export async function refreshRecentGiftCard() {
     }
 }
 
+// Gift drawer payment method toggle (Stars ↔ TON)
+function initGiftPaymentToggle() {
+    const toggleContainer = document.getElementById('giftPaymentToggle');
+    if (!toggleContainer) return;
+    toggleContainer.querySelectorAll('.seg-option').forEach(btn => {
+        btn.addEventListener('click', async () => {
+            // Update active state
+            toggleContainer.querySelectorAll('.seg-option').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            const method = btn.dataset.payment;
+
+            // Update all gift item price displays
+            document.querySelectorAll('.gift-item').forEach(item => {
+                const starsSpan = item.querySelector('.stars-price');
+                const tonSpan = item.querySelector('.ton-price');
+                if (method === 'stars') {
+                    starsSpan.style.display = 'block';
+                    tonSpan.style.display = 'none';
+                } else {
+                    starsSpan.style.display = 'none';
+                    tonSpan.style.display = 'block';
+                }
+            });
+        });
+    });
+}
+
+// Open gift drawer
+export function showGiftDrawer() {
+    if (currentGiftDrawerOpen) return;
+    closeMenuIfOpen();
+    const drawer = document.getElementById('giftDrawer');
+    const overlay = document.getElementById('drawerOverlay');
+    if (!drawer) return;
+    drawer.classList.add('open');
+    overlay.classList.add('active');
+    overlay.style.pointerEvents = 'auto';
+    document.body.style.overflow = 'hidden';
+    currentGiftDrawerOpen = true;
+    renderGiftDrawerContent();
+    initGiftPaymentToggle();     // ensure toggle works after render
+}
+
+// ========== FRICTIONLESS DRAG LOGIC ==========
+function handleDragStart(e) {
+    e.preventDefault();
+    isDragging = true;
+    dragStartY = e.type === 'touchstart' ? e.touches[0].clientY : e.clientY;
+    const drawer = document.getElementById('giftDrawer');
+    drawer.style.transition = 'none';
+}
+
+function handleDragMove(e) {
+    if (!isDragging) return;
+    
+    const clientY = e.type === 'touchmove' ? e.touches[0].clientY : e.clientY;
+    const deltaY = clientY - dragStartY;
+
+    if (deltaY > 0) {
+        const drawer = document.getElementById('giftDrawer');
+        drawer.style.transition = 'none';
+        drawer.style.transform = `translateY(${deltaY}px)`;
+    }
+}
+
+function handleDragEnd(e) {
+    if (!isDragging) return;
+    isDragging = false;
+
+    const drawer = document.getElementById('giftDrawer');
+    const overlay = document.getElementById('drawerOverlay');
+    
+    const clientY = e.type === 'touchend' ? e.changedTouches[0].clientY : e.clientY;
+    const deltaY = clientY - dragStartY;
+
+    // Re‑enable transition
+    drawer.style.transition = 'transform 0.4s cubic-bezier(0.16, 1, 0.3, 1)';
+    
+    requestAnimationFrame(() => {
+        if (deltaY > 100) {
+            // Slide all the way down
+            drawer.style.transform = `translateY(100%)`;
+            overlay.classList.remove('active');
+            
+            // After slide completes, fully close and reset
+            setTimeout(() => {
+                closeGiftDrawer();  // this resets class, transform, overlay, and state
+            }, 400);
+        } else {
+            // Snap back
+            drawer.style.transform = 'translateY(0)';
+            // No close, just reset transition after a short delay
+            setTimeout(() => {
+                if (!isDragging) drawer.style.transition = '';
+            }, 400);
+        }
+    });
+}
+
+function initDrawerDrag() {
+    const handle = document.getElementById('drawerDragHandle');
+    if (!handle) return;
+    handle.removeEventListener('touchstart', handleDragStart);
+    handle.removeEventListener('touchmove', handleDragMove);
+    handle.removeEventListener('touchend', handleDragEnd);
+    handle.removeEventListener('mousedown', handleDragStart);
+    handle.removeEventListener('mousemove', handleDragMove);
+    handle.removeEventListener('mouseup', handleDragEnd);
+    
+    handle.addEventListener('touchstart', handleDragStart, { passive: false });
+    handle.addEventListener('touchmove', handleDragMove);
+    handle.addEventListener('touchend', handleDragEnd);
+    handle.addEventListener('mousedown', handleDragStart);
+    window.addEventListener('mousemove', handleDragMove);
+    window.addEventListener('mouseup', handleDragEnd);
+}
+
 // Initialize gift system
 export async function initGiftSystem() {
     await loadGifts();
@@ -350,4 +404,4 @@ export async function initGiftSystem() {
     initDrawerDrag();
     
     await refreshRecentGiftCard();
-}
+    }
