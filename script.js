@@ -120,6 +120,7 @@ function initPremiumPaymentToggle() {
 
     const starsPriceSpan = document.querySelector('.premium-card .stars-price');
     const tonPriceSpan = document.querySelector('.premium-card .ton-price');
+    const premiumCard = document.querySelector('.premium-card');
 
     toggleContainer.querySelectorAll('.seg-option').forEach(btn => {
         btn.addEventListener('click', (e) => {
@@ -131,12 +132,25 @@ function initPremiumPaymentToggle() {
             if (method === 'stars') {
                 starsPriceSpan.style.display = 'block';
                 tonPriceSpan.style.display = 'none';
+                // Add mode class to premium card
+                premiumCard.classList.remove('payment-mode-ton');
+                premiumCard.classList.add('payment-mode-stars');
             } else {
                 starsPriceSpan.style.display = 'none';
                 tonPriceSpan.style.display = 'block';
+                premiumCard.classList.remove('payment-mode-stars');
+                premiumCard.classList.add('payment-mode-ton');
             }
         });
     });
+
+    // Set initial state (default Stars)
+    const activeBtn = toggleContainer.querySelector('.seg-option.active');
+    if (activeBtn && activeBtn.dataset.payment === 'stars') {
+        premiumCard.classList.add('payment-mode-stars');
+    } else {
+        premiumCard.classList.add('payment-mode-ton');
+    }
 }
 
 // Initialization
