@@ -100,7 +100,7 @@ async def on_successful_payment(message: Message):
                 else:
                     await message.answer(
                         f"🎁 Thank you for sending {gift['emoji']} {gift['name']}!\n"
-                        f"Your gift has been recorded. Enjoy the confetti! 🎉"
+                        f"Your gift has been received.!"
                     )
                 return
 
