@@ -14,6 +14,7 @@ const themesList = [
     {id: "theme-violet", top: "#16001f", bottom: "#f0b3ff"}
 ];
 
+// Get menu overlay element
 function getMenuOverlay() {
     return document.getElementById('menuOverlay');
 }
@@ -36,6 +37,7 @@ export function toggleMenu() {
         document.body.style.overflow = '';
     }
 
+    // ✅ Safety: guarantee that overlay loses pointer events when closed
     if (!panel.classList.contains('open')) {
         overlay.style.pointerEvents = 'none';
         overlay.style.visibility = 'hidden';
@@ -45,6 +47,7 @@ export function toggleMenu() {
     }
 }
 
+// Close menu when clicking on overlay
 function initMenuOverlay() {
     const overlay = getMenuOverlay();
     if (overlay) {
@@ -62,9 +65,103 @@ export function applyTheme(themeId) {
     localStorage.setItem("imagifhub-theme", themeId);
 }
 
+// ==================== SEARCH PANEL LOGIC ====================
+let searchPanelOpen = false;
+let globalClickHandler = null;
+
+function closeSearchPanel() {
+    if (!searchPanelOpen) return;
+    const panel = document.getElementById('searchPanel');
+    const searchBtn = document.getElementById('searchBtn');
+    if (panel) panel.classList.remove('open');
+    if (searchBtn) searchBtn.innerHTML = '🔍';
+    document.body.classList.remove('search-open');
+    searchPanelOpen = false;
+    // Remove global click listener
+    if (globalClickHandler) {
+        document.removeEventListener('click', globalClickHandler);
+        globalClickHandler = null;
+    }
+    // Clear input value
+    const input = document.getElementById('searchInput');
+    if (input) input.value = '';
+}
+
+function openSearchPanel() {
+    if (searchPanelOpen) return;
+    const panel = document.getElementById('searchPanel');
+    const searchBtn = document.getElementById('searchBtn');
+    if (panel) panel.classList.add('open');
+    if (searchBtn) searchBtn.innerHTML = '✕';
+    document.body.classList.add('search-open');
+    searchPanelOpen = true;
+    
+    // Focus input after panel opens
+    setTimeout(() => {
+        const input = document.getElementById('searchInput');
+        if (input) input.focus();
+    }, 100);
+    
+    // Set up global click listener to close when clicking outside
+    if (globalClickHandler) document.removeEventListener('click', globalClickHandler);
+    globalClickHandler = (e) => {
+        if (!searchPanelOpen) return;
+        const panel = document.getElementById('searchPanel');
+        const searchBtn = document.getElementById('searchBtn');
+        // If click is inside panel or on search button, don't close
+        if (panel && panel.contains(e.target)) return;
+        if (searchBtn && searchBtn.contains(e.target)) return;
+        // Otherwise close
+        closeSearchPanel();
+    };
+    document.addEventListener('click', globalClickHandler);
+}
+
+function performSearch() {
+    const input = document.getElementById('searchInput');
+    const query = input.value.trim();
+    if (query === "") return;
+    
+    // Close search panel
+    closeSearchPanel();
+    
+    // Trigger search via loadFeed (skip interstitial ad)
+    if (window.loadFeed) {
+        window.loadFeed(state.currentCategory, query, true);
+    } else {
+        console.warn("loadFeed not available");
+    }
+}
+
 export function triggerSearch() {
-    // Old prompt-based search – replaced with expandable panel
-    toggleSearchPanel();
+    if (searchPanelOpen) {
+        closeSearchPanel();
+    } else {
+        openSearchPanel();
+    }
+}
+
+// Initialize search panel event listeners
+function initSearchPanel() {
+    const submitBtn = document.getElementById('searchSubmitBtn');
+    const searchInput = document.getElementById('searchInput');
+    if (submitBtn) {
+        submitBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            performSearch();
+        });
+    }
+    if (searchInput) {
+        searchInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                e.stopPropagation();
+                performSearch();
+            }
+        });
+        // Prevent click propagation to document when clicking inside input
+        searchInput.addEventListener('click', (e) => e.stopPropagation());
+    }
 }
 
 export async function shareBot() {
@@ -85,66 +182,56 @@ export async function shareBot() {
 export function openPremium() {
     const panel = document.getElementById('menuPanel');
     const overlay = getMenuOverlay();
-    if (panel && panel.classList.contains('open')) {
+    if (panel.classList.contains('open')) {
         panel.classList.remove('open');
-        if (overlay) overlay.classList.remove('active');
+        overlay.classList.remove('active');
         document.body.style.overflow = '';
     }
-    const modal = document.getElementById('premiumModal');
-    if (modal) modal.classList.add('active');
+    document.getElementById('premiumModal').classList.add('active');
 }
 
 export function closePremium() {
-    const modal = document.getElementById('premiumModal');
-    if (modal) modal.classList.remove('active');
+    document.getElementById('premiumModal').classList.remove('active');
 }
 
 export function openCopyright() {
     const panel = document.getElementById('menuPanel');
     const overlay = getMenuOverlay();
-    if (panel && panel.classList.contains('open')) {
+    if (panel.classList.contains('open')) {
         panel.classList.remove('open');
-        if (overlay) overlay.classList.remove('active');
+        overlay.classList.remove('active');
         document.body.style.overflow = '';
     }
-    const modal = document.getElementById('copyrightModal');
-    if (modal) modal.classList.add('active');
+    document.getElementById('copyrightModal').classList.add('active');
 }
 
 export function closeCopyright() {
-    const modal = document.getElementById('copyrightModal');
-    if (modal) modal.classList.remove('active');
+    document.getElementById('copyrightModal').classList.remove('active');
 }
 
 export function openPrivacy() {
     const panel = document.getElementById('menuPanel');
     const overlay = getMenuOverlay();
-    if (panel && panel.classList.contains('open')) {
+    if (panel.classList.contains('open')) {
         panel.classList.remove('open');
-        if (overlay) overlay.classList.remove('active');
+        overlay.classList.remove('active');
         document.body.style.overflow = '';
     }
-    const modal = document.getElementById('privacyModal');
-    if (modal) modal.classList.add('active');
+    document.getElementById('privacyModal').classList.add('active');
 }
 
 export function closePrivacy() {
-    const modal = document.getElementById('privacyModal');
-    if (modal) modal.classList.remove('active');
+    document.getElementById('privacyModal').classList.remove('active');
 }
 
 export function copyUserId() {
-    const userIdSpan = document.getElementById('userId');
-    if (!userIdSpan) return;
-    const userId = userIdSpan.innerText;
+    const userId = document.getElementById('userId').innerText;
     if (userId && userId !== '-') {
         navigator.clipboard.writeText(userId).then(() => {
             const btn = document.getElementById('copyIdBtn');
-            if (btn) {
-                const originalText = btn.innerText;
-                btn.innerText = '✅ Copied!';
-                setTimeout(() => { btn.innerText = originalText; }, 1500);
-            }
+            const originalText = btn.innerText;
+            btn.innerText = '✅ Copied!';
+            setTimeout(() => { btn.innerText = originalText; }, 1500);
         }).catch(err => console.error('Failed to copy: ', err));
     }
 }
@@ -168,107 +255,19 @@ function updateDarkTextIndicator() {
 export function initUI() {
     applyDarkText();
     updateDarkTextIndicator();
-
     const savedTheme = localStorage.getItem("imagifhub-theme") || "theme-black";
     applyTheme(savedTheme);
-
-    const themeGrid = document.getElementById('themeGrid');
-    if (themeGrid) {
-        themeGrid.innerHTML = themesList.map(t => `
-            <div class="theme-circle" onclick="applyTheme('${t.id}')">
-                <div style="background:${t.top}"></div>
-                <div style="background:${t.bottom}"></div>
-            </div>
-        `).join('');
-    }
-
+    // Build theme grid
+    document.getElementById('themeGrid').innerHTML = themesList.map(t => `
+        <div class="theme-circle" onclick="applyTheme('${t.id}')">
+            <div style="background:${t.top}"></div>
+            <div style="background:${t.bottom}"></div>
+        </div>
+    `).join('');
+    
+    // Initialize menu overlay click handler
     initMenuOverlay();
-}
-
-// ========== NEW EXPANDABLE SEARCH PANEL ==========
-let searchPanelOpen = false;
-
-function toggleSearchPanel() {
-    if (searchPanelOpen) {
-        closeSearchPanel();
-    } else {
-        openSearchPanel();
-    }
-}
-
-function openSearchPanel() {
-    const panel = document.getElementById('searchPanel');
-    const searchBtn = document.getElementById('searchBtn');
-    if (!panel) return;
-    panel.classList.add('open');
-    if (searchBtn) searchBtn.innerHTML = '✖';
-    searchPanelOpen = true;
-    setTimeout(() => {
-        const input = document.getElementById('searchInput');
-        if (input) input.focus();
-    }, 200);
-    document.addEventListener('click', handleOutsideClickForSearch);
-    document.addEventListener('keydown', handleEscKeyForSearch);
-}
-
-function closeSearchPanel() {
-    const panel = document.getElementById('searchPanel');
-    const searchBtn = document.getElementById('searchBtn');
-    if (!panel) return;
-    panel.classList.remove('open');
-    if (searchBtn) searchBtn.innerHTML = '🔍';
-    searchPanelOpen = false;
-    const input = document.getElementById('searchInput');
-    if (input) input.value = '';
-    document.removeEventListener('click', handleOutsideClickForSearch);
-    document.removeEventListener('keydown', handleEscKeyForSearch);
-}
-
-function handleOutsideClickForSearch(e) {
-    const panel = document.getElementById('searchPanel');
-    const searchBtn = document.getElementById('searchBtn');
-    if (!panel) return;
-    if (panel.contains(e.target) || (searchBtn && searchBtn.contains(e.target))) return;
-    closeSearchPanel();
-}
-
-function handleEscKeyForSearch(e) {
-    if (e.key === 'Escape') closeSearchPanel();
-}
-
-function performSearch() {
-    const input = document.getElementById('searchInput');
-    const query = input.value.trim();
-    if (!query) return;
-    resetAndLoadFeed("Discover", query, true);
-    closeSearchPanel();
-}
-
-// Attach event listeners after DOM is ready (called from script.js)
-export function initSearchPanel() {
-    const searchBtn = document.getElementById('searchBtn');
-    const searchSubmit = document.getElementById('searchSubmitBtn');
-    const searchInput = document.getElementById('searchInput');
-
-    if (searchBtn) {
-        searchBtn.onclick = (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            toggleSearchPanel();
-        };
-    }
-    if (searchSubmit) {
-        searchSubmit.onclick = (e) => {
-            e.preventDefault();
-            performSearch();
-        };
-    }
-    if (searchInput) {
-        searchInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                e.preventDefault();
-                performSearch();
-            }
-        });
-    }
+    
+    // Initialize search panel
+    initSearchPanel();
 }
