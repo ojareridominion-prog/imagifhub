@@ -23,8 +23,18 @@ async function fetchRandomImages(category = state.currentCategory, search = "", 
             state.hasMoreImages = false;
             return [];
         }
-        const seenHistory = new Set(getSeenList());
-        const filtered = newImages.filter(img => !state.sessionSeenUrls.has(img.url) && !seenHistory.has(img.url));
+        
+        // For search: ignore localStorage seen history, only filter by current session
+        const isSearchActive = search && search.trim().length > 0;
+        let seenHistory = new Set();
+        if (!isSearchActive) {
+            seenHistory = new Set(getSeenList());
+        }
+        
+        const filtered = newImages.filter(img => 
+            !state.sessionSeenUrls.has(img.url) && !seenHistory.has(img.url)
+        );
+        
         if (filtered.length < 10 && retryCount < MAX_RETRIES) {
             const more = await fetchRandomImages(category, search, retryCount + 1);
             const combined = [...filtered, ...more];
@@ -38,6 +48,7 @@ async function fetchRandomImages(category = state.currentCategory, search = "", 
             }
             return uniqueCombined;
         }
+        
         filtered.forEach(img => state.sessionSeenUrls.add(img.url));
         return filtered;
     } catch (e) {
@@ -233,4 +244,4 @@ export async function resetAndLoadFeed(cat, search = "", skipAd = false) {
 
 export async function loadFeed(cat, search = "", skipAd = false) {
     await resetAndLoadFeed(cat, search, skipAd);
-            }
+                                       }
