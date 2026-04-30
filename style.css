@@ -863,3 +863,46 @@ body.search-open {
     font-weight: bold;
     color: #ffd700;
 }
+
+/* ===== PAYMENT MODE THEMES (Stars vs TON) ===== */
+/* Stars mode – warm yellow/orange glass */
+.premium-card.payment-mode-stars {
+    background: linear-gradient(135deg, #1a1a1a, #3d2a1a);
+    border-top: 2px solid #ffb347;
+    border-bottom: 2px solid #ffb347;
+}
+.premium-card.payment-mode-ton {
+    background: linear-gradient(135deg, #1a1a2e, #0a2a4a);
+    border-top: 2px solid #4d9eff;
+    border-bottom: 2px solid #4d9eff;
+}
+
+/* Gift drawer mode themes */
+.gift-drawer.mode-stars {
+    background: rgba(40, 25, 10, 0.95);
+    backdrop-filter: blur(20px);
+    border-top: 2px solid #ffb347;
+}
+.gift-drawer.mode-ton {
+    background: rgba(10, 30, 50, 0.95);
+    backdrop-filter: blur(20px);
+    border-top: 2px solid #4d9eff;
+}
+
+/* Active segment button styling for each mode */
+.payment-segmented .seg-option.active[data-payment="stars"] {
+    background: linear-gradient(135deg, #ffb347, #ff8c00);
+    color: white;
+    box-shadow: 0 0 12px rgba(255, 140, 0, 0.5);
+}
+.payment-segmented .seg-option.active[data-payment="ton"] {
+    background: linear-gradient(135deg, #4d9eff, #0066cc);
+    color: white;
+    box-shadow: 0 0 12px rgba(77, 158, 255, 0.5);
+}
+
+/* Inactive segments remain neutral */
+.seg-option {
+    background: rgba(255, 255, 255, 0.1);
+    color: rgba(255, 255, 255, 0.8);
+}
