@@ -145,12 +145,14 @@ export function triggerSearch() {
 function initSearchPanel() {
     const submitBtn = document.getElementById('searchSubmitBtn');
     const searchInput = document.getElementById('searchInput');
+    
     if (submitBtn) {
         submitBtn.addEventListener('click', (e) => {
             e.stopPropagation();
             performSearch();
         });
     }
+    
     if (searchInput) {
         searchInput.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') {
