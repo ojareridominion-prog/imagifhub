@@ -14,6 +14,7 @@ const themesList = [
     {id: "theme-violet", top: "#16001f", bottom: "#f0b3ff"}
 ];
 
+// Get menu overlay element
 function getMenuOverlay() {
     return document.getElementById('menuOverlay');
 }
@@ -22,7 +23,6 @@ function getMenuOverlay() {
 let isSearchPanelOpen = false;
 let searchCloseHandler = null;
 
-// ----- CLOSE SEARCH PANEL (defined first so it can be used anywhere) -----
 function closeSearchPanel() {
     const panel = document.getElementById('searchPanel');
     const catBar = document.getElementById('catBar');
@@ -34,16 +34,13 @@ function closeSearchPanel() {
     searchBtn.innerText = '🔍';
     isSearchPanelOpen = false;
     
-    // Remove global click listener
     if (searchCloseHandler) {
         document.removeEventListener('click', searchCloseHandler);
         searchCloseHandler = null;
     }
-    // Remove escape listener
     document.removeEventListener('keydown', handleEscape);
 }
 
-// ----- OPEN SEARCH PANEL -----
 function openSearchPanel() {
     const panel = document.getElementById('searchPanel');
     const catBar = document.getElementById('catBar');
@@ -92,7 +89,6 @@ function submitSearch() {
     }
 }
 
-// ----- TRIGGER SEARCH (toggle) -----
 export function triggerSearch() {
     if (isSearchPanelOpen) {
         closeSearchPanel();
@@ -101,158 +97,11 @@ export function triggerSearch() {
     }
 }
 
-// Expose for global use (if needed)
+// Expose globally (for any inline handlers)
 window.triggerSearch = triggerSearch;
 window.closeSearchPanel = closeSearchPanel;
 
-// ----- MENU TOGGLE (now safe because closeSearchPanel already exists) -----
-export function toggleMenu() {
-    const panel = document.getElementById('menuPanel');
-    const overlay = document.getElementById('menuOverlay');
-    if (!panel || !overlay) return;
-
-    const isOpen = panel.classList.contains('open');
-
-    if (!isOpen) {
-        panel.classList.add('open');
-        overlay.classList.add('active');
-        document.body.style.overflow = 'hidden';
-        verifyPremiumStatus();
-        // Close search panel if open
-        if (typeof closeSearchPanel === 'function') closeSearchPanel();
-    } else {
-        panel.classList.remove('open');
-        overlay.classList.remove('active');
-        document.body.style.overflow = '';
-    }
-
-    if (!panel.classList.contains('open')) {
-        overlay.style.pointerEvents = 'none';
-        overlay.style.visibility = 'hidden';
-    } else {
-        overlay.style.pointerEvents = '';
-        overlay.style.visibility = '';
-    }
-}
-
-function initMenuOverlay() {
-    const overlay = getMenuOverlay();
-    if (overlay) {
-        overlay.addEventListener('click', () => {
-            const panel = document.getElementById('menuPanel');
-            if (panel && panel.classList.contains('open')) {
-                toggleMenu();
-            }
-        });
-    }
-}
-
-export function applyTheme(themeId) {
-    themesList.forEach(t => document.body.classList.remove(t.id));
-    if (themeId !== "theme-black") document.body.classList.add(themeId);
-    localStorage.setItem("imagifhub-theme", themeId);
-}
-
-// ----- SHARE BOT -----
-export async function shareBot() {
-    const shareData = {
-        title: 'IMAGIFHUB',
-        text: '‎SnapShot 📸 - Your vibe, your view. Swipe, zoom, vibe 🎉. Effortless image magic ✨. 😊‎',
-        url: 'https://t.me/IMAGIFHUB_bot'
-    };
-    try {
-        if (navigator.share) await navigator.share(shareData);
-        else {
-            await navigator.clipboard.writeText(`${shareData.text} ${shareData.url}`);
-            alert('Link & Text copied to clipboard!');
-        }
-    } catch (err) { console.log('Error sharing:', err); }
-}
-
-// ----- PREMIUM MODALS -----
-export function openPremium() {
-    const panel = document.getElementById('menuPanel');
-    const overlay = getMenuOverlay();
-    if (panel && panel.classList.contains('open')) {
-        panel.classList.remove('open');
-        if (overlay) overlay.classList.remove('active');
-        document.body.style.overflow = '';
-    }
-    const modal = document.getElementById('premiumModal');
-    if (modal) modal.classList.add('active');
-}
-
-export function closePremium() {
-    const modal = document.getElementById('premiumModal');
-    if (modal) modal.classList.remove('active');
-}
-
-export function openCopyright() {
-    const panel = document.getElementById('menuPanel');
-    const overlay = getMenuOverlay();
-    if (panel && panel.classList.contains('open')) {
-        panel.classList.remove('open');
-        if (overlay) overlay.classList.remove('active');
-        document.body.style.overflow = '';
-    }
-    const modal = document.getElementById('copyrightModal');
-    if (modal) modal.classList.add('active');
-}
-
-export function closeCopyright() {
-    const modal = document.getElementById('copyrightModal');
-    if (modal) modal.classList.remove('active');
-}
-
-export function openPrivacy() {
-    const panel = document.getElementById('menuPanel');
-    const overlay = getMenuOverlay();
-    if (panel && panel.classList.contains('open')) {
-        panel.classList.remove('open');
-        if (overlay) overlay.classList.remove('active');
-        document.body.style.overflow = '';
-    }
-    const modal = document.getElementById('privacyModal');
-    if (modal) modal.classList.add('active');
-}
-
-export function closePrivacy() {
-    const modal = document.getElementById('privacyModal');
-    if (modal) modal.classList.remove('active');
-}
-
-export function copyUserId() {
-    const userIdSpan = document.getElementById('userId');
-    const userId = userIdSpan ? userIdSpan.innerText : '';
-    if (userId && userId !== '-') {
-        navigator.clipboard.writeText(userId).then(() => {
-            const btn = document.getElementById('copyIdBtn');
-            if (btn) {
-                const originalText = btn.innerText;
-                btn.innerText = '✅ Copied!';
-                setTimeout(() => { btn.innerText = originalText; }, 1500);
-            }
-        }).catch(err => console.error('Failed to copy: ', err));
-    }
-}
-
-export function toggleDarkText() {
-    state.darkTextEnabled = !state.darkTextEnabled;
-    localStorage.setItem('imagifhub-darktext', state.darkTextEnabled);
-    applyDarkText();
-    updateDarkTextIndicator();
-}
-
-function applyDarkText() {
-    document.body.classList.toggle('dark-text', state.darkTextEnabled);
-}
-
-function updateDarkTextIndicator() {
-    const indicator = document.getElementById('darkTextIndicator');
-    if (indicator) indicator.innerText = state.darkTextEnabled ? 'ON' : 'OFF';
-}
-
-// ----- INITIALIZE UI -----
+// Initialize search panel listeners
 function initSearchPanel() {
     const searchBtn = document.getElementById('searchBtn');
     const submitBtn = document.getElementById('searchSubmitBtn');
@@ -279,12 +128,147 @@ function initSearchPanel() {
     }
 }
 
+// ----- ORIGINAL FUNCTIONS (unchanged except adding closeSearchPanel in toggleMenu) -----
+export function toggleMenu() {
+    const panel = document.getElementById('menuPanel');
+    const overlay = document.getElementById('menuOverlay');
+    if (!panel || !overlay) return;
+
+    const isOpen = panel.classList.contains('open');
+
+    if (!isOpen) {
+        panel.classList.add('open');
+        overlay.classList.add('active');
+        document.body.style.overflow = 'hidden';
+        verifyPremiumStatus();
+        // Close search panel if open
+        closeSearchPanel();
+    } else {
+        panel.classList.remove('open');
+        overlay.classList.remove('active');
+        document.body.style.overflow = '';
+    }
+
+    if (!panel.classList.contains('open')) {
+        overlay.style.pointerEvents = 'none';
+        overlay.style.visibility = 'hidden';
+    } else {
+        overlay.style.pointerEvents = '';
+        overlay.style.visibility = '';
+    }
+}
+
+function initMenuOverlay() {
+    const overlay = getMenuOverlay();
+    if (overlay) {
+        overlay.addEventListener('click', () => {
+            if (document.getElementById('menuPanel').classList.contains('open')) {
+                toggleMenu();
+            }
+        });
+    }
+}
+
+export function applyTheme(themeId) {
+    themesList.forEach(t => document.body.classList.remove(t.id));
+    if (themeId !== "theme-black") document.body.classList.add(themeId);
+    localStorage.setItem("imagifhub-theme", themeId);
+}
+
+export async function shareBot() {
+    const shareData = {
+        title: 'IMAGIFHUB',
+        text: '‎SnapShot 📸 - Your vibe, your view. Swipe, zoom, vibe 🎉. Effortless image magic ✨. 😊‎',
+        url: 'https://t.me/IMAGIFHUB_bot'
+    };
+    try {
+        if (navigator.share) await navigator.share(shareData);
+        else {
+            await navigator.clipboard.writeText(`${shareData.text} ${shareData.url}`);
+            alert('Link & Text copied to clipboard!');
+        }
+    } catch (err) { console.log('Error sharing:', err); }
+}
+
+export function openPremium() {
+    const panel = document.getElementById('menuPanel');
+    const overlay = getMenuOverlay();
+    if (panel.classList.contains('open')) {
+        panel.classList.remove('open');
+        overlay.classList.remove('active');
+        document.body.style.overflow = '';
+    }
+    document.getElementById('premiumModal').classList.add('active');
+}
+
+export function closePremium() {
+    document.getElementById('premiumModal').classList.remove('active');
+}
+
+export function openCopyright() {
+    const panel = document.getElementById('menuPanel');
+    const overlay = getMenuOverlay();
+    if (panel.classList.contains('open')) {
+        panel.classList.remove('open');
+        overlay.classList.remove('active');
+        document.body.style.overflow = '';
+    }
+    document.getElementById('copyrightModal').classList.add('active');
+}
+
+export function closeCopyright() {
+    document.getElementById('copyrightModal').classList.remove('active');
+}
+
+export function openPrivacy() {
+    const panel = document.getElementById('menuPanel');
+    const overlay = getMenuOverlay();
+    if (panel.classList.contains('open')) {
+        panel.classList.remove('open');
+        overlay.classList.remove('active');
+        document.body.style.overflow = '';
+    }
+    document.getElementById('privacyModal').classList.add('active');
+}
+
+export function closePrivacy() {
+    document.getElementById('privacyModal').classList.remove('active');
+}
+
+export function copyUserId() {
+    const userId = document.getElementById('userId').innerText;
+    if (userId && userId !== '-') {
+        navigator.clipboard.writeText(userId).then(() => {
+            const btn = document.getElementById('copyIdBtn');
+            const originalText = btn.innerText;
+            btn.innerText = '✅ Copied!';
+            setTimeout(() => { btn.innerText = originalText; }, 1500);
+        }).catch(err => console.error('Failed to copy: ', err));
+    }
+}
+
+export function toggleDarkText() {
+    state.darkTextEnabled = !state.darkTextEnabled;
+    localStorage.setItem('imagifhub-darktext', state.darkTextEnabled);
+    applyDarkText();
+    updateDarkTextIndicator();
+}
+
+function applyDarkText() {
+    document.body.classList.toggle('dark-text', state.darkTextEnabled);
+}
+
+function updateDarkTextIndicator() {
+    const indicator = document.getElementById('darkTextIndicator');
+    if (indicator) indicator.innerText = state.darkTextEnabled ? 'ON' : 'OFF';
+}
+
 export function initUI() {
     applyDarkText();
     updateDarkTextIndicator();
     const savedTheme = localStorage.getItem("imagifhub-theme") || "theme-black";
     applyTheme(savedTheme);
-    
+    // Build theme grid
     const themeGrid = document.getElementById('themeGrid');
     if (themeGrid) {
         themeGrid.innerHTML = themesList.map(t => `
@@ -297,4 +281,4 @@ export function initUI() {
     
     initMenuOverlay();
     initSearchPanel();
-        }
+            }
