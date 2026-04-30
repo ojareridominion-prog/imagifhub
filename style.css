@@ -715,7 +715,7 @@ body.dark-text .description-text {
 /* Container for alignment */
 .search-container {
     width: 100%;
-    max-width: 450px; /* reduced to fit button on smaller screens */
+    max-width: 500px; /* reduced to fit button on smaller screens */
     margin: 0 auto;
 }
 
@@ -763,11 +763,11 @@ body.dark-text .description-text {
     background: var(--accent, #9c4dff);
     color: white;
     border: none;
-    padding: 8px 14px;
+    padding: 10px 20px;
     margin-right: 0; /* pull leftward */
     border-radius: 8px;
     font-weight: 600;
-    font-size: 13px;
+    font-size: 14px;
     cursor: pointer;
     transition: background 0.2s, transform 0.1s;
     font-family: inherit;
