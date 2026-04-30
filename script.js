@@ -9,14 +9,13 @@ import { loadFeed, resetAndLoadFeed } from './feedManager.js';
 import { 
     toggleMenu, applyTheme, triggerSearch, shareBot, 
     openPremium, closePremium, openCopyright, closeCopyright, 
-    openPrivacy, closePrivacy, copyUserId, toggleDarkText, initUI 
+    openPrivacy, closePrivacy, copyUserId, toggleDarkText, initUI, initSearchPanel 
 } from './uiManager.js';
 import { initGiftSystem, refreshRecentGiftCard, showGiftDrawer } from './giftManager.js';
 
 const API_URL = "https://imagifhub.onrender.com";
 
-// ========== EXPOSE ALL GLOBALS FOR INLINE ONCLICK ==========
-// These assignments happen immediately when the module loads.
+// Expose globals for HTML onclick
 window.loadFeed = loadFeed;
 window.toggleMenu = toggleMenu;
 window.toggleMute = toggleMute;
@@ -25,7 +24,7 @@ window.applyTheme = applyTheme;
 window.shareBot = shareBot;
 window.openPremium = openPremium;
 window.closePremium = closePremium;
-window.goPremium = goPremium;        // defined below
+window.goPremium = goPremium;
 window.verifyPremiumStatus = verifyPremiumStatus;
 window.toggleDarkText = toggleDarkText;
 window.openCopyright = openCopyright;
@@ -34,7 +33,7 @@ window.copyUserId = copyUserId;
 window.openPrivacy = openPrivacy;
 window.closePrivacy = closePrivacy;
 
-// ========== PREMIUM PAYMENT ==========
+// Payment function
 async function goPremium() {
     const tg = window.Telegram.WebApp;
     const statusEl = document.getElementById('paymentStatus');
@@ -116,7 +115,7 @@ function initWatchAdButton() {
     }
 }
 
-// ========== INITIALIZATION ==========
+// Initialization
 window.onload = async () => {
     const tg = window.Telegram.WebApp;
     if (tg && tg.expand) tg.expand();
@@ -132,10 +131,9 @@ window.onload = async () => {
         ).join('');
     }
 
-    // Initialize UI (attaches search panel events)
     initUI();
+    initSearchPanel();   // <-- ADD THIS LINE to attach search panel events
 
-    // Music ended handler
     const audioElem = document.getElementById('bgMusic');
     if (audioElem) {
         audioElem.addEventListener('ended', () => {
@@ -147,12 +145,10 @@ window.onload = async () => {
     setupAdButtonListeners();
     addManualPremiumCheck();
 
-    // Gift system
     await initGiftSystem();
     const openGiftMenuBtn = document.getElementById('openGiftFromMenuBtn');
     if (openGiftMenuBtn) openGiftMenuBtn.addEventListener('click', () => showGiftDrawer());
 
-    // Welcome overlay
     const welcomeOverlay = document.getElementById('welcomeOverlay');
     const continueBtn = document.getElementById('welcomeContinueBtn');
     if (welcomeOverlay && continueBtn) {
@@ -169,7 +165,6 @@ window.onload = async () => {
         loadFeed("Discover", "", true);
     }
 
-    // Festive title
     const titleEl = document.querySelector('.top-bar h2');
     if (titleEl) titleEl.innerText = getFestiveTitle();
 
