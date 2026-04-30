@@ -715,7 +715,7 @@ body.dark-text .description-text {
 /* Container for alignment */
 .search-container {
     width: 100%;
-    max-width: 500px;
+    max-width: 450px;
     margin: 0 auto;
 }
 
