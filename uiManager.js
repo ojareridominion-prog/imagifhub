@@ -125,9 +125,10 @@ function performSearch() {
     // Close search panel
     closeSearchPanel();
     
-    // Trigger search via loadFeed (skip interstitial ad)
+    // FIX: Search across ALL categories – force category to "Discover"
+    // The backend endpoint /media/random treats "Discover" as no category filter.
     if (window.loadFeed) {
-        window.loadFeed(state.currentCategory, query, true);
+        window.loadFeed("Discover", query, true);
     } else {
         console.warn("loadFeed not available");
     }
