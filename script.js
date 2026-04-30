@@ -113,6 +113,32 @@ function initWatchAdButton() {
     }
 }
 
+// Premium modal payment method toggle (Stars ↔ TON)
+function initPremiumPaymentToggle() {
+    const toggleContainer = document.getElementById('premiumPaymentToggle');
+    if (!toggleContainer) return;
+
+    const starsPriceSpan = document.querySelector('.premium-card .stars-price');
+    const tonPriceSpan = document.querySelector('.premium-card .ton-price');
+
+    toggleContainer.querySelectorAll('.seg-option').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            // Update active state
+            toggleContainer.querySelectorAll('.seg-option').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+
+            const method = btn.dataset.payment;
+            if (method === 'stars') {
+                starsPriceSpan.style.display = 'block';
+                tonPriceSpan.style.display = 'none';
+            } else {
+                starsPriceSpan.style.display = 'none';
+                tonPriceSpan.style.display = 'block';
+            }
+        });
+    });
+}
+
 // Initialization
 window.onload = async () => {
     // Expand Telegram WebApp
@@ -137,6 +163,7 @@ window.onload = async () => {
     initWatchAdButton();
     setupAdButtonListeners();
     addManualPremiumCheck();
+    initPremiumPaymentToggle();   // NEW: enable segmented toggle in premium modal
 
     // Initialize gift system
     await initGiftSystem();
