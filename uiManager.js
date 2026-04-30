@@ -14,7 +14,7 @@ const themesList = [
     {id: "theme-violet", top: "#16001f", bottom: "#f0b3ff"}
 ];
 
-// Get menu overlay element
+// ==================== MENU ====================
 function getMenuOverlay() {
     return document.getElementById('menuOverlay');
 }
@@ -37,7 +37,6 @@ export function toggleMenu() {
         document.body.style.overflow = '';
     }
 
-    // Safety: guarantee that overlay loses pointer events when closed
     if (!panel.classList.contains('open')) {
         overlay.style.pointerEvents = 'none';
         overlay.style.visibility = 'hidden';
@@ -47,7 +46,6 @@ export function toggleMenu() {
     }
 }
 
-// Close menu when clicking on overlay
 function initMenuOverlay() {
     const overlay = getMenuOverlay();
     if (overlay) {
@@ -59,16 +57,11 @@ function initMenuOverlay() {
     }
 }
 
+// ==================== THEME ====================
 export function applyTheme(themeId) {
     themesList.forEach(t => document.body.classList.remove(t.id));
     if (themeId !== "theme-black") document.body.classList.add(themeId);
     localStorage.setItem("imagifhub-theme", themeId);
-}
-
-// OLD triggerSearch replaced by expandable panel – we keep the name but implement new behavior
-export function triggerSearch() {
-    // This function is now handled by the search panel; we can keep empty or call toggleSearchPanel
-    toggleSearchPanel();
 }
 
 // ==================== EXPANDABLE SEARCH PANEL ====================
@@ -87,14 +80,12 @@ function openSearchPanel() {
     const searchBtn = document.getElementById('searchBtn');
     if (!panel) return;
     panel.classList.add('open');
-    searchBtn.innerHTML = '✖';
+    if (searchBtn) searchBtn.innerHTML = '✖';
     searchPanelOpen = true;
-    // Focus input after animation
     setTimeout(() => {
         const input = document.getElementById('searchInput');
         if (input) input.focus();
     }, 200);
-    // Add global click listener to close when clicking outside
     document.addEventListener('click', handleOutsideClickForSearch);
     document.addEventListener('keydown', handleEscKeyForSearch);
 }
@@ -104,12 +95,10 @@ export function closeSearchPanel() {
     const searchBtn = document.getElementById('searchBtn');
     if (!panel) return;
     panel.classList.remove('open');
-    searchBtn.innerHTML = '🔍';
+    if (searchBtn) searchBtn.innerHTML = '🔍';
     searchPanelOpen = false;
-    // Clear input
     const input = document.getElementById('searchInput');
     if (input) input.value = '';
-    // Remove event listeners
     document.removeEventListener('click', handleOutsideClickForSearch);
     document.removeEventListener('keydown', handleEscKeyForSearch);
 }
@@ -117,98 +106,108 @@ export function closeSearchPanel() {
 function handleOutsideClickForSearch(e) {
     const panel = document.getElementById('searchPanel');
     const searchBtn = document.getElementById('searchBtn');
-    // If click is inside panel or on search button, do nothing
-    if (panel.contains(e.target) || searchBtn.contains(e.target)) return;
+    if (!panel) return;
+    if (panel.contains(e.target) || (searchBtn && searchBtn.contains(e.target))) return;
     closeSearchPanel();
 }
 
 function handleEscKeyForSearch(e) {
-    if (e.key === 'Escape') {
-        closeSearchPanel();
-    }
+    if (e.key === 'Escape') closeSearchPanel();
 }
 
 export function performSearch() {
     const input = document.getElementById('searchInput');
     const query = input.value.trim();
     if (!query) return;
-    // Perform search using loadFeed
-    resetAndLoadFeed("Discover", query, true); // skip ad if premium? skipAd = true? We'll use true to avoid extra ad
+    resetAndLoadFeed("Discover", query, true);
     closeSearchPanel();
 }
 
-export function shareBot() {
+// ==================== SHARE ====================
+export async function shareBot() {
     const shareData = {
         title: 'IMAGIFHUB',
         text: '‎SnapShot 📸 - Your vibe, your view. Swipe, zoom, vibe 🎉. Effortless image magic ✨. 😊‎',
         url: 'https://t.me/IMAGIFHUB_bot'
     };
     try {
-        if (navigator.share) navigator.share(shareData);
+        if (navigator.share) await navigator.share(shareData);
         else {
-            navigator.clipboard.writeText(`${shareData.text} ${shareData.url}`);
+            await navigator.clipboard.writeText(`${shareData.text} ${shareData.url}`);
             alert('Link & Text copied to clipboard!');
         }
     } catch (err) { console.log('Error sharing:', err); }
 }
 
+// ==================== MODALS ====================
 export function openPremium() {
     const panel = document.getElementById('menuPanel');
     const overlay = getMenuOverlay();
-    if (panel.classList.contains('open')) {
+    if (panel && panel.classList.contains('open')) {
         panel.classList.remove('open');
-        overlay.classList.remove('active');
+        if (overlay) overlay.classList.remove('active');
         document.body.style.overflow = '';
     }
-    document.getElementById('premiumModal').classList.add('active');
+    const modal = document.getElementById('premiumModal');
+    if (modal) modal.classList.add('active');
 }
 
 export function closePremium() {
-    document.getElementById('premiumModal').classList.remove('active');
+    const modal = document.getElementById('premiumModal');
+    if (modal) modal.classList.remove('active');
 }
 
 export function openCopyright() {
     const panel = document.getElementById('menuPanel');
     const overlay = getMenuOverlay();
-    if (panel.classList.contains('open')) {
+    if (panel && panel.classList.contains('open')) {
         panel.classList.remove('open');
-        overlay.classList.remove('active');
+        if (overlay) overlay.classList.remove('active');
         document.body.style.overflow = '';
     }
-    document.getElementById('copyrightModal').classList.add('active');
+    const modal = document.getElementById('copyrightModal');
+    if (modal) modal.classList.add('active');
 }
 
 export function closeCopyright() {
-    document.getElementById('copyrightModal').classList.remove('active');
+    const modal = document.getElementById('copyrightModal');
+    if (modal) modal.classList.remove('active');
 }
 
 export function openPrivacy() {
     const panel = document.getElementById('menuPanel');
     const overlay = getMenuOverlay();
-    if (panel.classList.contains('open')) {
+    if (panel && panel.classList.contains('open')) {
         panel.classList.remove('open');
-        overlay.classList.remove('active');
+        if (overlay) overlay.classList.remove('active');
         document.body.style.overflow = '';
     }
-    document.getElementById('privacyModal').classList.add('active');
+    const modal = document.getElementById('privacyModal');
+    if (modal) modal.classList.add('active');
 }
 
 export function closePrivacy() {
-    document.getElementById('privacyModal').classList.remove('active');
+    const modal = document.getElementById('privacyModal');
+    if (modal) modal.classList.remove('active');
 }
 
 export function copyUserId() {
-    const userId = document.getElementById('userId').innerText;
+    const userIdSpan = document.getElementById('userId');
+    if (!userIdSpan) return;
+    const userId = userIdSpan.innerText;
     if (userId && userId !== '-') {
         navigator.clipboard.writeText(userId).then(() => {
             const btn = document.getElementById('copyIdBtn');
-            const originalText = btn.innerText;
-            btn.innerText = '✅ Copied!';
-            setTimeout(() => { btn.innerText = originalText; }, 1500);
+            if (btn) {
+                const originalText = btn.innerText;
+                btn.innerText = '✅ Copied!';
+                setTimeout(() => { btn.innerText = originalText; }, 1500);
+            }
         }).catch(err => console.error('Failed to copy: ', err));
     }
 }
 
+// ==================== DARK TEXT ====================
 export function toggleDarkText() {
     state.darkTextEnabled = !state.darkTextEnabled;
     localStorage.setItem('imagifhub-darktext', state.darkTextEnabled);
@@ -225,39 +224,49 @@ function updateDarkTextIndicator() {
     if (indicator) indicator.innerText = state.darkTextEnabled ? 'ON' : 'OFF';
 }
 
+// ==================== INITIALIZATION ====================
 export function initUI() {
+    // Apply dark text
     applyDarkText();
     updateDarkTextIndicator();
+
+    // Apply saved theme
     const savedTheme = localStorage.getItem("imagifhub-theme") || "theme-black";
     applyTheme(savedTheme);
+
     // Build theme grid
-    document.getElementById('themeGrid').innerHTML = themesList.map(t => `
-        <div class="theme-circle" onclick="applyTheme('${t.id}')">
-            <div style="background:${t.top}"></div>
-            <div style="background:${t.bottom}"></div>
-        </div>
-    `).join('');
-    
-    // Initialize menu overlay click handler
+    const themeGrid = document.getElementById('themeGrid');
+    if (themeGrid) {
+        themeGrid.innerHTML = themesList.map(t => `
+            <div class="theme-circle" onclick="applyTheme('${t.id}')">
+                <div style="background:${t.top}"></div>
+                <div style="background:${t.bottom}"></div>
+            </div>
+        `).join('');
+    }
+
+    // Menu overlay close on click
     initMenuOverlay();
-    
-    // Set up search panel event listeners (button and submit)
+
+    // --- Search panel event binding ---
     const searchBtn = document.getElementById('searchBtn');
-    const searchSubmit = document.getElementById('searchSubmitBtn');
     if (searchBtn) {
+        // Remove any existing listener to avoid duplicates
         searchBtn.onclick = (e) => {
             e.preventDefault();
             e.stopPropagation();
             toggleSearchPanel();
         };
     }
+
+    const searchSubmit = document.getElementById('searchSubmitBtn');
     if (searchSubmit) {
         searchSubmit.onclick = (e) => {
             e.preventDefault();
             performSearch();
         };
     }
-    // Also listen for Enter key in input
+
     const searchInput = document.getElementById('searchInput');
     if (searchInput) {
         searchInput.addEventListener('keypress', (e) => {
@@ -267,4 +276,9 @@ export function initUI() {
             }
         });
     }
-            }
+}
+
+// --- Legacy triggerSearch (compatibility) ---
+export function triggerSearch() {
+    toggleSearchPanel();
+}
