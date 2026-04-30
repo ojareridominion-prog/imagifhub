@@ -687,7 +687,7 @@ body.dark-text .description-text {
 /* ==================== EXPANDABLE SEARCH PANEL ==================== */
 .search-panel {
     position: fixed;
-    top: 56px;          /* just below top bar */
+    top: 56px;
     left: 0;
     right: 0;
     background: rgba(0, 0, 0, 0.85);
@@ -701,7 +701,7 @@ body.dark-text .description-text {
     pointer-events: none;
 }
 .search-panel.active {
-    max-height: 120px;   /* enough for input+button */
+    max-height: 120px;
     opacity: 1;
     pointer-events: auto;
 }
@@ -744,8 +744,6 @@ body.dark-text .description-text {
 #searchSubmitBtn:active {
     transform: scale(0.96);
 }
-
-/* When dark text is enabled, adjust input text color */
 body.dark-text #searchInput {
     color: #000;
     background: rgba(255,255,255,0.8);
@@ -753,8 +751,6 @@ body.dark-text #searchInput {
 body.dark-text #searchInput::placeholder {
     color: #555;
 }
-
-/* Category bar hidden while search panel is active */
 .cat-bar.search-hidden {
     display: none;
 }
