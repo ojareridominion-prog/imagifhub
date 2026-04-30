@@ -1,4 +1,4 @@
-// giftManager.js - Gifting system (professional drag-to-close, thank‑you modal)
+// giftManager.js - Gifting system (frictionless drag-to-close)
 import { state } from './state.js';
 import { verifyPremiumStatus } from './premiumManager.js';
 
@@ -70,25 +70,24 @@ export async function loadGifts() {
     }
 }
 
-// Close gift drawer – clean, CSS transition handles the exit
+// Close gift drawer – clean exit
 export function closeGiftDrawer() {
     const drawer = document.getElementById('giftDrawer');
     const overlay = document.getElementById('drawerOverlay');
     if (!drawer) return;
     
-    drawer.style.transition = 'transform 0.3s cubic-bezier(0.25, 1, 0.5, 1)';
+    drawer.style.transition = 'transform 0.4s cubic-bezier(0.16, 1, 0.3, 1)';
     drawer.classList.remove('open');
     if (overlay) overlay.classList.remove('active');
     document.body.style.overflow = '';
     currentGiftDrawerOpen = false;
     
-    // Reset inline transform after animation finishes
     setTimeout(() => {
         if (!drawer.classList.contains('open')) {
             drawer.style.transform = '';
             drawer.style.transition = '';
         }
-    }, 300);
+    }, 400);
 }
 
 // Show temporary thank‑you modal (fades after 2 seconds)
@@ -152,7 +151,7 @@ export function showGiftDrawer() {
     renderGiftDrawerContent();
 }
 
-// ========== PROFESSIONAL DRAG LOGIC (instant, no lag) ==========
+// ========== FRICTIONLESS DRAG LOGIC (no stutter, no pause) ==========
 function handleDragStart(e) {
     e.preventDefault();
     isDragging = true;
@@ -163,8 +162,10 @@ function handleDragStart(e) {
 
 function handleDragMove(e) {
     if (!isDragging) return;
+    
     const clientY = e.type === 'touchmove' ? e.touches[0].clientY : e.clientY;
     const deltaY = clientY - dragStartY;
+
     if (deltaY > 0) {
         const drawer = document.getElementById('giftDrawer');
         drawer.style.transition = 'none';
@@ -175,17 +176,34 @@ function handleDragMove(e) {
 function handleDragEnd(e) {
     if (!isDragging) return;
     isDragging = false;
+
     const drawer = document.getElementById('giftDrawer');
+    const overlay = document.getElementById('drawerOverlay');
+    
+    // Get the final position
     const clientY = e.type === 'touchend' ? e.changedTouches[0].clientY : e.clientY;
     const deltaY = clientY - dragStartY;
-    // Re‑enable smooth transition
-    drawer.style.transition = 'transform 0.3s cubic-bezier(0.25, 1, 0.5, 1)';
-    // If dragged more than 100px, close; else snap back instantly
-    if (deltaY > 100) {
-        closeGiftDrawer();
-    } else {
-        drawer.style.transform = 'translateY(0)';
-    }
+
+    // 1. Re‑enable the transition immediately
+    drawer.style.transition = 'transform 0.4s cubic-bezier(0.16, 1, 0.3, 1)';
+    
+    // 2. Use requestAnimationFrame to ensure the transition starts the same frame
+    requestAnimationFrame(() => {
+        if (deltaY > 100) {
+            // Smoothly slide all the way down
+            drawer.style.transform = `translateY(100%)`;
+            overlay.classList.remove('active');
+            
+            // Clean up classes after animation
+            setTimeout(() => {
+                drawer.classList.remove('open');
+                drawer.style.transform = '';
+            }, 400);
+        } else {
+            // Snap back up if not dragged far enough
+            drawer.style.transform = 'translateY(0)';
+        }
+    });
 }
 
 function initDrawerDrag() {
@@ -339,4 +357,4 @@ export async function initGiftSystem() {
     initDrawerDrag();
     
     await refreshRecentGiftCard();
-                    }
+    }
