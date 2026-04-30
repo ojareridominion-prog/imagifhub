@@ -113,7 +113,7 @@ function initWatchAdButton() {
     }
 }
 
-// Premium modal payment method toggle (Stars ↔ TON)
+// Premium modal payment method toggle (Stars ↔ TON) with mode classes
 function initPremiumPaymentToggle() {
     const toggleContainer = document.getElementById('premiumPaymentToggle');
     if (!toggleContainer) return;
@@ -132,7 +132,6 @@ function initPremiumPaymentToggle() {
             if (method === 'stars') {
                 starsPriceSpan.style.display = 'block';
                 tonPriceSpan.style.display = 'none';
-                // Add mode class to premium card
                 premiumCard.classList.remove('payment-mode-ton');
                 premiumCard.classList.add('payment-mode-stars');
             } else {
