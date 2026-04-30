@@ -682,10 +682,10 @@ body.dark-text .description-text {
     z-index: 2;
     }
 
-/* ==================== EXPANDABLE SEARCH PANEL (IMPRESSIVE) ==================== */
+/* ==================== EXPANDABLE SEARCH PANEL (Modern, like image) ==================== */
 .search-panel {
     position: fixed;
-    top: 56px; /* below top bar */
+    top: 56px;
     left: 0;
     width: 100%;
     z-index: 950;
@@ -709,85 +709,70 @@ body.dark-text .description-text {
     display: flex;
     padding: 16px 20px;
     justify-content: center;
-    background: transparent;
 }
 
 .search-input-wrapper {
     position: relative;
     width: 100%;
     max-width: 500px;
-    margin: 0 auto;
+}
+
+.search-icon-left {
+    position: absolute;
+    left: 16px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 18px;
+    color: rgba(0, 0, 0, 0.6);
+    pointer-events: none;
+    z-index: 1;
 }
 
 #searchInput {
     width: 100%;
     background: rgba(255, 255, 255, 0.95);
     border: none;
-    border-radius: 50px;
-    padding: 14px 50px 14px 24px;
+    border-radius: 30px;
+    padding: 14px 20px 14px 48px;
     font-size: 16px;
     color: #1a1a1a;
     outline: none;
     font-family: inherit;
     transition: all 0.3s ease;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-    backdrop-filter: blur(4px);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
 #searchInput:focus {
     background: #ffffff;
-    box-shadow: 0 0 0 3px rgba(156, 77, 255, 0.4), 0 4px 20px rgba(0, 0, 0, 0.15);
+    box-shadow: 0 0 0 3px rgba(156, 77, 255, 0.3), 0 4px 15px rgba(0, 0, 0, 0.15);
     transform: scale(1.01);
 }
 
-.search-icon-btn {
-    position: absolute;
-    right: 8px;
-    top: 50%;
-    transform: translateY(-50%);
-    background: linear-gradient(135deg, #9c4dff, #7a2be0);
-    border: none;
-    border-radius: 40px;
-    width: 44px;
-    height: 44px;
-    font-size: 20px;
-    cursor: pointer;
-    color: white;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: all 0.2s ease;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+#searchInput::placeholder {
+    color: #999;
+    font-weight: normal;
 }
 
-.search-icon-btn:hover {
-    background: linear-gradient(135deg, #b370ff, #8c3ee0);
-    transform: translateY(-50%) scale(1.05);
-}
-
-.search-icon-btn:active {
-    transform: translateY(-50%) scale(0.96);
-}
-
-/* Optional: add a subtle glow animation when panel opens */
-@keyframes searchGlow {
-    0% { box-shadow: 0 0 0 0 rgba(156, 77, 255, 0.4); }
-    50% { box-shadow: 0 0 0 6px rgba(156, 77, 255, 0.2); }
-    100% { box-shadow: 0 0 0 0 rgba(156, 77, 255, 0); }
+/* No separate search button – press Enter or tap outside to search */
+/* Optional: add a subtle animation when panel opens */
+@keyframes searchPulse {
+    0% { box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1); }
+    50% { box-shadow: 0 0 0 3px rgba(156, 77, 255, 0.3), 0 4px 15px rgba(0, 0, 0, 0.15); }
+    100% { box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1); }
 }
 
 .search-panel.open #searchInput {
-    animation: searchGlow 0.6s ease-out;
+    animation: searchPulse 0.5s ease-out;
 }
 
-/* When search open, category bar gets dimmed slightly */
+/* Dim category bar when search open */
 .search-panel.open ~ .cat-bar {
     filter: brightness(0.6);
     pointer-events: none;
     transition: filter 0.2s;
 }
 
-/* Prevent body scroll when search open (optional) */
+/* Prevent body scroll when search open */
 body.search-open {
     overflow: hidden;
-    }
+}
