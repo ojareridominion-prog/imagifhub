@@ -1,4 +1,4 @@
-// giftManager.js - Gifting system (frictionless drag-to-close)
+// giftManager.js - Gifting system (frictionless drag, fully resets after close)
 import { state } from './state.js';
 import { verifyPremiumStatus } from './premiumManager.js';
 
@@ -70,24 +70,18 @@ export async function loadGifts() {
     }
 }
 
-// Close gift drawer – clean exit
+// Close gift drawer – full reset (used everywhere)
 export function closeGiftDrawer() {
     const drawer = document.getElementById('giftDrawer');
     const overlay = document.getElementById('drawerOverlay');
     if (!drawer) return;
     
-    drawer.style.transition = 'transform 0.4s cubic-bezier(0.16, 1, 0.3, 1)';
     drawer.classList.remove('open');
+    drawer.style.transform = '';
+    drawer.style.transition = '';
     if (overlay) overlay.classList.remove('active');
     document.body.style.overflow = '';
     currentGiftDrawerOpen = false;
-    
-    setTimeout(() => {
-        if (!drawer.classList.contains('open')) {
-            drawer.style.transform = '';
-            drawer.style.transition = '';
-        }
-    }, 400);
 }
 
 // Show temporary thank‑you modal (fades after 2 seconds)
@@ -151,7 +145,7 @@ export function showGiftDrawer() {
     renderGiftDrawerContent();
 }
 
-// ========== FRICTIONLESS DRAG LOGIC (no stutter, no pause) ==========
+// ========== FRICTIONLESS DRAG LOGIC ==========
 function handleDragStart(e) {
     e.preventDefault();
     isDragging = true;
@@ -180,28 +174,29 @@ function handleDragEnd(e) {
     const drawer = document.getElementById('giftDrawer');
     const overlay = document.getElementById('drawerOverlay');
     
-    // Get the final position
     const clientY = e.type === 'touchend' ? e.changedTouches[0].clientY : e.clientY;
     const deltaY = clientY - dragStartY;
 
-    // 1. Re‑enable the transition immediately
+    // Re‑enable transition
     drawer.style.transition = 'transform 0.4s cubic-bezier(0.16, 1, 0.3, 1)';
     
-    // 2. Use requestAnimationFrame to ensure the transition starts the same frame
     requestAnimationFrame(() => {
         if (deltaY > 100) {
-            // Smoothly slide all the way down
+            // Slide all the way down
             drawer.style.transform = `translateY(100%)`;
             overlay.classList.remove('active');
             
-            // Clean up classes after animation
+            // After slide completes, fully close and reset
             setTimeout(() => {
-                drawer.classList.remove('open');
-                drawer.style.transform = '';
+                closeGiftDrawer();  // this resets class, transform, overlay, and state
             }, 400);
         } else {
-            // Snap back up if not dragged far enough
+            // Snap back
             drawer.style.transform = 'translateY(0)';
+            // No close, just reset transition after a short delay
+            setTimeout(() => {
+                if (!isDragging) drawer.style.transition = '';
+            }, 400);
         }
     });
 }
@@ -209,7 +204,6 @@ function handleDragEnd(e) {
 function initDrawerDrag() {
     const handle = document.getElementById('drawerDragHandle');
     if (!handle) return;
-    // Remove old listeners to avoid duplicates
     handle.removeEventListener('touchstart', handleDragStart);
     handle.removeEventListener('touchmove', handleDragMove);
     handle.removeEventListener('touchend', handleDragEnd);
@@ -220,7 +214,6 @@ function initDrawerDrag() {
     handle.addEventListener('touchstart', handleDragStart, { passive: false });
     handle.addEventListener('touchmove', handleDragMove);
     handle.addEventListener('touchend', handleDragEnd);
-    // Optional mouse support for desktop testing
     handle.addEventListener('mousedown', handleDragStart);
     window.addEventListener('mousemove', handleDragMove);
     window.addEventListener('mouseup', handleDragEnd);
@@ -357,4 +350,4 @@ export async function initGiftSystem() {
     initDrawerDrag();
     
     await refreshRecentGiftCard();
-    }
+}
