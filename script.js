@@ -3,11 +3,11 @@ import { musicLibrary, categories } from './music.js';
 import { getHolidayImage, getFestiveTitle } from './welcome.js';
 import { state } from './state.js';
 import { playRandomMusic, toggleMute } from './musicManager.js';
-import { fetchNativeAds, setupAdButtonListeners } from './adsManager.js';
+import { fetchNativeAds, setupAdButtonListeners } from './adsManager.js';   // removed showRewardedAdWrapper
 import { verifyPremiumStatus, updateWatchAdCard, startTempPremiumCountdown, showRewardedAdWrapper as premiumRewardedWrapper } from './premiumManager.js';
 import { loadFeed, resetAndLoadFeed } from './feedManager.js';
-import { toggleMenu, applyTheme, triggerSearch, shareBot, openPremium, closePremium, openCopyright, closeCopyright, openPrivacy, closePrivacy, copyUserId, toggleDarkText, initUI, closeSearchPanel } from './uiManager.js';
-import { initGiftSystem, refreshRecentGiftCard, showGiftDrawer } from './giftManager.js';
+import { toggleMenu, applyTheme, triggerSearch, shareBot, openPremium, closePremium, openCopyright, closeCopyright, openPrivacy, closePrivacy, copyUserId, toggleDarkText, initUI } from './uiManager.js';
+import { initGiftSystem, refreshRecentGiftCard, showGiftDrawer } from './giftManager.js';   // NEW
 
 const API_URL = "https://imagifhub.onrender.com";
 
@@ -20,7 +20,7 @@ window.applyTheme = applyTheme;
 window.shareBot = shareBot;
 window.openPremium = openPremium;
 window.closePremium = closePremium;
-window.goPremium = goPremium;
+window.goPremium = goPremium;        // defined below
 window.verifyPremiumStatus = verifyPremiumStatus;
 window.toggleDarkText = toggleDarkText;
 window.openCopyright = openCopyright;
@@ -28,7 +28,6 @@ window.closeCopyright = closeCopyright;
 window.copyUserId = copyUserId;
 window.openPrivacy = openPrivacy;
 window.closePrivacy = closePrivacy;
-window.closeSearchPanel = closeSearchPanel;   // <-- ADD THIS LINE
 
 // Payment / invoice function (needs API call)
 async function goPremium() {
@@ -116,6 +115,7 @@ function initWatchAdButton() {
 
 // Initialization
 window.onload = async () => {
+    // Expand Telegram WebApp
     const tg = window.Telegram.WebApp;
     if (tg && tg.expand) tg.expand();
 
@@ -140,6 +140,7 @@ window.onload = async () => {
 
     // Initialize gift system
     await initGiftSystem();
+    // Attach menu button for gift drawer
     const openGiftMenuBtn = document.getElementById('openGiftFromMenuBtn');
     if (openGiftMenuBtn) openGiftMenuBtn.addEventListener('click', () => showGiftDrawer());
 
@@ -150,6 +151,7 @@ window.onload = async () => {
         welcomeOverlay.style.backgroundImage = `url('${getHolidayImage()}')`;
         continueBtn.addEventListener('click', () => {
             welcomeOverlay.classList.add('hidden');
+            // Trigger bot ad (optional)
             fetch(`${API_URL}/api/trigger-ad`, {
                 method: 'POST',
                 headers: { 'X-Telegram-Init-Data': tg.initData }
@@ -187,7 +189,9 @@ document.addEventListener('click', (e) => {
     const target = e.target.closest('a, button, [role="button"]');
     if (!target) return;
     
+    // Check if the element contains the text "Join" (case‑insensitive)
     if (target.innerText && /join/i.test(target.innerText)) {
+        // Only allow click if the element is inside the open menu panel OR is a visible ad button
         const isVisibleMenu = target.closest('#menuPanel.open');
         const isVisibleAd = target.closest('.swiper-slide') && target.closest('.ad-action-btn');
         if (!isVisibleMenu && !isVisibleAd) {
