@@ -715,7 +715,7 @@ body.dark-text .description-text {
 /* Container for alignment */
 .search-container {
     width: 100%;
-    max-width: 450px;
+    max-width: 450px; /* reduced to fit button on smaller screens */
     margin: 0 auto;
 }
 
@@ -726,9 +726,10 @@ body.dark-text .description-text {
     background: rgba(255, 255, 255, 0.08);
     backdrop-filter: blur(15px);
     border: 1px solid rgba(255, 255, 255, 0.15);
-    border-radius: 12px; /* Professional rounded corners */
+    border-radius: 12px;
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    overflow: hidden;
+    overflow: visible; /* critical: prevents button clipping */
+    padding-right: 8px; /* gives space for button */
 }
 
 /* Static magnifying glass icon on the left */
@@ -742,6 +743,7 @@ body.dark-text .description-text {
 
 #searchInput {
     flex: 1;
+    min-width: 60px; /* allows input to shrink */
     background: transparent;
     border: none;
     outline: none;
@@ -756,19 +758,21 @@ body.dark-text .description-text {
     font-weight: 400;
 }
 
-/* Professional Search Button */
+/* Professional Search Button - now fully visible */
 .search-submit-btn {
     background: var(--accent, #9c4dff);
     color: white;
     border: none;
-    padding: 8px 16px;
-    margin-right: 4px;
+    padding: 8px 14px;
+    margin-right: 0; /* pull leftward */
     border-radius: 8px;
     font-weight: 600;
     font-size: 13px;
     cursor: pointer;
     transition: background 0.2s, transform 0.1s;
     font-family: inherit;
+    white-space: nowrap;
+    flex-shrink: 0; /* prevents button from shrinking */
 }
 
 .search-submit-btn:hover {
@@ -779,7 +783,7 @@ body.dark-text .description-text {
     transform: scale(0.97);
 }
 
-/* Focus state: entire wrapper reacts, no scaling on input */
+/* Focus state: entire wrapper reacts */
 .search-input-wrapper:focus-within {
     background: rgba(255, 255, 255, 0.12);
     border-color: var(--accent, #9c4dff);
@@ -796,4 +800,4 @@ body.dark-text .description-text {
 /* Prevent body scroll when search open */
 body.search-open {
     overflow: hidden;
-}
+    }
