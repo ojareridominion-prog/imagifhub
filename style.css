@@ -522,14 +522,13 @@ body.dark-text .description-text {
     cursor: grabbing;
 }
 .gift-drawer-header {
-    padding: 8px 16px 16px;
+    padding: 8px 16px 0px 16px;
     background: transparent;
     color: white;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
     font-weight: bold;
-    border-bottom: 1px solid rgba(255,255,255,0.1);
+}
+.gift-drawer-header h3 {
+    margin: 0 0 8px 0;
 }
 .close-drawer-btn {
     background: none;
@@ -589,10 +588,12 @@ body.dark-text .description-text {
     overflow: hidden;
     text-overflow: ellipsis;
 }
+.gift-price-container {
+    margin: 6px 0;
+}
 .gift-price {
     font-size: 12px;
     opacity: 0.8;
-    margin: 6px 0;
 }
 .gift-send-btn {
     background: var(--accent);
@@ -658,7 +659,7 @@ body.dark-text .description-text {
 .gift-icon-btn:active {
     transform: scale(0.94);
     animation: none;
-    }
+}
 /* In style.css */
 .menu-panel:not(.open) {
     pointer-events: none !important;
@@ -670,7 +671,7 @@ body.dark-text .description-text {
     pointer-events: auto !important;
     visibility: visible !important;
     opacity: 1 !important;
-    }
+}
 
 
 /* Prevent interactions with inactive slides – preserves fade transition */
@@ -685,7 +686,7 @@ body.dark-text .description-text {
     pointer-events: auto !important;
     user-select: text !important;  /* allows keyword selection */
     z-index: 2;
-    }
+}
 
 /* ==================== EXPANDABLE SEARCH PANEL (Professional Glass) ==================== */
 .search-panel {
@@ -805,63 +806,6 @@ body.dark-text .description-text {
 /* Prevent body scroll when search open */
 body.search-open {
     overflow: hidden;
-    }
-
-/* === SEGMENTED CONTROL (long across top) === */
-.payment-segmented {
-    display: flex;
-    width: 100%;
-    background: rgba(255, 255, 255, 0.08);
-    backdrop-filter: blur(8px);
-    border-radius: 50px;
-    padding: 4px;
-    margin: 12px 0;
-    gap: 4px;
-    border: 1px solid rgba(255, 255, 255, 0.15);
-}
-
-.seg-option {
-    flex: 1;
-    text-align: center;
-    background: transparent;
-    border: none;
-    padding: 10px 0;
-    border-radius: 40px;
-    font-size: 14px;
-    font-weight: 600;
-    color: rgba(255, 255, 255, 0.7);
-    cursor: pointer;
-    transition: all 0.25s cubic-bezier(0.2, 0.9, 0.4, 1.1);
-    font-family: inherit;
-}
-
-.seg-option.active {
-    background: var(--accent, #9c4dff);
-    color: white;
-    box-shadow: 0 2px 8px rgba(156, 77, 255, 0.3);
-}
-
-/* Inside gift drawer – keep consistent */
-.drawer-segmented {
-    margin: 0 0 8px 0;
-    width: calc(100% - 16px);
-    align-self: center;
-}
-
-/* Premium card specific adjustments */
-.premium-card .payment-segmented {
-    margin-bottom: 20px;
-}
-
-/* Price toggling */
-.stars-price, .ton-price {
-    transition: opacity 0.2s;
-}
-
-.price-tag .ton-price {
-    font-size: 24px;
-    font-weight: bold;
-    color: #ffd700;
 }
 
 /* ===== PAYMENT MODE THEMES (Stars vs TON) ===== */
@@ -906,3 +850,5 @@ body.search-open {
     background: rgba(255, 255, 255, 0.1);
     color: rgba(255, 255, 255, 0.8);
 }
+
+  
