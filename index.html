@@ -50,12 +50,15 @@
         <button id="muteBtn" onclick="toggleMute()" style="background:none; border:none; color:#fff; font-size:22px; padding:15px; cursor:pointer;">🔊</button>
     </div>
 
-    <!-- SEARCH PANEL (expandable) -->
+    <!-- SEARCH PANEL (expandable, professional design) -->
 <div id="searchPanel" class="search-panel">
     <div class="search-panel-inner">
-        <div class="search-input-wrapper">
-            <input type="text" id="searchInput" placeholder="Search here" autocomplete="off">
-            <button id="searchSubmitBtn" class="search-icon-btn" aria-label="Search">🔍</button>
+        <div class="search-container">
+            <div class="search-input-wrapper">
+                <span class="search-icon-fixed">🔍</span>
+                <input type="text" id="searchInput" placeholder="Search for images..." autocomplete="off">
+                <button id="searchSubmitBtn" class="search-submit-btn">Search</button>
+            </div>
         </div>
     </div>
 </div>
