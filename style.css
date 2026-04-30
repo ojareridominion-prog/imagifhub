@@ -599,9 +599,9 @@ body.dark-text .description-text {
     background: var(--accent);
     border: none;
     color: white;
-    padding: 6px 12px;
-    border-radius: 20px;
-    font-size: 12px;
+    padding: 12px 20px;
+    border-radius: 40px;
+    font-size: 16px;
     font-weight: bold;
     cursor: pointer;
     width: 100%;
