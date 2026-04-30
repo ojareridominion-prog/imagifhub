@@ -14,7 +14,6 @@ const themesList = [
     {id: "theme-violet", top: "#16001f", bottom: "#f0b3ff"}
 ];
 
-// ==================== MENU ====================
 function getMenuOverlay() {
     return document.getElementById('menuOverlay');
 }
@@ -57,73 +56,17 @@ function initMenuOverlay() {
     }
 }
 
-// ==================== THEME ====================
 export function applyTheme(themeId) {
     themesList.forEach(t => document.body.classList.remove(t.id));
     if (themeId !== "theme-black") document.body.classList.add(themeId);
     localStorage.setItem("imagifhub-theme", themeId);
 }
 
-// ==================== EXPANDABLE SEARCH PANEL ====================
-let searchPanelOpen = false;
-
-export function toggleSearchPanel() {
-    if (searchPanelOpen) {
-        closeSearchPanel();
-    } else {
-        openSearchPanel();
-    }
+export function triggerSearch() {
+    // Old prompt-based search – replaced with expandable panel
+    toggleSearchPanel();
 }
 
-function openSearchPanel() {
-    const panel = document.getElementById('searchPanel');
-    const searchBtn = document.getElementById('searchBtn');
-    if (!panel) return;
-    panel.classList.add('open');
-    if (searchBtn) searchBtn.innerHTML = '✖';
-    searchPanelOpen = true;
-    setTimeout(() => {
-        const input = document.getElementById('searchInput');
-        if (input) input.focus();
-    }, 200);
-    document.addEventListener('click', handleOutsideClickForSearch);
-    document.addEventListener('keydown', handleEscKeyForSearch);
-}
-
-export function closeSearchPanel() {
-    const panel = document.getElementById('searchPanel');
-    const searchBtn = document.getElementById('searchBtn');
-    if (!panel) return;
-    panel.classList.remove('open');
-    if (searchBtn) searchBtn.innerHTML = '🔍';
-    searchPanelOpen = false;
-    const input = document.getElementById('searchInput');
-    if (input) input.value = '';
-    document.removeEventListener('click', handleOutsideClickForSearch);
-    document.removeEventListener('keydown', handleEscKeyForSearch);
-}
-
-function handleOutsideClickForSearch(e) {
-    const panel = document.getElementById('searchPanel');
-    const searchBtn = document.getElementById('searchBtn');
-    if (!panel) return;
-    if (panel.contains(e.target) || (searchBtn && searchBtn.contains(e.target))) return;
-    closeSearchPanel();
-}
-
-function handleEscKeyForSearch(e) {
-    if (e.key === 'Escape') closeSearchPanel();
-}
-
-export function performSearch() {
-    const input = document.getElementById('searchInput');
-    const query = input.value.trim();
-    if (!query) return;
-    resetAndLoadFeed("Discover", query, true);
-    closeSearchPanel();
-}
-
-// ==================== SHARE ====================
 export async function shareBot() {
     const shareData = {
         title: 'IMAGIFHUB',
@@ -139,7 +82,6 @@ export async function shareBot() {
     } catch (err) { console.log('Error sharing:', err); }
 }
 
-// ==================== MODALS ====================
 export function openPremium() {
     const panel = document.getElementById('menuPanel');
     const overlay = getMenuOverlay();
@@ -207,7 +149,6 @@ export function copyUserId() {
     }
 }
 
-// ==================== DARK TEXT ====================
 export function toggleDarkText() {
     state.darkTextEnabled = !state.darkTextEnabled;
     localStorage.setItem('imagifhub-darktext', state.darkTextEnabled);
@@ -224,17 +165,13 @@ function updateDarkTextIndicator() {
     if (indicator) indicator.innerText = state.darkTextEnabled ? 'ON' : 'OFF';
 }
 
-// ==================== INITIALIZATION ====================
 export function initUI() {
-    // Apply dark text
     applyDarkText();
     updateDarkTextIndicator();
 
-    // Apply saved theme
     const savedTheme = localStorage.getItem("imagifhub-theme") || "theme-black";
     applyTheme(savedTheme);
 
-    // Build theme grid
     const themeGrid = document.getElementById('themeGrid');
     if (themeGrid) {
         themeGrid.innerHTML = themesList.map(t => `
@@ -245,29 +182,87 @@ export function initUI() {
         `).join('');
     }
 
-    // Menu overlay close on click
     initMenuOverlay();
+}
 
-    // --- Search panel event binding ---
+// ========== NEW EXPANDABLE SEARCH PANEL ==========
+let searchPanelOpen = false;
+
+function toggleSearchPanel() {
+    if (searchPanelOpen) {
+        closeSearchPanel();
+    } else {
+        openSearchPanel();
+    }
+}
+
+function openSearchPanel() {
+    const panel = document.getElementById('searchPanel');
     const searchBtn = document.getElementById('searchBtn');
+    if (!panel) return;
+    panel.classList.add('open');
+    if (searchBtn) searchBtn.innerHTML = '✖';
+    searchPanelOpen = true;
+    setTimeout(() => {
+        const input = document.getElementById('searchInput');
+        if (input) input.focus();
+    }, 200);
+    document.addEventListener('click', handleOutsideClickForSearch);
+    document.addEventListener('keydown', handleEscKeyForSearch);
+}
+
+function closeSearchPanel() {
+    const panel = document.getElementById('searchPanel');
+    const searchBtn = document.getElementById('searchBtn');
+    if (!panel) return;
+    panel.classList.remove('open');
+    if (searchBtn) searchBtn.innerHTML = '🔍';
+    searchPanelOpen = false;
+    const input = document.getElementById('searchInput');
+    if (input) input.value = '';
+    document.removeEventListener('click', handleOutsideClickForSearch);
+    document.removeEventListener('keydown', handleEscKeyForSearch);
+}
+
+function handleOutsideClickForSearch(e) {
+    const panel = document.getElementById('searchPanel');
+    const searchBtn = document.getElementById('searchBtn');
+    if (!panel) return;
+    if (panel.contains(e.target) || (searchBtn && searchBtn.contains(e.target))) return;
+    closeSearchPanel();
+}
+
+function handleEscKeyForSearch(e) {
+    if (e.key === 'Escape') closeSearchPanel();
+}
+
+function performSearch() {
+    const input = document.getElementById('searchInput');
+    const query = input.value.trim();
+    if (!query) return;
+    resetAndLoadFeed("Discover", query, true);
+    closeSearchPanel();
+}
+
+// Attach event listeners after DOM is ready (called from script.js)
+export function initSearchPanel() {
+    const searchBtn = document.getElementById('searchBtn');
+    const searchSubmit = document.getElementById('searchSubmitBtn');
+    const searchInput = document.getElementById('searchInput');
+
     if (searchBtn) {
-        // Remove any existing listener to avoid duplicates
         searchBtn.onclick = (e) => {
             e.preventDefault();
             e.stopPropagation();
             toggleSearchPanel();
         };
     }
-
-    const searchSubmit = document.getElementById('searchSubmitBtn');
     if (searchSubmit) {
         searchSubmit.onclick = (e) => {
             e.preventDefault();
             performSearch();
         };
     }
-
-    const searchInput = document.getElementById('searchInput');
     if (searchInput) {
         searchInput.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') {
@@ -276,9 +271,4 @@ export function initUI() {
             }
         });
     }
-}
-
-// --- Legacy triggerSearch (compatibility) ---
-export function triggerSearch() {
-    toggleSearchPanel();
 }
