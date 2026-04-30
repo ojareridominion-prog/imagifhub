@@ -1,4 +1,4 @@
-// giftManager.js - Gifting system (smooth drag-to-close, no alert, thank‑you modal)
+// giftManager.js - Gifting system (professional drag-to-close)
 import { state } from './state.js';
 import { verifyPremiumStatus } from './premiumManager.js';
 
@@ -6,6 +6,8 @@ const API_URL = "https://imagifhub.onrender.com";
 
 let giftList = [];
 let currentGiftDrawerOpen = false;
+let isDragging = false;
+let dragStartY = 0;
 
 // Helper: close menu if open
 function closeMenuIfOpen() {
@@ -68,24 +70,29 @@ export async function loadGifts() {
     }
 }
 
-// Close gift drawer – resets transform and restores transition
-function closeGiftDrawer() {
+// Close gift drawer – clean, CSS transition handles the exit
+export function closeGiftDrawer() {
     const drawer = document.getElementById('giftDrawer');
     const overlay = document.getElementById('drawerOverlay');
-    if (drawer) {
-        drawer.classList.remove('open');
-        drawer.style.transform = '';
-        drawer.style.transition = '';
-    }
-    if (overlay) {
-        overlay.classList.remove('active');
-        overlay.style.pointerEvents = 'none';
-    }
+    if (!drawer) return;
+    
+    // Ensure transition is enabled for smooth closing
+    drawer.style.transition = 'transform 0.3s cubic-bezier(0.25, 1, 0.5, 1)';
+    drawer.classList.remove('open');
+    if (overlay) overlay.classList.remove('active');
     document.body.style.overflow = '';
     currentGiftDrawerOpen = false;
+    
+    // Reset inline transform after animation finishes (optional)
+    setTimeout(() => {
+        if (!drawer.classList.contains('open')) {
+            drawer.style.transform = '';
+            drawer.style.transition = '';
+        }
+    }, 300);
 }
 
-// Show a temporary thank‑you modal (fades after 2 seconds)
+// Show temporary thank‑you modal (fades after 2 seconds)
 function showThankYouModal(giftName, giftEmoji) {
     const existing = document.getElementById('giftThankYouModal');
     if (existing) existing.remove();
@@ -146,77 +153,60 @@ export function showGiftDrawer() {
     renderGiftDrawerContent();
 }
 
-// ========== SMOOTH DRAG-TO-CLOSE (professional drawer behaviour) ==========
-function initDrawerDrag() {
+// ========== PROFESSIONAL DRAG LOGIC (no rebounding) ==========
+function handleDragStart(e) {
+    e.preventDefault();
+    isDragging = true;
+    dragStartY = e.type === 'touchstart' ? e.touches[0].clientY : e.clientY;
     const drawer = document.getElementById('giftDrawer');
-    const handle = document.getElementById('drawerDragHandle');
-    if (!drawer || !handle) return;
+    drawer.style.transition = 'none';
+}
 
-    let startY = 0;
-    let currentTranslate = 0;
-    let isDragging = false;
-    let animationFrame = null;
-    let initialTransform = '';
-
-    const onTouchStart = (e) => {
-        e.preventDefault();
-        startY = e.touches[0].clientY;
-        isDragging = true;
-        // Save original transition and remove it during drag
-        initialTransform = drawer.style.transform;
+function handleDragMove(e) {
+    if (!isDragging) return;
+    const clientY = e.type === 'touchmove' ? e.touches[0].clientY : e.clientY;
+    const deltaY = clientY - dragStartY;
+    if (deltaY > 0) {
+        const drawer = document.getElementById('giftDrawer');
         drawer.style.transition = 'none';
-        drawer.style.willChange = 'transform';
-        currentTranslate = 0;
-    };
+        drawer.style.transform = `translateY(${deltaY}px)`;
+    }
+}
 
-    const onTouchMove = (e) => {
-        if (!isDragging) return;
-        const deltaY = e.touches[0].clientY - startY;
-        if (deltaY > 0) {
-            const maxDrag = drawer.offsetHeight * 0.8;
-            currentTranslate = Math.min(deltaY, maxDrag);
-            if (animationFrame) cancelAnimationFrame(animationFrame);
-            animationFrame = requestAnimationFrame(() => {
-                drawer.style.transform = `translateY(${currentTranslate}px)`;
-            });
-        }
-    };
+function handleDragEnd(e) {
+    if (!isDragging) return;
+    isDragging = false;
+    const drawer = document.getElementById('giftDrawer');
+    const clientY = e.type === 'touchend' ? e.changedTouches[0].clientY : e.clientY;
+    const deltaY = clientY - dragStartY;
+    // Re‑enable smooth transition
+    drawer.style.transition = 'transform 0.3s cubic-bezier(0.25, 1, 0.5, 1)';
+    // If dragged more than 100px, close; else snap back
+    if (deltaY > 100) {
+        closeGiftDrawer();
+    } else {
+        drawer.style.transform = 'translateY(0)';
+    }
+}
 
-    const onTouchEnd = () => {
-        if (!isDragging) return;
-        isDragging = false;
-        if (animationFrame) cancelAnimationFrame(animationFrame);
-
-        const threshold = drawer.offsetHeight * 0.25;
-        if (currentTranslate > threshold) {
-            // Close: animate down and then remove drawer
-            drawer.style.transition = 'transform 0.3s cubic-bezier(0.2, 0.9, 0.4, 1.1)';
-            drawer.style.transform = `translateY(100%)`;
-            setTimeout(() => {
-                closeGiftDrawer();
-                drawer.style.transition = '';
-                drawer.style.transform = '';
-                drawer.style.willChange = '';
-            }, 300);
-        } else {
-            // Snap back
-            drawer.style.transition = 'transform 0.25s ease-out';
-            drawer.style.transform = 'translateY(0px)';
-            setTimeout(() => {
-                drawer.style.transition = '';
-                drawer.style.willChange = '';
-            }, 250);
-        }
-        currentTranslate = 0;
-    };
-
-    // Remove previous listeners to avoid duplicates
-    handle.removeEventListener('touchstart', onTouchStart);
-    handle.removeEventListener('touchmove', onTouchMove);
-    handle.removeEventListener('touchend', onTouchEnd);
-    handle.addEventListener('touchstart', onTouchStart, { passive: false });
-    handle.addEventListener('touchmove', onTouchMove);
-    handle.addEventListener('touchend', onTouchEnd);
+function initDrawerDrag() {
+    const handle = document.getElementById('drawerDragHandle');
+    if (!handle) return;
+    // Remove old listeners to avoid duplicates
+    handle.removeEventListener('touchstart', handleDragStart);
+    handle.removeEventListener('touchmove', handleDragMove);
+    handle.removeEventListener('touchend', handleDragEnd);
+    handle.removeEventListener('mousedown', handleDragStart);
+    handle.removeEventListener('mousemove', handleDragMove);
+    handle.removeEventListener('mouseup', handleDragEnd);
+    
+    handle.addEventListener('touchstart', handleDragStart, { passive: false });
+    handle.addEventListener('touchmove', handleDragMove);
+    handle.addEventListener('touchend', handleDragEnd);
+    // Optional: mouse support for desktop testing
+    handle.addEventListener('mousedown', handleDragStart);
+    window.addEventListener('mousemove', handleDragMove);
+    window.addEventListener('mouseup', handleDragEnd);
 }
 
 // Render gift items inside drawer
@@ -261,7 +251,7 @@ async function renderGiftDrawerContent() {
     });
 }
 
-// Send gift – with BIG confetti and thank‑you modal (no alert)
+// Send gift – with confetti and thank‑you modal (no Telegram alert)
 async function sendGift(giftId, giftName, giftEmoji, giftPrice, category) {
     const tg = window.Telegram.WebApp;
     try {
@@ -274,10 +264,7 @@ async function sendGift(giftId, giftName, giftEmoji, giftPrice, category) {
         const data = await response.json();
         tg.openInvoice(data.invoice_link, async (status) => {
             if (status === 'paid' || status === 'paid_in_chat') {
-                // Haptic success
                 if (tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
-
-                // Confetti
                 if (typeof confetti === 'function') {
                     confetti({ particleCount: 300, spread: 100, origin: { y: 0.5 }, startVelocity: 20, zIndex: 2147483647 });
                     confetti({ particleCount: 200, spread: 80, origin: { y: 0.5, x: 0.2 }, startVelocity: 25, zIndex: 2147483647 });
@@ -291,7 +278,6 @@ async function sendGift(giftId, giftName, giftEmoji, giftPrice, category) {
                         }, 200);
                     }
                 }
-
                 closeGiftDrawer();
                 await refreshRecentGiftCard();
                 if (category === 'overpriced') await verifyPremiumStatus();
@@ -351,7 +337,7 @@ export async function initGiftSystem() {
     const overlay = document.getElementById('drawerOverlay');
     if (overlay) overlay.addEventListener('click', closeGiftDrawer);
     
-    initDrawerDrag();  // sets up smooth drag‑to‑close
+    initDrawerDrag(); // sets up professional drag
     
     await refreshRecentGiftCard();
-                    }
+        }
