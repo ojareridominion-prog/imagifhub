@@ -3,15 +3,11 @@ import { musicLibrary, categories } from './music.js';
 import { getHolidayImage, getFestiveTitle } from './welcome.js';
 import { state } from './state.js';
 import { playRandomMusic, toggleMute } from './musicManager.js';
-import { fetchNativeAds, setupAdButtonListeners } from './adsManager.js';
+import { fetchNativeAds, setupAdButtonListeners } from './adsManager.js';   // removed showRewardedAdWrapper
 import { verifyPremiumStatus, updateWatchAdCard, startTempPremiumCountdown, showRewardedAdWrapper as premiumRewardedWrapper } from './premiumManager.js';
 import { loadFeed, resetAndLoadFeed } from './feedManager.js';
-import { 
-    toggleMenu, applyTheme, triggerSearch, shareBot, 
-    openPremium, closePremium, openCopyright, closeCopyright, 
-    openPrivacy, closePrivacy, copyUserId, toggleDarkText, initUI, initSearchPanel 
-} from './uiManager.js';
-import { initGiftSystem, refreshRecentGiftCard, showGiftDrawer } from './giftManager.js';
+import { toggleMenu, applyTheme, triggerSearch, shareBot, openPremium, closePremium, openCopyright, closeCopyright, openPrivacy, closePrivacy, copyUserId, toggleDarkText, initUI } from './uiManager.js';
+import { initGiftSystem, refreshRecentGiftCard, showGiftDrawer } from './giftManager.js';   // NEW
 
 const API_URL = "https://imagifhub.onrender.com";
 
@@ -24,7 +20,7 @@ window.applyTheme = applyTheme;
 window.shareBot = shareBot;
 window.openPremium = openPremium;
 window.closePremium = closePremium;
-window.goPremium = goPremium;
+window.goPremium = goPremium;        // defined below
 window.verifyPremiumStatus = verifyPremiumStatus;
 window.toggleDarkText = toggleDarkText;
 window.openCopyright = openCopyright;
@@ -33,7 +29,7 @@ window.copyUserId = copyUserId;
 window.openPrivacy = openPrivacy;
 window.closePrivacy = closePrivacy;
 
-// Payment function
+// Payment / invoice function (needs API call)
 async function goPremium() {
     const tg = window.Telegram.WebApp;
     const statusEl = document.getElementById('paymentStatus');
@@ -75,6 +71,7 @@ async function goPremium() {
 }
 window.goPremium = goPremium;
 
+// Helper to add manual check button to premium modal
 function addManualPremiumCheck() {
     const premiumCard = document.querySelector('.premium-card');
     if (premiumCard) {
@@ -98,6 +95,7 @@ function addManualPremiumCheck() {
     }
 }
 
+// Watch ad button listener
 function initWatchAdButton() {
     const watchAdBtn = document.getElementById('watchAdBtn');
     if (watchAdBtn) {
@@ -117,6 +115,7 @@ function initWatchAdButton() {
 
 // Initialization
 window.onload = async () => {
+    // Expand Telegram WebApp
     const tg = window.Telegram.WebApp;
     if (tg && tg.expand) tg.expand();
 
@@ -124,37 +123,35 @@ window.onload = async () => {
     await verifyPremiumStatus();
 
     // Build category bar
-    const catBar = document.getElementById('catBar');
-    if (catBar) {
-        catBar.innerHTML = categories.map(c => 
-            `<button class="cat-btn" onclick="loadFeed('${c}')">${c}</button>`
-        ).join('');
-    }
+    document.getElementById('catBar').innerHTML = categories.map(c => 
+        `<button class="cat-btn" onclick="loadFeed('${c}')">${c}</button>`
+    ).join('');
 
     initUI();
-    initSearchPanel();   // <-- ADD THIS LINE to attach search panel events
 
     const audioElem = document.getElementById('bgMusic');
-    if (audioElem) {
-        audioElem.addEventListener('ended', () => {
-            if (state.currentCategory) playRandomMusic(state.currentCategory);
-        });
-    }
+    audioElem.addEventListener('ended', () => {
+        if (state.currentCategory) playRandomMusic(state.currentCategory);
+    });
 
     initWatchAdButton();
     setupAdButtonListeners();
     addManualPremiumCheck();
 
+    // Initialize gift system
     await initGiftSystem();
+    // Attach menu button for gift drawer
     const openGiftMenuBtn = document.getElementById('openGiftFromMenuBtn');
     if (openGiftMenuBtn) openGiftMenuBtn.addEventListener('click', () => showGiftDrawer());
 
+    // Welcome overlay
     const welcomeOverlay = document.getElementById('welcomeOverlay');
     const continueBtn = document.getElementById('welcomeContinueBtn');
     if (welcomeOverlay && continueBtn) {
         welcomeOverlay.style.backgroundImage = `url('${getHolidayImage()}')`;
         continueBtn.addEventListener('click', () => {
             welcomeOverlay.classList.add('hidden');
+            // Trigger bot ad (optional)
             fetch(`${API_URL}/api/trigger-ad`, {
                 method: 'POST',
                 headers: { 'X-Telegram-Init-Data': tg.initData }
@@ -165,51 +162,43 @@ window.onload = async () => {
         loadFeed("Discover", "", true);
     }
 
-    const titleEl = document.querySelector('.top-bar h2');
-    if (titleEl) titleEl.innerText = getFestiveTitle();
+    document.querySelector('.top-bar h2').innerText = getFestiveTitle();
 
-    // Keyword expand/collapse
-    const feed = document.getElementById('feed');
-    if (feed) {
-        feed.addEventListener('click', (e) => {
-            const container = e.target.closest('.keyword-container');
-            if (!container) return;
-            if (e.target.classList.contains('more-btn')) {
-                const short = container.querySelector('.keyword-short');
-                const more = container.querySelector('.more-btn');
-                const full = container.querySelector('.keyword-full');
-                const less = container.querySelector('.less-btn');
-                if (short) short.style.display = 'none';
-                if (more) more.style.display = 'none';
-                if (full) full.style.display = 'inline';
-                if (less) less.style.display = 'inline';
-                e.stopPropagation();
-            } else if (e.target.classList.contains('less-btn')) {
-                const full = container.querySelector('.keyword-full');
-                const less = container.querySelector('.less-btn');
-                const short = container.querySelector('.keyword-short');
-                const more = container.querySelector('.more-btn');
-                if (full) full.style.display = 'none';
-                if (less) less.style.display = 'none';
-                if (short) short.style.display = 'inline';
-                if (more) more.style.display = 'inline';
-                e.stopPropagation();
-            }
-        });
-    }
+    // Keyword expand/collapse listeners
+    document.getElementById('feed').addEventListener('click', (e) => {
+        const container = e.target.closest('.keyword-container');
+        if (!container) return;
+        if (e.target.classList.contains('more-btn')) {
+            container.querySelector('.keyword-short').style.display = 'none';
+            container.querySelector('.more-btn').style.display = 'none';
+            container.querySelector('.keyword-full').style.display = 'inline';
+            container.querySelector('.less-btn').style.display = 'inline';
+            e.stopPropagation();
+        } else if (e.target.classList.contains('less-btn')) {
+            container.querySelector('.keyword-full').style.display = 'none';
+            container.querySelector('.less-btn').style.display = 'none';
+            container.querySelector('.keyword-short').style.display = 'inline';
+            container.querySelector('.more-btn').style.display = 'inline';
+            e.stopPropagation();
+        }
+    });
 };
 
-// Global guard for hidden "Join" elements
+// Global guard – blocks clicks on hidden elements containing "Join"
 document.addEventListener('click', (e) => {
     const target = e.target.closest('a, button, [role="button"]');
     if (!target) return;
+    
+    // Check if the element contains the text "Join" (case‑insensitive)
     if (target.innerText && /join/i.test(target.innerText)) {
+        // Only allow click if the element is inside the open menu panel OR is a visible ad button
         const isVisibleMenu = target.closest('#menuPanel.open');
         const isVisibleAd = target.closest('.swiper-slide') && target.closest('.ad-action-btn');
         if (!isVisibleMenu && !isVisibleAd) {
             e.preventDefault();
             e.stopPropagation();
             console.warn('Blocked click on hidden Join element', target);
+            return false;
         }
     }
 });
