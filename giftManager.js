@@ -1,4 +1,4 @@
-// giftManager.js - Gifting system (with working drag-to-close drawer)
+// giftManager.js - Gifting system (with smooth drag-to-close and thank you modal)
 import { state } from './state.js';
 import { verifyPremiumStatus } from './premiumManager.js';
 
@@ -84,7 +84,58 @@ function closeGiftDrawer() {
     currentGiftDrawerOpen = false;
 }
 
-// When opening, ensure pointer events are re-enabled
+// Show a temporary thank-you modal (fades after 2 seconds)
+function showThankYouModal(giftName, giftEmoji) {
+    // Remove existing modal if any
+    const existing = document.getElementById('giftThankYouModal');
+    if (existing) existing.remove();
+
+    const modal = document.createElement('div');
+    modal.id = 'giftThankYouModal';
+    modal.innerHTML = `
+        <div style="
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0,0,0,0.85);
+            backdrop-filter: blur(12px);
+            color: white;
+            padding: 20px 28px;
+            border-radius: 40px;
+            text-align: center;
+            z-index: 20001;
+            font-size: 20px;
+            font-weight: bold;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+            white-space: nowrap;
+            pointer-events: none;
+            animation: fadeOutModal 2s ease forwards;
+        ">
+            🎁 ${giftEmoji} ${giftName} sent!<br>Thank you! 💖
+        </div>
+    `;
+    // Add keyframe animation if not already present
+    if (!document.querySelector('#giftModalStyle')) {
+        const style = document.createElement('style');
+        style.id = 'giftModalStyle';
+        style.textContent = `
+            @keyframes fadeOutModal {
+                0% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+                80% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+                100% { opacity: 0; transform: translate(-50%, -50%) scale(0.9); visibility: hidden; }
+            }
+        `;
+        document.head.appendChild(style);
+    }
+    document.body.appendChild(modal);
+    // Auto-remove after 2 seconds
+    setTimeout(() => {
+        if (modal && modal.remove) modal.remove();
+    }, 2000);
+}
+
+// When opening, ensure pointer events are re‑enabled
 export function showGiftDrawer() {
     if (currentGiftDrawerOpen) return;
     closeMenuIfOpen();
@@ -93,46 +144,70 @@ export function showGiftDrawer() {
     if (!drawer) return;
     drawer.classList.add('open');
     overlay.classList.add('active');
-    overlay.style.pointerEvents = 'auto';   // allow overlay to catch backdrop clicks
+    overlay.style.pointerEvents = 'auto';
     document.body.style.overflow = 'hidden';
     currentGiftDrawerOpen = true;
     renderGiftDrawerContent();
 }
 
-// Setup drag-to-close on the drag handle
+// Smooth drag-to-close logic (professional drawer behaviour)
 function initDrawerDrag() {
     const drawer = document.getElementById('giftDrawer');
     const handle = document.getElementById('drawerDragHandle');
     if (!drawer || !handle) return;
 
+    let startY = 0;
+    let currentTranslate = 0;
+    let isDragging = false;
+    let animationFrame = null;
+
     const onTouchStart = (e) => {
         e.preventDefault();
+        startY = e.touches[0].clientY;
         isDragging = true;
-        dragStartY = e.touches[0].clientY;
-        drawerHeight = drawer.offsetHeight;
         drawer.style.transition = 'none';
+        drawer.style.transform = 'translateY(0px)';
     };
 
     const onTouchMove = (e) => {
         if (!isDragging) return;
-        const currentY = e.touches[0].clientY;
-        const delta = currentY - dragStartY;
-        if (delta > 0) {
-            const translateY = Math.min(delta, drawerHeight * 0.8);
-            drawer.style.transform = `translateY(${translateY}px)`;
+        const deltaY = e.touches[0].clientY - startY;
+        if (deltaY > 0) {
+            // Limit max drag to 80% of drawer height
+            const maxDrag = drawer.offsetHeight * 0.8;
+            currentTranslate = Math.min(deltaY, maxDrag);
+            // Apply transform smoothly
+            if (animationFrame) cancelAnimationFrame(animationFrame);
+            animationFrame = requestAnimationFrame(() => {
+                drawer.style.transform = `translateY(${currentTranslate}px)`;
+            });
         }
     };
 
-    const onTouchEnd = (e) => {
+    const onTouchEnd = () => {
         if (!isDragging) return;
         isDragging = false;
-        const finalTransform = drawer.style.transform;
-        const translateY = finalTransform ? parseInt(finalTransform.match(/translateY\(([\d.]+)px\)/)?.[1] || 0) : 0;
-        drawer.style.transition = '';
-        drawer.style.transform = '';
-        if (translateY > drawerHeight * 0.25) {
-            closeGiftDrawer();
+        if (animationFrame) cancelAnimationFrame(animationFrame);
+
+        const threshold = drawer.offsetHeight * 0.25;
+        if (currentTranslate > threshold) {
+            // Close: animate downwards and then remove drawer
+            drawer.style.transition = 'transform 0.3s ease-out';
+            drawer.style.transform = `translateY(100%)`;
+            setTimeout(() => {
+                closeGiftDrawer();
+                drawer.style.transition = '';
+                drawer.style.transform = '';
+            }, 300);
+        } else {
+            // Snap back
+            drawer.style.transition = 'transform 0.25s ease-out';
+            drawer.style.transform = 'translateY(0px)';
+            setTimeout(() => {
+                drawer.style.transition = '';
+            }, 250);
         }
+        currentTranslate = 0;
     };
 
     handle.addEventListener('touchstart', onTouchStart, { passive: false });
@@ -182,7 +257,7 @@ async function renderGiftDrawerContent() {
     });
 }
 
-// Send gift – with BIG confetti (normal and overpriced)
+// Send gift – with BIG confetti (normal and overpriced) and thank‑you modal (no alert)
 async function sendGift(giftId, giftName, giftEmoji, giftPrice, category) {
     const tg = window.Telegram.WebApp;
     try {
@@ -264,10 +339,8 @@ async function sendGift(giftId, giftName, giftEmoji, giftPrice, category) {
                     await verifyPremiumStatus();
                 }
 
-                // 6. Optional alert
-                if (tg.showAlert) {
-                    tg.showAlert(`🎁 ${giftEmoji} ${giftName} sent! Thank you!`);
-                }
+                // 6. Show custom thank‑you modal (fades after 2 seconds, no Telegram alert)
+                showThankYouModal(giftName, giftEmoji);
             } else {
                 if (tg.showAlert) tg.showAlert("Gift purchase cancelled or failed.");
             }
@@ -331,4 +404,4 @@ export async function initGiftSystem() {
     initDrawerDrag();
     
     await refreshRecentGiftCard();
-                                                }
+            }
