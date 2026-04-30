@@ -47,18 +47,17 @@
         <h2 style="flex:1; text-align:center; font-size:16px; margin:0;">IMAGIFHUB</h2>
         <div id="premiumIndicator" style="display:none;">⭐</div>
         <button id="muteBtn" onclick="toggleMute()" style="background:none; border:none; color:#fff; font-size:22px; padding:15px; cursor:pointer;">🔊</button>
+        <!-- 🔍 search button with id for JS control – onclick removed, handled by event listener -->
         <button id="searchBtn" style="background:none; border:none; color:#fff; font-size:22px; padding:15px; cursor:pointer;">🔍</button>
     </div>
 
-    <div class="cat-bar" id="catBar"></div>
-
-    <!-- SEARCH PANEL (initially hidden) -->
+    <!-- EXPANDABLE SEARCH PANEL (initially hidden) -->
     <div id="searchPanel" class="search-panel">
-        <div class="search-container">
-            <input type="text" id="searchInput" placeholder="Search images..." autocomplete="off">
-            <button id="searchSubmitBtn">Search</button>
-        </div>
+        <input type="text" id="searchInput" placeholder="Search images..." autocomplete="off">
+        <button id="searchSubmitBtn">Search</button>
     </div>
+
+    <div class="cat-bar" id="catBar"></div>
 
     <!-- MENU OVERLAY (blur background) -->
     <div id="menuOverlay" class="menu-overlay"></div>
@@ -253,4 +252,5 @@
     <script type="module" src="giftManager.js"></script>
     
 </body>
-</html>
+    </html>
+    
