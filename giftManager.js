@@ -268,8 +268,7 @@ export async function refreshRecentGiftCard() {
     }
 }
 
-// Gift drawer payment method toggle (Stars ↔ TON)
-function initGiftPaymentToggle() {
+// Gift drawer payment method toggle (Stars ↔ TON) with mode classes
 function initGiftPaymentToggle() {
     const toggleContainer = document.getElementById('giftPaymentToggle');
     if (!toggleContainer) return;
@@ -314,7 +313,7 @@ function initGiftPaymentToggle() {
         giftDrawer.classList.add('mode-ton');
     }
 }
-    
+
 // Open gift drawer
 export function showGiftDrawer() {
     if (currentGiftDrawerOpen) return;
@@ -424,4 +423,4 @@ export async function initGiftSystem() {
     initDrawerDrag();
     
     await refreshRecentGiftCard();
-    }
+        }
