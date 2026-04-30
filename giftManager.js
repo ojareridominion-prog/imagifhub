@@ -1,4 +1,4 @@
-// giftManager.js - Gifting system (professional drag-to-close)
+// giftManager.js - Gifting system (professional drag-to-close, thank‑you modal)
 import { state } from './state.js';
 import { verifyPremiumStatus } from './premiumManager.js';
 
@@ -76,14 +76,13 @@ export function closeGiftDrawer() {
     const overlay = document.getElementById('drawerOverlay');
     if (!drawer) return;
     
-    // Ensure transition is enabled for smooth closing
     drawer.style.transition = 'transform 0.3s cubic-bezier(0.25, 1, 0.5, 1)';
     drawer.classList.remove('open');
     if (overlay) overlay.classList.remove('active');
     document.body.style.overflow = '';
     currentGiftDrawerOpen = false;
     
-    // Reset inline transform after animation finishes (optional)
+    // Reset inline transform after animation finishes
     setTimeout(() => {
         if (!drawer.classList.contains('open')) {
             drawer.style.transform = '';
@@ -153,7 +152,7 @@ export function showGiftDrawer() {
     renderGiftDrawerContent();
 }
 
-// ========== PROFESSIONAL DRAG LOGIC (no rebounding) ==========
+// ========== PROFESSIONAL DRAG LOGIC (instant, no lag) ==========
 function handleDragStart(e) {
     e.preventDefault();
     isDragging = true;
@@ -181,7 +180,7 @@ function handleDragEnd(e) {
     const deltaY = clientY - dragStartY;
     // Re‑enable smooth transition
     drawer.style.transition = 'transform 0.3s cubic-bezier(0.25, 1, 0.5, 1)';
-    // If dragged more than 100px, close; else snap back
+    // If dragged more than 100px, close; else snap back instantly
     if (deltaY > 100) {
         closeGiftDrawer();
     } else {
@@ -203,7 +202,7 @@ function initDrawerDrag() {
     handle.addEventListener('touchstart', handleDragStart, { passive: false });
     handle.addEventListener('touchmove', handleDragMove);
     handle.addEventListener('touchend', handleDragEnd);
-    // Optional: mouse support for desktop testing
+    // Optional mouse support for desktop testing
     handle.addEventListener('mousedown', handleDragStart);
     window.addEventListener('mousemove', handleDragMove);
     window.addEventListener('mouseup', handleDragEnd);
@@ -337,7 +336,7 @@ export async function initGiftSystem() {
     const overlay = document.getElementById('drawerOverlay');
     if (overlay) overlay.addEventListener('click', closeGiftDrawer);
     
-    initDrawerDrag(); // sets up professional drag
+    initDrawerDrag();
     
     await refreshRecentGiftCard();
-        }
+                    }
