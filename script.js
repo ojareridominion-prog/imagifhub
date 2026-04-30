@@ -3,15 +3,20 @@ import { musicLibrary, categories } from './music.js';
 import { getHolidayImage, getFestiveTitle } from './welcome.js';
 import { state } from './state.js';
 import { playRandomMusic, toggleMute } from './musicManager.js';
-import { fetchNativeAds, setupAdButtonListeners } from './adsManager.js';   // removed showRewardedAdWrapper
+import { fetchNativeAds, setupAdButtonListeners } from './adsManager.js';
 import { verifyPremiumStatus, updateWatchAdCard, startTempPremiumCountdown, showRewardedAdWrapper as premiumRewardedWrapper } from './premiumManager.js';
 import { loadFeed, resetAndLoadFeed } from './feedManager.js';
-import { toggleMenu, applyTheme, triggerSearch, shareBot, openPremium, closePremium, openCopyright, closeCopyright, openPrivacy, closePrivacy, copyUserId, toggleDarkText, initUI } from './uiManager.js';
-import { initGiftSystem, refreshRecentGiftCard, showGiftDrawer } from './giftManager.js';   // NEW
+import { 
+    toggleMenu, applyTheme, triggerSearch, shareBot, 
+    openPremium, closePremium, openCopyright, closeCopyright, 
+    openPrivacy, closePrivacy, copyUserId, toggleDarkText, initUI 
+} from './uiManager.js';
+import { initGiftSystem, refreshRecentGiftCard, showGiftDrawer } from './giftManager.js';
 
 const API_URL = "https://imagifhub.onrender.com";
 
-// Expose globals for HTML onclick
+// ========== EXPOSE ALL GLOBALS FOR INLINE ONCLICK ==========
+// These assignments happen immediately when the module loads.
 window.loadFeed = loadFeed;
 window.toggleMenu = toggleMenu;
 window.toggleMute = toggleMute;
@@ -29,7 +34,7 @@ window.copyUserId = copyUserId;
 window.openPrivacy = openPrivacy;
 window.closePrivacy = closePrivacy;
 
-// Payment / invoice function (needs API call)
+// ========== PREMIUM PAYMENT ==========
 async function goPremium() {
     const tg = window.Telegram.WebApp;
     const statusEl = document.getElementById('paymentStatus');
@@ -71,7 +76,6 @@ async function goPremium() {
 }
 window.goPremium = goPremium;
 
-// Helper to add manual check button to premium modal
 function addManualPremiumCheck() {
     const premiumCard = document.querySelector('.premium-card');
     if (premiumCard) {
@@ -95,7 +99,6 @@ function addManualPremiumCheck() {
     }
 }
 
-// Watch ad button listener
 function initWatchAdButton() {
     const watchAdBtn = document.getElementById('watchAdBtn');
     if (watchAdBtn) {
@@ -113,9 +116,8 @@ function initWatchAdButton() {
     }
 }
 
-// Initialization
+// ========== INITIALIZATION ==========
 window.onload = async () => {
-    // Expand Telegram WebApp
     const tg = window.Telegram.WebApp;
     if (tg && tg.expand) tg.expand();
 
@@ -123,24 +125,30 @@ window.onload = async () => {
     await verifyPremiumStatus();
 
     // Build category bar
-    document.getElementById('catBar').innerHTML = categories.map(c => 
-        `<button class="cat-btn" onclick="loadFeed('${c}')">${c}</button>`
-    ).join('');
+    const catBar = document.getElementById('catBar');
+    if (catBar) {
+        catBar.innerHTML = categories.map(c => 
+            `<button class="cat-btn" onclick="loadFeed('${c}')">${c}</button>`
+        ).join('');
+    }
 
+    // Initialize UI (attaches search panel events)
     initUI();
 
+    // Music ended handler
     const audioElem = document.getElementById('bgMusic');
-    audioElem.addEventListener('ended', () => {
-        if (state.currentCategory) playRandomMusic(state.currentCategory);
-    });
+    if (audioElem) {
+        audioElem.addEventListener('ended', () => {
+            if (state.currentCategory) playRandomMusic(state.currentCategory);
+        });
+    }
 
     initWatchAdButton();
     setupAdButtonListeners();
     addManualPremiumCheck();
 
-    // Initialize gift system
+    // Gift system
     await initGiftSystem();
-    // Attach menu button for gift drawer
     const openGiftMenuBtn = document.getElementById('openGiftFromMenuBtn');
     if (openGiftMenuBtn) openGiftMenuBtn.addEventListener('click', () => showGiftDrawer());
 
@@ -151,7 +159,6 @@ window.onload = async () => {
         welcomeOverlay.style.backgroundImage = `url('${getHolidayImage()}')`;
         continueBtn.addEventListener('click', () => {
             welcomeOverlay.classList.add('hidden');
-            // Trigger bot ad (optional)
             fetch(`${API_URL}/api/trigger-ad`, {
                 method: 'POST',
                 headers: { 'X-Telegram-Init-Data': tg.initData }
@@ -162,43 +169,52 @@ window.onload = async () => {
         loadFeed("Discover", "", true);
     }
 
-    document.querySelector('.top-bar h2').innerText = getFestiveTitle();
+    // Festive title
+    const titleEl = document.querySelector('.top-bar h2');
+    if (titleEl) titleEl.innerText = getFestiveTitle();
 
-    // Keyword expand/collapse listeners
-    document.getElementById('feed').addEventListener('click', (e) => {
-        const container = e.target.closest('.keyword-container');
-        if (!container) return;
-        if (e.target.classList.contains('more-btn')) {
-            container.querySelector('.keyword-short').style.display = 'none';
-            container.querySelector('.more-btn').style.display = 'none';
-            container.querySelector('.keyword-full').style.display = 'inline';
-            container.querySelector('.less-btn').style.display = 'inline';
-            e.stopPropagation();
-        } else if (e.target.classList.contains('less-btn')) {
-            container.querySelector('.keyword-full').style.display = 'none';
-            container.querySelector('.less-btn').style.display = 'none';
-            container.querySelector('.keyword-short').style.display = 'inline';
-            container.querySelector('.more-btn').style.display = 'inline';
-            e.stopPropagation();
-        }
-    });
+    // Keyword expand/collapse
+    const feed = document.getElementById('feed');
+    if (feed) {
+        feed.addEventListener('click', (e) => {
+            const container = e.target.closest('.keyword-container');
+            if (!container) return;
+            if (e.target.classList.contains('more-btn')) {
+                const short = container.querySelector('.keyword-short');
+                const more = container.querySelector('.more-btn');
+                const full = container.querySelector('.keyword-full');
+                const less = container.querySelector('.less-btn');
+                if (short) short.style.display = 'none';
+                if (more) more.style.display = 'none';
+                if (full) full.style.display = 'inline';
+                if (less) less.style.display = 'inline';
+                e.stopPropagation();
+            } else if (e.target.classList.contains('less-btn')) {
+                const full = container.querySelector('.keyword-full');
+                const less = container.querySelector('.less-btn');
+                const short = container.querySelector('.keyword-short');
+                const more = container.querySelector('.more-btn');
+                if (full) full.style.display = 'none';
+                if (less) less.style.display = 'none';
+                if (short) short.style.display = 'inline';
+                if (more) more.style.display = 'inline';
+                e.stopPropagation();
+            }
+        });
+    }
 };
 
-// Global guard – blocks clicks on hidden elements containing "Join"
+// Global guard for hidden "Join" elements
 document.addEventListener('click', (e) => {
     const target = e.target.closest('a, button, [role="button"]');
     if (!target) return;
-    
-    // Check if the element contains the text "Join" (case‑insensitive)
     if (target.innerText && /join/i.test(target.innerText)) {
-        // Only allow click if the element is inside the open menu panel OR is a visible ad button
         const isVisibleMenu = target.closest('#menuPanel.open');
         const isVisibleAd = target.closest('.swiper-slide') && target.closest('.ad-action-btn');
         if (!isVisibleMenu && !isVisibleAd) {
             e.preventDefault();
             e.stopPropagation();
             console.warn('Blocked click on hidden Join element', target);
-            return false;
         }
     }
 });
