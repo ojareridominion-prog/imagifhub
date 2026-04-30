@@ -19,116 +19,6 @@ function getMenuOverlay() {
     return document.getElementById('menuOverlay');
 }
 
-// ----- SEARCH PANEL STATE -----
-let isSearchPanelOpen = false;
-let searchCloseHandler = null;
-
-function closeSearchPanel() {
-    const panel = document.getElementById('searchPanel');
-    const catBar = document.getElementById('catBar');
-    const searchBtn = document.getElementById('searchBtn');
-    if (!panel || !catBar || !searchBtn) return;
-    
-    panel.classList.remove('active');
-    catBar.classList.remove('search-hidden');
-    searchBtn.innerText = '🔍';
-    isSearchPanelOpen = false;
-    
-    if (searchCloseHandler) {
-        document.removeEventListener('click', searchCloseHandler);
-        searchCloseHandler = null;
-    }
-    document.removeEventListener('keydown', handleEscape);
-}
-
-function openSearchPanel() {
-    const panel = document.getElementById('searchPanel');
-    const catBar = document.getElementById('catBar');
-    const searchBtn = document.getElementById('searchBtn');
-    const input = document.getElementById('searchInput');
-    if (!panel || !catBar || !searchBtn) return;
-    
-    if (isSearchPanelOpen) {
-        input?.focus();
-        return;
-    }
-    
-    panel.classList.add('active');
-    catBar.classList.add('search-hidden');
-    searchBtn.innerText = '✕';
-    isSearchPanelOpen = true;
-    
-    setTimeout(() => input?.focus(), 100);
-    
-    if (searchCloseHandler) document.removeEventListener('click', searchCloseHandler);
-    searchCloseHandler = (e) => {
-        const target = e.target;
-        if (target.closest('#searchPanel') || target.id === 'searchBtn') return;
-        closeSearchPanel();
-    };
-    document.addEventListener('click', searchCloseHandler);
-    
-    document.removeEventListener('keydown', handleEscape);
-    document.addEventListener('keydown', handleEscape);
-}
-
-function handleEscape(e) {
-    if (e.key === 'Escape' && isSearchPanelOpen) {
-        closeSearchPanel();
-    }
-}
-
-function submitSearch() {
-    const input = document.getElementById('searchInput');
-    const query = input ? input.value.trim() : '';
-    if (query) {
-        closeSearchPanel();
-        resetAndLoadFeed(state.currentCategory, query);
-    } else {
-        closeSearchPanel();
-    }
-}
-
-export function triggerSearch() {
-    if (isSearchPanelOpen) {
-        closeSearchPanel();
-    } else {
-        openSearchPanel();
-    }
-}
-
-// Expose globally (for any inline handlers)
-window.triggerSearch = triggerSearch;
-window.closeSearchPanel = closeSearchPanel;
-
-// Initialize search panel listeners
-function initSearchPanel() {
-    const searchBtn = document.getElementById('searchBtn');
-    const submitBtn = document.getElementById('searchSubmitBtn');
-    const searchInput = document.getElementById('searchInput');
-    if (searchBtn) {
-        searchBtn.onclick = (e) => {
-            e.stopPropagation();
-            triggerSearch();
-        };
-    }
-    if (submitBtn) {
-        submitBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            submitSearch();
-        });
-    }
-    if (searchInput) {
-        searchInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                e.preventDefault();
-                submitSearch();
-            }
-        });
-    }
-}
-
-// ----- ORIGINAL FUNCTIONS (unchanged except adding closeSearchPanel in toggleMenu) -----
 export function toggleMenu() {
     const panel = document.getElementById('menuPanel');
     const overlay = document.getElementById('menuOverlay');
@@ -141,14 +31,13 @@ export function toggleMenu() {
         overlay.classList.add('active');
         document.body.style.overflow = 'hidden';
         verifyPremiumStatus();
-        // Close search panel if open
-        closeSearchPanel();
     } else {
         panel.classList.remove('open');
         overlay.classList.remove('active');
         document.body.style.overflow = '';
     }
 
+    // Safety: guarantee that overlay loses pointer events when closed
     if (!panel.classList.contains('open')) {
         overlay.style.pointerEvents = 'none';
         overlay.style.visibility = 'hidden';
@@ -158,6 +47,7 @@ export function toggleMenu() {
     }
 }
 
+// Close menu when clicking on overlay
 function initMenuOverlay() {
     const overlay = getMenuOverlay();
     if (overlay) {
@@ -175,16 +65,88 @@ export function applyTheme(themeId) {
     localStorage.setItem("imagifhub-theme", themeId);
 }
 
-export async function shareBot() {
+// OLD triggerSearch replaced by expandable panel – we keep the name but implement new behavior
+export function triggerSearch() {
+    // This function is now handled by the search panel; we can keep empty or call toggleSearchPanel
+    toggleSearchPanel();
+}
+
+// ==================== EXPANDABLE SEARCH PANEL ====================
+let searchPanelOpen = false;
+
+export function toggleSearchPanel() {
+    if (searchPanelOpen) {
+        closeSearchPanel();
+    } else {
+        openSearchPanel();
+    }
+}
+
+function openSearchPanel() {
+    const panel = document.getElementById('searchPanel');
+    const searchBtn = document.getElementById('searchBtn');
+    if (!panel) return;
+    panel.classList.add('open');
+    searchBtn.innerHTML = '✖';
+    searchPanelOpen = true;
+    // Focus input after animation
+    setTimeout(() => {
+        const input = document.getElementById('searchInput');
+        if (input) input.focus();
+    }, 200);
+    // Add global click listener to close when clicking outside
+    document.addEventListener('click', handleOutsideClickForSearch);
+    document.addEventListener('keydown', handleEscKeyForSearch);
+}
+
+export function closeSearchPanel() {
+    const panel = document.getElementById('searchPanel');
+    const searchBtn = document.getElementById('searchBtn');
+    if (!panel) return;
+    panel.classList.remove('open');
+    searchBtn.innerHTML = '🔍';
+    searchPanelOpen = false;
+    // Clear input
+    const input = document.getElementById('searchInput');
+    if (input) input.value = '';
+    // Remove event listeners
+    document.removeEventListener('click', handleOutsideClickForSearch);
+    document.removeEventListener('keydown', handleEscKeyForSearch);
+}
+
+function handleOutsideClickForSearch(e) {
+    const panel = document.getElementById('searchPanel');
+    const searchBtn = document.getElementById('searchBtn');
+    // If click is inside panel or on search button, do nothing
+    if (panel.contains(e.target) || searchBtn.contains(e.target)) return;
+    closeSearchPanel();
+}
+
+function handleEscKeyForSearch(e) {
+    if (e.key === 'Escape') {
+        closeSearchPanel();
+    }
+}
+
+export function performSearch() {
+    const input = document.getElementById('searchInput');
+    const query = input.value.trim();
+    if (!query) return;
+    // Perform search using loadFeed
+    resetAndLoadFeed("Discover", query, true); // skip ad if premium? skipAd = true? We'll use true to avoid extra ad
+    closeSearchPanel();
+}
+
+export function shareBot() {
     const shareData = {
         title: 'IMAGIFHUB',
         text: '‎SnapShot 📸 - Your vibe, your view. Swipe, zoom, vibe 🎉. Effortless image magic ✨. 😊‎',
         url: 'https://t.me/IMAGIFHUB_bot'
     };
     try {
-        if (navigator.share) await navigator.share(shareData);
+        if (navigator.share) navigator.share(shareData);
         else {
-            await navigator.clipboard.writeText(`${shareData.text} ${shareData.url}`);
+            navigator.clipboard.writeText(`${shareData.text} ${shareData.url}`);
             alert('Link & Text copied to clipboard!');
         }
     } catch (err) { console.log('Error sharing:', err); }
@@ -269,16 +231,40 @@ export function initUI() {
     const savedTheme = localStorage.getItem("imagifhub-theme") || "theme-black";
     applyTheme(savedTheme);
     // Build theme grid
-    const themeGrid = document.getElementById('themeGrid');
-    if (themeGrid) {
-        themeGrid.innerHTML = themesList.map(t => `
-            <div class="theme-circle" onclick="applyTheme('${t.id}')">
-                <div style="background:${t.top}"></div>
-                <div style="background:${t.bottom}"></div>
-            </div>
-        `).join('');
-    }
+    document.getElementById('themeGrid').innerHTML = themesList.map(t => `
+        <div class="theme-circle" onclick="applyTheme('${t.id}')">
+            <div style="background:${t.top}"></div>
+            <div style="background:${t.bottom}"></div>
+        </div>
+    `).join('');
     
+    // Initialize menu overlay click handler
     initMenuOverlay();
-    initSearchPanel();
+    
+    // Set up search panel event listeners (button and submit)
+    const searchBtn = document.getElementById('searchBtn');
+    const searchSubmit = document.getElementById('searchSubmitBtn');
+    if (searchBtn) {
+        searchBtn.onclick = (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            toggleSearchPanel();
+        };
+    }
+    if (searchSubmit) {
+        searchSubmit.onclick = (e) => {
+            e.preventDefault();
+            performSearch();
+        };
+    }
+    // Also listen for Enter key in input
+    const searchInput = document.getElementById('searchInput');
+    if (searchInput) {
+        searchInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                performSearch();
+            }
+        });
+    }
             }
