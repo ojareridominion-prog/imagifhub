@@ -852,3 +852,54 @@ body.search-open {
     margin: 12px 16px 8px 16px;
     width: calc(100% - 32px);
     }
+/* Glowing animation for overpriced gifts */
+.gift-item.glow-overpriced {
+    animation: overpricedGlow 2s infinite ease-in-out;
+    border-radius: 20px;
+}
+@keyframes overpricedGlow {
+    0% {
+        box-shadow: 0 0 0 0 rgba(255, 215, 0, 0.4);
+        background: rgba(255, 255, 255, 0.1);
+    }
+    50% {
+        box-shadow: 0 0 12px 8px rgba(255, 215, 0, 0.6);
+        background: rgba(255, 215, 0, 0.2);
+    }
+    100% {
+        box-shadow: 0 0 0 0 rgba(255, 215, 0, 0);
+        background: rgba(255, 255, 255, 0.1);
+    }
+}
+
+/* Category filter buttons inside gift drawer */
+.gift-category-filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 12px;
+    margin-bottom: 8px;
+    padding: 0 8px;
+}
+.gift-filter-btn {
+    background: rgba(255, 255, 255, 0.15);
+    backdrop-filter: blur(8px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: white;
+    padding: 6px 14px;
+    border-radius: 40px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-family: inherit;
+}
+.gift-filter-btn.active {
+    background: var(--accent, #9c4dff);
+    border-color: var(--accent, #9c4dff);
+    box-shadow: 0 2px 8px rgba(156, 77, 255, 0.4);
+}
+.gift-filter-btn:hover {
+    background: rgba(255, 255, 255, 0.25);
+    transform: translateY(-1px);
+}
