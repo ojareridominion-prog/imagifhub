@@ -241,16 +241,26 @@ export async function refreshRecentGiftCard() {
     }
 }
 
-// Close gift drawer – full reset
+// Close gift drawer – full reset including inline styles
 export function closeGiftDrawer() {
     const drawer = document.getElementById('giftDrawer');
     const overlay = document.getElementById('drawerOverlay');
     if (!drawer) return;
     
     drawer.classList.remove('open');
+    // Remove any leftover inline transform/transition to prevent sticking
+    drawer.style.transform = '';
+    drawer.style.transition = '';
     if (overlay) overlay.classList.remove('active');
     document.body.style.overflow = '';
     currentGiftDrawerOpen = false;
+    
+    // Clean up drag state
+    isDragging = false;
+    if (dragRAF) {
+        cancelAnimationFrame(dragRAF);
+        dragRAF = null;
+    }
 }
 
 // OPTIMIZED DRAG HANDLING with requestAnimationFrame
@@ -352,7 +362,10 @@ export function showGiftDrawer() {
     const overlay = document.getElementById('drawerOverlay');
     if (!drawer) return;
     
-    // No payment toggle – just show the drawer
+    // Reset any leftover inline transform/transition from previous drag
+    drawer.style.transform = '';
+    drawer.style.transition = '';
+    
     drawer.classList.add('open');
     if (overlay) overlay.classList.add('active');
     document.body.style.overflow = 'hidden';
@@ -379,4 +392,4 @@ export async function initGiftSystem() {
     // Close drawer when clicking overlay
     const overlay = document.getElementById('drawerOverlay');
     if (overlay) overlay.addEventListener('click', closeGiftDrawer);
-        }
+                }
