@@ -73,13 +73,7 @@ export async function loadGifts() {
     }
 }
 
-// Convert stars to TON
-function starsToTon(stars) {
-    const ton = (stars / 99) * 1.12;
-    return ton.toFixed(2);
-}
-
-// Build drawer HTML once (called on init)
+// Build drawer HTML once (called on init) – only Stars prices
 function buildDrawerHTML() {
     const container = document.getElementById('giftDrawerContent');
     if (!container) return;
@@ -98,14 +92,12 @@ function buildDrawerHTML() {
     for (const cat of categories) {
         html += `<div class="gift-category"><div class="gift-category-title">${cat.title}</div><div class="gift-items-grid">`;
         for (const gift of cat.items) {
-            const tonPrice = starsToTon(gift.price);
             html += `
-                <div class="gift-item" data-gift-id="${gift.id}" data-gift-name="${gift.name}" data-gift-emoji="${gift.emoji}" data-stars-price="${gift.price}" data-ton-price="${tonPrice}" data-category="${gift.category}">
+                <div class="gift-item" data-gift-id="${gift.id}" data-gift-name="${gift.name}" data-gift-emoji="${gift.emoji}" data-stars-price="${gift.price}" data-category="${gift.category}">
                     <div class="gift-emoji">${gift.emoji}</div>
                     <div class="gift-name">${gift.name}</div>
                     <div class="gift-price-container">
-                        <span class="gift-price stars-price">${gift.price} ⭐</span>
-                        <span class="gift-price ton-price">${tonPrice} TON</span>
+                        <span class="gift-price">${gift.price} ⭐</span>
                     </div>
                     <button class="gift-send-btn">Send</button>
                 </div>
@@ -249,38 +241,6 @@ export async function refreshRecentGiftCard() {
     }
 }
 
-// Optimized payment toggle (class-based, no DOM loops)
-function initGiftPaymentToggle() {
-    const toggleContainer = document.getElementById('giftPaymentToggle');
-    const drawer = document.getElementById('giftDrawer');
-    if (!toggleContainer || !drawer) return;
-
-    toggleContainer.querySelectorAll('.seg-option').forEach(btn => {
-        btn.addEventListener('click', () => {
-            toggleContainer.querySelectorAll('.seg-option').forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-            const method = btn.dataset.payment;
-            
-            // Just toggle classes on drawer – CSS handles price visibility
-            if (method === 'stars') {
-                drawer.classList.remove('mode-ton');
-                drawer.classList.add('mode-stars');
-            } else {
-                drawer.classList.remove('mode-stars');
-                drawer.classList.add('mode-ton');
-            }
-        });
-    });
-
-    // Set initial mode
-    const activeBtn = toggleContainer.querySelector('.seg-option.active');
-    if (activeBtn && activeBtn.dataset.payment === 'stars') {
-        drawer.classList.add('mode-stars');
-    } else {
-        drawer.classList.add('mode-ton');
-    }
-}
-
 // Close gift drawer – full reset
 export function closeGiftDrawer() {
     const drawer = document.getElementById('giftDrawer');
@@ -392,19 +352,7 @@ export function showGiftDrawer() {
     const overlay = document.getElementById('drawerOverlay');
     if (!drawer) return;
     
-    // Ensure drawer has correct mode class
-    const toggleContainer = document.getElementById('giftPaymentToggle');
-    if (toggleContainer) {
-        const activeBtn = toggleContainer.querySelector('.seg-option.active');
-        if (activeBtn && activeBtn.dataset.payment === 'stars') {
-            drawer.classList.add('mode-stars');
-            drawer.classList.remove('mode-ton');
-        } else {
-            drawer.classList.add('mode-ton');
-            drawer.classList.remove('mode-stars');
-        }
-    }
-    
+    // No payment toggle – just show the drawer
     drawer.classList.add('open');
     if (overlay) overlay.classList.add('active');
     document.body.style.overflow = 'hidden';
@@ -415,7 +363,6 @@ export function showGiftDrawer() {
 export async function initGiftSystem() {
     await loadGifts();
     buildDrawerHTML();           // Pre-render once
-    initGiftPaymentToggle();
     initDrawerDrag();
     await refreshRecentGiftCard();
     
