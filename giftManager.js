@@ -1,5 +1,4 @@
-// giftManager.js - Optimized version with pre-rendered content and throttled drag
-
+// giftManager.js - Optimized version with category filtering and overpriced glow
 import { state } from './state.js';
 import { verifyPremiumStatus } from './premiumManager.js';
 
@@ -7,10 +6,10 @@ const API_URL = "https://imagifhub.onrender.com";
 
 let giftList = [];
 let currentGiftDrawerOpen = false;
+let currentGiftCategoryFilter = "all";
 let isDragging = false;
 let dragStartY = 0;
 let dragRAF = null;
-let drawerHeight = 0;
 
 // Helper: close menu if open
 function closeMenuIfOpen() {
@@ -36,7 +35,16 @@ function getCurrentSeason() {
     return null;
 }
 
-// Organise gifts by category
+// Get list of unique categories (excluding "this_season" for filter UI)
+function getUniqueCategories() {
+    const cats = new Set();
+    for (const gift of giftList) {
+        if (gift.category) cats.add(gift.category);
+    }
+    return Array.from(cats).sort();
+}
+
+// Organise gifts by category (used internally)
 function organizeGifts(gifts, currentSeason) {
     const categories = {};
     for (const gift of gifts) {
@@ -53,64 +61,88 @@ function organizeGifts(gifts, currentSeason) {
     for (const cat in categories) {
         categories[cat].sort((a,b) => a.price - b.price);
     }
-    const ordered = [];
-    if (categories["this_season"]) ordered.push({ title: "🎁 This Season", items: categories["this_season"] });
-    if (categories["everyday"]) ordered.push({ title: "🧸 Everyday Gifts", items: categories["everyday"] });
-    if (categories["fun"]) ordered.push({ title: "😎 Fun Gifts", items: categories["fun"] });
-    if (categories["overpriced"]) ordered.push({ title: "💎 Overpriced Gifts", items: categories["overpriced"] });
-    return ordered;
+    return categories;
 }
 
-// Load gifts from backend
-export async function loadGifts() {
-    try {
-        const res = await fetch(`${API_URL}/api/gifts`);
-        if (res.ok) giftList = await res.json();
-        else throw new Error("Failed to load gifts");
-    } catch (e) {
-        console.error("Error loading gifts:", e);
-        giftList = [];
-    }
-}
-
-// Build drawer HTML once (called on init) – only Stars prices
-function buildDrawerHTML() {
+// Build drawer HTML based on current filter
+function buildDrawerHTMLWithFilter() {
     const container = document.getElementById('giftDrawerContent');
     if (!container) return;
     if (!giftList.length) {
         container.innerHTML = '<div class="gift-empty">No gifts available</div>';
         return;
     }
+    
     const currentSeason = getCurrentSeason();
-    const categories = organizeGifts(giftList, currentSeason);
-    if (categories.length === 0) {
-        container.innerHTML = '<div class="gift-empty">No gifts available</div>';
+    const organized = organizeGifts(giftList, currentSeason);
+    
+    // Flatten all gifts for "all" filter
+    let flatGifts = [];
+    for (const cat in organized) {
+        flatGifts.push(...organized[cat]);
+    }
+    
+    let filteredGifts = [];
+    if (currentGiftCategoryFilter === "all") {
+        filteredGifts = flatGifts;
+    } else if (currentGiftCategoryFilter === "this_season") {
+        filteredGifts = organized["this_season"] || [];
+    } else {
+        filteredGifts = organized[currentGiftCategoryFilter] || [];
+    }
+    
+    if (filteredGifts.length === 0) {
+        container.innerHTML = '<div class="gift-empty">No gifts in this category</div>';
         return;
     }
     
-    let html = '';
-    for (const cat of categories) {
-        html += `<div class="gift-category"><div class="gift-category-title">${cat.title}</div><div class="gift-items-grid">`;
-        for (const gift of cat.items) {
-            html += `
-                <div class="gift-item" data-gift-id="${gift.id}" data-gift-name="${gift.name}" data-gift-emoji="${gift.emoji}" data-stars-price="${gift.price}" data-category="${gift.category}">
-                    <div class="gift-emoji">${gift.emoji}</div>
-                    <div class="gift-name">${gift.name}</div>
-                    <div class="gift-price-container">
-                        <span class="gift-price">${gift.price} ⭐</span>
-                    </div>
-                    <button class="gift-send-btn">Send</button>
+    let html = '<div class="gift-items-grid">';
+    for (const gift of filteredGifts) {
+        const isOverpriced = gift.category === "overpriced";
+        html += `
+            <div class="gift-item ${isOverpriced ? 'glow-overpriced' : ''}" data-gift-id="${gift.id}" data-gift-name="${gift.name}" data-gift-emoji="${gift.emoji}" data-stars-price="${gift.price}" data-category="${gift.category}">
+                <div class="gift-emoji">${gift.emoji}</div>
+                <div class="gift-name">${gift.name}</div>
+                <div class="gift-price-container">
+                    <span class="gift-price">${gift.price} ⭐</span>
                 </div>
-            `;
-        }
-        html += `</div></div>`;
+                <button class="gift-send-btn">Send</button>
+            </div>
+        `;
     }
+    html += '</div>';
     container.innerHTML = html;
     
-    // Attach send button listeners (event delegation is better, but we'll attach once)
+    // Attach send button listeners
     container.querySelectorAll('.gift-send-btn').forEach(btn => {
         btn.removeEventListener('click', handleSendGift);
         btn.addEventListener('click', handleSendGift);
+    });
+}
+
+// Initialize category filter buttons in drawer header
+function initCategoryFilterButtons() {
+    const container = document.getElementById('giftCategoryFilters');
+    if (!container) return;
+    
+    const categories = ["all", "this_season", "everyday", "fun", "overpriced"];
+    container.innerHTML = categories.map(cat => `
+        <button class="gift-filter-btn ${currentGiftCategoryFilter === cat ? 'active' : ''}" data-filter="${cat}">
+            ${cat === 'all' ? 'All' : cat === 'this_season' ? 'This Season' : cat.charAt(0).toUpperCase() + cat.slice(1)}
+        </button>
+    `).join('');
+    
+    container.querySelectorAll('.gift-filter-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const filter = btn.dataset.filter;
+            if (!filter) return;
+            currentGiftCategoryFilter = filter;
+            // Update active class
+            container.querySelectorAll('.gift-filter-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            // Re-render drawer content
+            buildDrawerHTMLWithFilter();
+        });
     });
 }
 
@@ -248,14 +280,12 @@ export function closeGiftDrawer() {
     if (!drawer) return;
     
     drawer.classList.remove('open');
-    // Remove any leftover inline transform/transition to prevent sticking
     drawer.style.transform = '';
     drawer.style.transition = '';
     if (overlay) overlay.classList.remove('active');
     document.body.style.overflow = '';
     currentGiftDrawerOpen = false;
     
-    // Clean up drag state
     isDragging = false;
     if (dragRAF) {
         cancelAnimationFrame(dragRAF);
@@ -263,7 +293,7 @@ export function closeGiftDrawer() {
     }
 }
 
-// OPTIMIZED DRAG HANDLING with requestAnimationFrame
+// Drag handling (unchanged)
 function handleDragStart(e) {
     e.preventDefault();
     isDragging = true;
@@ -271,7 +301,6 @@ function handleDragStart(e) {
     const drawer = document.getElementById('giftDrawer');
     if (drawer) {
         drawer.style.transition = 'none';
-        // Get current computed transform to avoid jumps
         const computedStyle = window.getComputedStyle(drawer);
         const transform = computedStyle.transform;
         if (transform !== 'none') {
@@ -287,15 +316,11 @@ function handleDragStart(e) {
 
 function handleDragMove(e) {
     if (!isDragging) return;
-    
     if (dragRAF) cancelAnimationFrame(dragRAF);
     dragRAF = requestAnimationFrame(() => {
         const clientY = e.type === 'touchmove' ? e.touches[0].clientY : e.clientY;
         let deltaY = clientY - dragStartY;
-        
-        // Only allow dragging downward (opening upward not needed)
         if (deltaY < 0) deltaY = 0;
-        
         const drawer = document.getElementById('giftDrawer');
         if (drawer) {
             drawer.style.transform = `translateY(${deltaY}px)`;
@@ -315,18 +340,15 @@ function handleDragEnd(e) {
     const clientY = e.type === 'touchend' ? e.changedTouches[0].clientY : e.clientY;
     const deltaY = clientY - dragStartY;
     
-    // Re-enable transition for smooth snap/close
     drawer.style.transition = 'transform 0.3s cubic-bezier(0.2, 0.9, 0.4, 1.1)';
     
     if (deltaY > 100) {
-        // Close drawer
         drawer.style.transform = `translateY(100%)`;
         if (overlay) overlay.classList.remove('active');
         setTimeout(() => {
             closeGiftDrawer();
         }, 300);
     } else {
-        // Snap back to open position
         drawer.style.transform = 'translateY(0)';
         setTimeout(() => {
             if (!isDragging) drawer.style.transition = '';
@@ -338,7 +360,6 @@ function initDrawerDrag() {
     const handle = document.getElementById('drawerDragHandle');
     if (!handle) return;
     
-    // Remove old listeners to prevent duplicates
     handle.removeEventListener('touchstart', handleDragStart);
     handle.removeEventListener('touchmove', handleDragMove);
     handle.removeEventListener('touchend', handleDragEnd);
@@ -354,7 +375,7 @@ function initDrawerDrag() {
     document.addEventListener('mouseup', handleDragEnd);
 }
 
-// Open gift drawer (no re-render, just show)
+// Open gift drawer (with fresh render)
 export function showGiftDrawer() {
     if (currentGiftDrawerOpen) return;
     closeMenuIfOpen();
@@ -362,9 +383,11 @@ export function showGiftDrawer() {
     const overlay = document.getElementById('drawerOverlay');
     if (!drawer) return;
     
-    // Reset any leftover inline transform/transition from previous drag
     drawer.style.transform = '';
     drawer.style.transition = '';
+    
+    // Re-render with current filter
+    buildDrawerHTMLWithFilter();
     
     drawer.classList.add('open');
     if (overlay) overlay.classList.add('active');
@@ -372,14 +395,26 @@ export function showGiftDrawer() {
     currentGiftDrawerOpen = true;
 }
 
-// Initialize gift system – pre-render everything
+// Load gifts from backend
+export async function loadGifts() {
+    try {
+        const res = await fetch(`${API_URL}/api/gifts`);
+        if (res.ok) giftList = await res.json();
+        else throw new Error("Failed to load gifts");
+    } catch (e) {
+        console.error("Error loading gifts:", e);
+        giftList = [];
+    }
+}
+
+// Initialize gift system – pre‑render everything
 export async function initGiftSystem() {
     await loadGifts();
-    buildDrawerHTML();           // Pre-render once
+    initCategoryFilterButtons();    // creates filter UI inside drawer header
+    buildDrawerHTMLWithFilter();    // initial render
     initDrawerDrag();
     await refreshRecentGiftCard();
     
-    // Delegate gift button clicks from feed
     document.getElementById('feed').addEventListener('click', (e) => {
         const giftBtn = e.target.closest('.gift-icon-btn');
         if (giftBtn) {
@@ -389,7 +424,6 @@ export async function initGiftSystem() {
         }
     });
     
-    // Close drawer when clicking overlay
     const overlay = document.getElementById('drawerOverlay');
     if (overlay) overlay.addEventListener('click', closeGiftDrawer);
-                }
+        }
