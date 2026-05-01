@@ -247,21 +247,21 @@
     <!-- DRAWER OVERLAY (blur background for gift drawer) -->
     <div id="drawerOverlay" class="drawer-overlay"></div>
 
+    <!-- ... (everything above left as is) ... -->
+
     <!-- GIFT DRAWER (slide from bottom with drag handle, no X button) -->
-<div id="giftDrawer" class="gift-drawer">
-    <div class="drawer-drag-handle" id="drawerDragHandle"></div>
-    <div class="gift-drawer-header">
-        <h3>🎁 Send us a Gift</h3>
+    <div id="giftDrawer" class="gift-drawer">
+        <div class="drawer-drag-handle" id="drawerDragHandle"></div>
+        <div class="gift-drawer-header">
+            <h3>🎁 Send us a Gift</h3>
+        </div>
+        <!-- SEGMENTED TOGGLE REMOVED (only Stars now) -->
+        <div class="gift-drawer-body" id="giftDrawerContent">
+            <div class="gift-loading">Loading gifts...</div>
+        </div>
     </div>
-    <!-- SEGMENTED TOGGLE placed right after header -->
-    <div class="payment-segmented drawer-segmented" id="giftPaymentToggle">
-        <button class="seg-option active" data-payment="stars">⭐ Stars</button>
-        <button class="seg-option" data-payment="ton">💎 TON</button>
-    </div>
-    <div class="gift-drawer-body" id="giftDrawerContent">
-        <div class="gift-loading">Loading gifts...</div>
-    </div>
-</div>
+
+<!-- ... (rest of the file unchanged) ... -->
 
     <div id="welcomeOverlay" class="welcome-overlay">
         <div class="overlay-content">
