@@ -466,66 +466,60 @@ body.dark-text .description-text {
     to { transform: rotate(360deg); }
 }
 
-/* ==================== GIFT DRAWER (slide from bottom) with glassmorphism ==================== */
-/* style.css - Replace the gift drawer and gift-item styles with these optimized versions */
-‎
-‎/* ==================== OPTIMIZED GIFT DRAWER (performance) ==================== */
-‎.drawer-overlay {
-‎    position: fixed;
-‎    top: 0;
-‎    left: 0;
-‎    width: 100%;
-‎    height: 100%;
-‎    background: rgba(0, 0, 0, 0.5);
-‎    backdrop-filter: blur(4px);  /* Reduced from 8px for better performance */
-‎    z-index: 10999;
-‎    opacity: 0;
-‎    visibility: hidden;
-‎    transition: opacity 0.3s ease, visibility 0.3s ease;
-‎}
-‎.drawer-overlay.active {
-‎    opacity: 1;
-‎    visibility: visible;
-‎}
-‎
-‎/* Gift Drawer – hardware accelerated transform */
-‎.gift-drawer {
-‎    position: fixed;
-‎    bottom: 0;
-‎    left: 0;
-‎    width: 100%;
-‎    height: 85%;
-‎    background: rgba(26, 26, 26, 0.95);
-‎    backdrop-filter: blur(12px);
-‎    z-index: 11000;
-‎    border-radius: 24px 24px 0 0;
-‎    box-shadow: 0 -10px 30px rgba(0,0,0,0.5);
-‎    display: flex;
-‎    flex-direction: column;
-‎    overflow: hidden;
-‎    transform: translateY(100%);
-‎    will-change: transform;  /* Forces GPU acceleration */
-‎    transition: transform 0.3s cubic-bezier(0.2, 0.9, 0.4, 1.1);
-‎}
-‎
-‎.gift-drawer.open {
-‎    transform: translateY(0);
-‎}
-‎
-‎/* Drag handle – improved touch handling */
-‎.drawer-drag-handle {
-‎    width: 50px;
-‎    height: 5px;
-‎    background: rgba(255,255,255,0.4);
-‎    border-radius: 3px;
-‎    margin: 12px auto 8px;
-‎    cursor: grab;
-‎    touch-action: pan-y pinch-zoom;  /* Prevents scroll while dragging */
-‎    transition: background 0.2s;
-‎}
-‎.drawer-drag-handle:active {
-‎    cursor: grabbing;
-‎}
+/* ==================== OPTIMIZED GIFT DRAWER (performance & glass) ==================== */
+.drawer-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(4px);  /* Reduced from 8px for better performance */
+    z-index: 10999;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.3s ease, visibility 0.3s ease;
+}
+.drawer-overlay.active {
+    opacity: 1;
+    visibility: visible;
+}
+
+.gift-drawer {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 85%;
+    background: rgba(26, 26, 26, 0.95);
+    backdrop-filter: blur(12px);
+    z-index: 11000;
+    border-radius: 24px 24px 0 0;
+    box-shadow: 0 -10px 30px rgba(0,0,0,0.5);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    transform: translateY(100%);
+    will-change: transform;  /* Forces GPU acceleration */
+    transition: transform 0.3s cubic-bezier(0.2, 0.9, 0.4, 1.1);
+}
+.gift-drawer.open {
+    transform: translateY(0);
+}
+
+.drawer-drag-handle {
+    width: 50px;
+    height: 5px;
+    background: rgba(255,255,255,0.4);
+    border-radius: 3px;
+    margin: 12px auto 8px;
+    cursor: grab;
+    touch-action: pan-y pinch-zoom;  /* Prevents scroll while dragging */
+    transition: background 0.2s;
+}
+.drawer-drag-handle:active {
+    cursor: grabbing;
+}
 
 .gift-drawer-header {
     padding: 8px 16px 0px 16px;
@@ -556,26 +550,28 @@ body.dark-text .description-text {
     grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
     gap: 12px;
 }
+
+/* Gift items – NO continuous animations, just simple hover & press */
 .gift-item {
     background: rgba(255,255,255,0.1);
     backdrop-filter: blur(4px);
     border-radius: 16px;
     padding: 12px;
     text-align: center;
-    transition: transform 0.2s, box-shadow 0.2s;
+    transition: transform 0.15s ease, background 0.2s, box-shadow 0.2s;
     cursor: pointer;
-    animation: gentlePulse 1.5s infinite ease-in-out;
+    will-change: transform;
+}
+.gift-item:active {
+    transform: scale(0.98);
+    transition: transform 0.05s;
 }
 .gift-item:hover {
     transform: scale(1.02);
     background: rgba(255,255,255,0.2);
     box-shadow: 0 4px 12px rgba(0,0,0,0.2);
 }
-@keyframes gentlePulse {
-    0% { transform: scale(1); opacity: 1; }
-    50% { transform: scale(1.05); opacity: 0.95; }
-    100% { transform: scale(1); opacity: 1; }
-}
+
 .gift-emoji {
     font-size: 42px;
     margin-bottom: 8px;
@@ -610,14 +606,35 @@ body.dark-text .description-text {
 .gift-send-btn:active {
     transform: scale(0.96);
 }
+
+/* Overpriced items: no continuous sparkle, only hover glow on emoji */
 .gift-item[data-category="overpriced"] .gift-emoji {
-    animation: sparkle 1.5s infinite;
+    /* No continuous animation */
 }
-@keyframes sparkle {
-    0% { text-shadow: 0 0 0 gold; transform: scale(1); }
-    50% { text-shadow: 0 0 8px gold; transform: scale(1.1); }
-    100% { text-shadow: 0 0 0 gold; transform: scale(1); }
+.gift-item[data-category="overpriced"]:hover .gift-emoji {
+    text-shadow: 0 0 8px gold;
+    transition: text-shadow 0.2s;
 }
+
+/* Price toggle – class-based to avoid JS loops */
+.gift-drawer.mode-stars .ton-price {
+    display: none !important;
+}
+.gift-drawer.mode-stars .stars-price {
+    display: block !important;
+}
+.gift-drawer.mode-ton .stars-price {
+    display: none !important;
+}
+.gift-drawer.mode-ton .ton-price {
+    display: block !important;
+}
+.gift-price-container .ton-price,
+.gift-price-container .stars-price {
+    transition: display 0s;
+}
+
+/* Floating Gift Button (kept original) */
 .gift-icon-btn {
     position: absolute;
     top: 16px;
@@ -660,18 +677,6 @@ body.dark-text .description-text {
     transform: scale(0.94);
     animation: none;
 }
-/* In style.css */
-.menu-panel:not(.open) {
-    pointer-events: none !important;
-    visibility: hidden !important;
-    opacity: 0 !important;
-}
-
-.menu-panel.open {
-    pointer-events: auto !important;
-    visibility: visible !important;
-    opacity: 1 !important;
-}
 
 /* Prevent interactions with inactive slides – preserves fade transition */
 .swiper-slide:not(.swiper-slide-active) {
@@ -679,18 +684,16 @@ body.dark-text .description-text {
     user-select: none !important;
     -webkit-user-select: none !important;
 }
-
-/* Active slide remains fully interactive and on top */
 .swiper-slide-active {
     pointer-events: auto !important;
-    user-select: text !important;  /* allows keyword selection */
+    user-select: text !important;
     z-index: 2;
 }
 
 /* ==================== EXPANDABLE SEARCH PANEL (Professional Glass) ==================== */
 .search-panel {
     position: fixed;
-    top: 56px; /* below top bar */
+    top: 56px;
     left: 0;
     width: 100%;
     z-index: 950;
@@ -703,27 +706,22 @@ body.dark-text .description-text {
     transition: transform 0.3s cubic-bezier(0.2, 0.9, 0.4, 1.1), opacity 0.25s ease, visibility 0.25s;
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
 }
-
 .search-panel.open {
     transform: translateY(0);
     opacity: 1;
     visibility: visible;
 }
-
 .search-panel-inner {
     display: flex;
     justify-content: center;
     align-items: center;
     padding: 16px 20px;
 }
-
-/* Container for alignment */
 .search-container {
     width: 100%;
-    max-width: 500px; /* reduced to fit button on smaller screens */
+    max-width: 500px;
     margin: 0 auto;
 }
-
 .search-input-wrapper {
     position: relative;
     display: flex;
@@ -733,11 +731,9 @@ body.dark-text .description-text {
     border: 1px solid rgba(255, 255, 255, 0.15);
     border-radius: 12px;
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    overflow: visible; /* critical: prevents button clipping */
-    padding-right: 8px; /* gives space for button */
+    overflow: visible;
+    padding-right: 8px;
 }
-
-/* Static magnifying glass icon on the left */
 .search-icon-fixed {
     padding-left: 14px;
     font-size: 18px;
@@ -745,10 +741,9 @@ body.dark-text .description-text {
     pointer-events: none;
     color: #fff;
 }
-
 #searchInput {
     flex: 1;
-    min-width: 60px; /* allows input to shrink */
+    min-width: 60px;
     background: transparent;
     border: none;
     outline: none;
@@ -757,19 +752,16 @@ body.dark-text .description-text {
     font-size: 16px;
     font-family: 'Inter', system-ui, -apple-system, sans-serif;
 }
-
 #searchInput::placeholder {
     color: rgba(255, 255, 255, 0.5);
     font-weight: 400;
 }
-
-/* Professional Search Button - now fully visible */
 .search-submit-btn {
     background: var(--accent, #9c4dff);
     color: white;
     border: none;
     padding: 10px 20px;
-    margin-right: 0; /* pull leftward */
+    margin-right: 0;
     border-radius: 8px;
     font-weight: 600;
     font-size: 14px;
@@ -777,38 +769,29 @@ body.dark-text .description-text {
     transition: background 0.2s, transform 0.1s;
     font-family: inherit;
     white-space: nowrap;
-    flex-shrink: 0; /* prevents button from shrinking */
+    flex-shrink: 0;
 }
-
 .search-submit-btn:hover {
     background: #b370ff;
 }
-
 .search-submit-btn:active {
     transform: scale(0.97);
 }
-
-/* Focus state: entire wrapper reacts */
 .search-input-wrapper:focus-within {
     background: rgba(255, 255, 255, 0.12);
     border-color: var(--accent, #9c4dff);
     box-shadow: 0 0 0 3px rgba(156, 77, 255, 0.25), 0 8px 20px rgba(0, 0, 0, 0.3);
 }
-
-/* Dim category bar when search open */
 .search-panel.open ~ .cat-bar {
     filter: brightness(0.6);
     pointer-events: none;
     transition: filter 0.2s;
 }
-
-/* Prevent body scroll when search open */
 body.search-open {
     overflow: hidden;
 }
 
 /* ===== PAYMENT MODE THEMES (Stars vs TON) ===== */
-/* Stars mode – warm yellow/orange glass */
 .premium-card.payment-mode-stars {
     background: linear-gradient(135deg, #1a1a1a, #3d2a1a);
     border-top: 2px solid #ffb347;
@@ -819,8 +802,6 @@ body.search-open {
     border-top: 2px solid #4d9eff;
     border-bottom: 2px solid #4d9eff;
 }
-
-/* Gift drawer mode themes */
 .gift-drawer.mode-stars {
     background: rgba(40, 25, 10, 0.95);
     backdrop-filter: blur(20px);
@@ -831,8 +812,6 @@ body.search-open {
     backdrop-filter: blur(20px);
     border-top: 2px solid #4d9eff;
 }
-
-/* Segmented control – bigger and taller */
 .payment-segmented {
     display: flex;
     width: 100%;
@@ -844,7 +823,6 @@ body.search-open {
     gap: 8px;
     border: 1px solid rgba(255, 255, 255, 0.2);
 }
-
 .seg-option {
     flex: 1;
     text-align: center;
@@ -858,9 +836,8 @@ body.search-open {
     cursor: pointer;
     transition: all 0.25s cubic-bezier(0.2, 0.9, 0.4, 1.1);
     font-family: inherit;
+    background: rgba(255, 255, 255, 0.1);
 }
-
-/* Active segment button styling for each mode */
 .payment-segmented .seg-option.active[data-payment="stars"] {
     background: linear-gradient(135deg, #ffb347, #ff8c00);
     color: white;
@@ -871,14 +848,6 @@ body.search-open {
     color: white;
     box-shadow: 0 0 12px rgba(77, 158, 255, 0.5);
 }
-
-/* Inactive segments remain neutral */
-.seg-option {
-    background: rgba(255, 255, 255, 0.1);
-    color: rgba(255, 255, 255, 0.8);
-}
-
-/* Gift drawer variant – adjust margin to fit nicely */
 .drawer-segmented {
     margin: 12px 16px 8px 16px;
     width: calc(100% - 32px);
