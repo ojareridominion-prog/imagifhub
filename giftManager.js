@@ -1,4 +1,4 @@
-// giftManager.js - Optimized version with category filtering and overpriced glow
+// giftManager.js - with category filter (horizontal scroll) and grouped sections
 import { state } from './state.js';
 import { verifyPremiumStatus } from './premiumManager.js';
 
@@ -35,16 +35,7 @@ function getCurrentSeason() {
     return null;
 }
 
-// Get list of unique categories (excluding "this_season" for filter UI)
-function getUniqueCategories() {
-    const cats = new Set();
-    for (const gift of giftList) {
-        if (gift.category) cats.add(gift.category);
-    }
-    return Array.from(cats).sort();
-}
-
-// Organise gifts by category (used internally)
+// Organise gifts by category with titles (original grouping)
 function organizeGifts(gifts, currentSeason) {
     const categories = {};
     for (const gift of gifts) {
@@ -64,7 +55,18 @@ function organizeGifts(gifts, currentSeason) {
     return categories;
 }
 
-// Build drawer HTML based on current filter
+// Get display title for category key
+function getCategoryTitle(catKey) {
+    const titles = {
+        "this_season": "🎁 This Season",
+        "everyday": "🧸 Everyday Gifts",
+        "fun": "😎 Fun Gifts",
+        "overpriced": "💎 Overpriced Gifts"
+    };
+    return titles[catKey] || catKey.charAt(0).toUpperCase() + catKey.slice(1);
+}
+
+// Build drawer HTML based on current filter (keeps sections)
 function buildDrawerHTMLWithFilter() {
     const container = document.getElementById('giftDrawerContent');
     if (!container) return;
@@ -76,41 +78,63 @@ function buildDrawerHTMLWithFilter() {
     const currentSeason = getCurrentSeason();
     const organized = organizeGifts(giftList, currentSeason);
     
-    // Flatten all gifts for "all" filter
-    let flatGifts = [];
-    for (const cat in organized) {
-        flatGifts.push(...organized[cat]);
-    }
+    // Define the order of categories to display when filter is "all"
+    const categoryOrder = ["this_season", "everyday", "fun", "overpriced"];
     
-    let filteredGifts = [];
+    let html = '';
+    
     if (currentGiftCategoryFilter === "all") {
-        filteredGifts = flatGifts;
-    } else if (currentGiftCategoryFilter === "this_season") {
-        filteredGifts = organized["this_season"] || [];
+        // Show all sections in order
+        for (const catKey of categoryOrder) {
+            const items = organized[catKey];
+            if (items && items.length) {
+                html += `<div class="gift-category"><div class="gift-category-title">${getCategoryTitle(catKey)}</div><div class="gift-items-grid">`;
+                for (const gift of items) {
+                    const isOverpriced = gift.category === "overpriced";
+                    html += `
+                        <div class="gift-item ${isOverpriced ? 'glow-overpriced' : ''}" data-gift-id="${gift.id}" data-gift-name="${gift.name}" data-gift-emoji="${gift.emoji}" data-stars-price="${gift.price}" data-category="${gift.category}">
+                            <div class="gift-emoji">${gift.emoji}</div>
+                            <div class="gift-name">${gift.name}</div>
+                            <div class="gift-price-container">
+                                <span class="gift-price">${gift.price} ⭐</span>
+                            </div>
+                            <button class="gift-send-btn">Send</button>
+                        </div>
+                    `;
+                }
+                html += `</div></div>`;
+            }
+        }
     } else {
-        filteredGifts = organized[currentGiftCategoryFilter] || [];
+        // Show only selected category
+        let items = [];
+        if (currentGiftCategoryFilter === "this_season") items = organized["this_season"] || [];
+        else if (currentGiftCategoryFilter === "everyday") items = organized["everyday"] || [];
+        else if (currentGiftCategoryFilter === "fun") items = organized["fun"] || [];
+        else if (currentGiftCategoryFilter === "overpriced") items = organized["overpriced"] || [];
+        
+        if (items.length) {
+            const title = getCategoryTitle(currentGiftCategoryFilter);
+            html += `<div class="gift-category"><div class="gift-category-title">${title}</div><div class="gift-items-grid">`;
+            for (const gift of items) {
+                const isOverpriced = gift.category === "overpriced";
+                html += `
+                    <div class="gift-item ${isOverpriced ? 'glow-overpriced' : ''}" data-gift-id="${gift.id}" data-gift-name="${gift.name}" data-gift-emoji="${gift.emoji}" data-stars-price="${gift.price}" data-category="${gift.category}">
+                        <div class="gift-emoji">${gift.emoji}</div>
+                        <div class="gift-name">${gift.name}</div>
+                        <div class="gift-price-container">
+                            <span class="gift-price">${gift.price} ⭐</span>
+                        </div>
+                        <button class="gift-send-btn">Send</button>
+                    </div>
+                `;
+            }
+            html += `</div></div>`;
+        } else {
+            html = '<div class="gift-empty">No gifts in this category</div>';
+        }
     }
     
-    if (filteredGifts.length === 0) {
-        container.innerHTML = '<div class="gift-empty">No gifts in this category</div>';
-        return;
-    }
-    
-    let html = '<div class="gift-items-grid">';
-    for (const gift of filteredGifts) {
-        const isOverpriced = gift.category === "overpriced";
-        html += `
-            <div class="gift-item ${isOverpriced ? 'glow-overpriced' : ''}" data-gift-id="${gift.id}" data-gift-name="${gift.name}" data-gift-emoji="${gift.emoji}" data-stars-price="${gift.price}" data-category="${gift.category}">
-                <div class="gift-emoji">${gift.emoji}</div>
-                <div class="gift-name">${gift.name}</div>
-                <div class="gift-price-container">
-                    <span class="gift-price">${gift.price} ⭐</span>
-                </div>
-                <button class="gift-send-btn">Send</button>
-            </div>
-        `;
-    }
-    html += '</div>';
     container.innerHTML = html;
     
     // Attach send button listeners
@@ -120,22 +144,30 @@ function buildDrawerHTMLWithFilter() {
     });
 }
 
-// Initialize category filter buttons in drawer header
+// Initialize horizontally scrollable category filter buttons
 function initCategoryFilterButtons() {
     const container = document.getElementById('giftCategoryFilters');
     if (!container) return;
     
-    const categories = ["all", "this_season", "everyday", "fun", "overpriced"];
-    container.innerHTML = categories.map(cat => `
-        <button class="gift-filter-btn ${currentGiftCategoryFilter === cat ? 'active' : ''}" data-filter="${cat}">
-            ${cat === 'all' ? 'All' : cat === 'this_season' ? 'This Season' : cat.charAt(0).toUpperCase() + cat.slice(1)}
+    const filters = [
+        { id: "all", label: "All" },
+        { id: "this_season", label: "This Season" },
+        { id: "everyday", label: "Everyday" },
+        { id: "fun", label: "Fun" },
+        { id: "overpriced", label: "Overpriced" }
+    ];
+    
+    container.innerHTML = filters.map(f => `
+        <button class="gift-filter-btn ${currentGiftCategoryFilter === f.id ? 'active' : ''}" data-filter="${f.id}">
+            ${f.label}
         </button>
     `).join('');
     
+    // Make container horizontally scrollable (CSS handles it)
     container.querySelectorAll('.gift-filter-btn').forEach(btn => {
         btn.addEventListener('click', (e) => {
             const filter = btn.dataset.filter;
-            if (!filter) return;
+            if (!filter || filter === currentGiftCategoryFilter) return;
             currentGiftCategoryFilter = filter;
             // Update active class
             container.querySelectorAll('.gift-filter-btn').forEach(b => b.classList.remove('active'));
@@ -410,7 +442,7 @@ export async function loadGifts() {
 // Initialize gift system – pre‑render everything
 export async function initGiftSystem() {
     await loadGifts();
-    initCategoryFilterButtons();    // creates filter UI inside drawer header
+    initCategoryFilterButtons();    // creates horizontal scroll filter UI
     buildDrawerHTMLWithFilter();    // initial render
     initDrawerDrag();
     await refreshRecentGiftCard();
@@ -426,4 +458,4 @@ export async function initGiftSystem() {
     
     const overlay = document.getElementById('drawerOverlay');
     if (overlay) overlay.addEventListener('click', closeGiftDrawer);
-        }
+}
