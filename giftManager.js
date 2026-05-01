@@ -1,4 +1,5 @@
-// giftManager.js - Gifting system (frictionless drag, fully resets after close)
+// giftManager.js - Optimized version with pre-rendered content and throttled drag
+
 import { state } from './state.js';
 import { verifyPremiumStatus } from './premiumManager.js';
 
@@ -8,6 +9,8 @@ let giftList = [];
 let currentGiftDrawerOpen = false;
 let isDragging = false;
 let dragStartY = 0;
+let dragRAF = null;
+let drawerHeight = 0;
 
 // Helper: close menu if open
 function closeMenuIfOpen() {
@@ -70,21 +73,108 @@ export async function loadGifts() {
     }
 }
 
-// Close gift drawer – full reset (used everywhere)
-export function closeGiftDrawer() {
-    const drawer = document.getElementById('giftDrawer');
-    const overlay = document.getElementById('drawerOverlay');
-    if (!drawer) return;
-    
-    drawer.classList.remove('open');
-    drawer.style.transform = '';
-    drawer.style.transition = '';
-    if (overlay) overlay.classList.remove('active');
-    document.body.style.overflow = '';
-    currentGiftDrawerOpen = false;
+// Convert stars to TON
+function starsToTon(stars) {
+    const ton = (stars / 99) * 1.12;
+    return ton.toFixed(2);
 }
 
-// Show temporary thank‑you modal (fades after 2 seconds)
+// Build drawer HTML once (called on init)
+function buildDrawerHTML() {
+    const container = document.getElementById('giftDrawerContent');
+    if (!container) return;
+    if (!giftList.length) {
+        container.innerHTML = '<div class="gift-empty">No gifts available</div>';
+        return;
+    }
+    const currentSeason = getCurrentSeason();
+    const categories = organizeGifts(giftList, currentSeason);
+    if (categories.length === 0) {
+        container.innerHTML = '<div class="gift-empty">No gifts available</div>';
+        return;
+    }
+    
+    let html = '';
+    for (const cat of categories) {
+        html += `<div class="gift-category"><div class="gift-category-title">${cat.title}</div><div class="gift-items-grid">`;
+        for (const gift of cat.items) {
+            const tonPrice = starsToTon(gift.price);
+            html += `
+                <div class="gift-item" data-gift-id="${gift.id}" data-gift-name="${gift.name}" data-gift-emoji="${gift.emoji}" data-stars-price="${gift.price}" data-ton-price="${tonPrice}" data-category="${gift.category}">
+                    <div class="gift-emoji">${gift.emoji}</div>
+                    <div class="gift-name">${gift.name}</div>
+                    <div class="gift-price-container">
+                        <span class="gift-price stars-price">${gift.price} ⭐</span>
+                        <span class="gift-price ton-price">${tonPrice} TON</span>
+                    </div>
+                    <button class="gift-send-btn">Send</button>
+                </div>
+            `;
+        }
+        html += `</div></div>`;
+    }
+    container.innerHTML = html;
+    
+    // Attach send button listeners (event delegation is better, but we'll attach once)
+    container.querySelectorAll('.gift-send-btn').forEach(btn => {
+        btn.removeEventListener('click', handleSendGift);
+        btn.addEventListener('click', handleSendGift);
+    });
+}
+
+// Separate handler for gift sending
+async function handleSendGift(e) {
+    e.stopPropagation();
+    const btn = e.currentTarget;
+    const item = btn.closest('.gift-item');
+    if (!item) return;
+    const giftId = item.dataset.giftId;
+    const giftName = item.dataset.giftName;
+    const giftEmoji = item.dataset.giftEmoji;
+    const giftPrice = parseInt(item.dataset.starsPrice);
+    const category = item.dataset.category;
+    await sendGift(giftId, giftName, giftEmoji, giftPrice, category);
+}
+
+// Send gift – with confetti and thank‑you modal
+async function sendGift(giftId, giftName, giftEmoji, giftPrice, category) {
+    const tg = window.Telegram.WebApp;
+    try {
+        const response = await fetch(`${API_URL}/api/create-gift-invoice`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-Telegram-Init-Data': tg.initData },
+            body: JSON.stringify({ giftId })
+        });
+        if (!response.ok) throw new Error('Failed to create invoice');
+        const data = await response.json();
+        tg.openInvoice(data.invoice_link, async (status) => {
+            if (status === 'paid' || status === 'paid_in_chat') {
+                if (tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
+                if (typeof confetti === 'function') {
+                    confetti({ particleCount: 300, spread: 100, origin: { y: 0.5 }, startVelocity: 20, zIndex: 2147483647 });
+                    confetti({ particleCount: 200, spread: 80, origin: { y: 0.5, x: 0.2 }, startVelocity: 25, zIndex: 2147483647 });
+                    confetti({ particleCount: 200, spread: 80, origin: { y: 0.5, x: 0.8 }, startVelocity: 25, zIndex: 2147483647 });
+                    if (category === 'overpriced') {
+                        setTimeout(() => {
+                            confetti({ particleCount: 600, spread: 140, origin: { y: 0.5 }, startVelocity: 30, colors: ['#ffd700', '#ffaa00', '#ff5500', '#ffffff'], zIndex: 2147483647 });
+                        }, 200);
+                    }
+                }
+                closeGiftDrawer();
+                await refreshRecentGiftCard();
+                if (category === 'overpriced') await verifyPremiumStatus();
+                showThankYouModal(giftName, giftEmoji);
+            } else {
+                if (tg.showAlert) tg.showAlert("Gift purchase cancelled or failed.");
+            }
+        });
+    } catch (err) {
+        console.error("Gift error:", err);
+        if (tg.showAlert) tg.showAlert("Error sending gift. Please try again.");
+    }
+}
+
+// Show temporary thank‑you modal
 function showThankYouModal(giftName, giftEmoji) {
     const existing = document.getElementById('giftThankYouModal');
     if (existing) existing.remove();
@@ -130,115 +220,6 @@ function showThankYouModal(giftName, giftEmoji) {
     setTimeout(() => modal.remove(), 2000);
 }
 
-// Helper: convert stars to TON (1.12 TON = 99 stars)
-function starsToTon(stars) {
-    const ton = (stars / 99) * 1.12;
-    return ton.toFixed(2);
-}
-
-// Render gift items inside drawer with both price options
-async function renderGiftDrawerContent() {
-    const container = document.getElementById('giftDrawerContent');
-    if (!container) return;
-    if (!giftList.length) await loadGifts();
-    const currentSeason = getCurrentSeason();
-    const categories = organizeGifts(giftList, currentSeason);
-    if (categories.length === 0) {
-        container.innerHTML = '<div class="gift-empty">No gifts available</div>';
-        return;
-    }
-    let html = '';
-    for (const cat of categories) {
-        html += `<div class="gift-category"><div class="gift-category-title">${cat.title}</div><div class="gift-items-grid">`;
-        for (const gift of cat.items) {
-            const tonPrice = starsToTon(gift.price);
-            html += `
-                <div class="gift-item" data-gift-id="${gift.id}" data-gift-name="${gift.name}" data-gift-emoji="${gift.emoji}" data-stars-price="${gift.price}" data-ton-price="${tonPrice}" data-category="${gift.category}">
-                    <div class="gift-emoji">${gift.emoji}</div>
-                    <div class="gift-name">${gift.name}</div>
-                    <div class="gift-price-container">
-                        <span class="gift-price stars-price">${gift.price} ⭐</span>
-                        <span class="gift-price ton-price" style="display: none;">${tonPrice} TON</span>
-                    </div>
-                    <button class="gift-send-btn">Send</button>
-                </div>
-            `;
-        }
-        html += `</div></div>`;
-    }
-    container.innerHTML = html;
-
-    // Apply current payment method visibility
-    const activeMethod = document.querySelector('#giftPaymentToggle .seg-option.active')?.dataset.payment || 'stars';
-    document.querySelectorAll('.gift-item').forEach(item => {
-        const starsSpan = item.querySelector('.stars-price');
-        const tonSpan = item.querySelector('.ton-price');
-        if (activeMethod === 'stars') {
-            starsSpan.style.display = 'block';
-            tonSpan.style.display = 'none';
-        } else {
-            starsSpan.style.display = 'none';
-            tonSpan.style.display = 'block';
-        }
-    });
-
-    // Attach send button listeners (unchanged)
-    document.querySelectorAll('.gift-send-btn').forEach(btn => {
-        btn.addEventListener('click', async (e) => {
-            e.stopPropagation();
-            const item = btn.closest('.gift-item');
-            if (!item) return;
-            const giftId = item.dataset.giftId;
-            const giftName = item.dataset.giftName;
-            const giftEmoji = item.dataset.giftEmoji;
-            const giftPrice = parseInt(item.dataset.starsPrice);
-            const category = item.dataset.category;
-            await sendGift(giftId, giftName, giftEmoji, giftPrice, category);
-        });
-    });
-}
-
-// Send gift – with confetti and thank‑you modal (no Telegram alert)
-async function sendGift(giftId, giftName, giftEmoji, giftPrice, category) {
-    const tg = window.Telegram.WebApp;
-    try {
-        const response = await fetch(`${API_URL}/api/create-gift-invoice`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'X-Telegram-Init-Data': tg.initData },
-            body: JSON.stringify({ giftId })
-        });
-        if (!response.ok) throw new Error('Failed to create invoice');
-        const data = await response.json();
-        tg.openInvoice(data.invoice_link, async (status) => {
-            if (status === 'paid' || status === 'paid_in_chat') {
-                if (tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
-                if (typeof confetti === 'function') {
-                    confetti({ particleCount: 300, spread: 100, origin: { y: 0.5 }, startVelocity: 20, zIndex: 2147483647 });
-                    confetti({ particleCount: 200, spread: 80, origin: { y: 0.5, x: 0.2 }, startVelocity: 25, zIndex: 2147483647 });
-                    confetti({ particleCount: 200, spread: 80, origin: { y: 0.5, x: 0.8 }, startVelocity: 25, zIndex: 2147483647 });
-                    if (category === 'overpriced') {
-                        setTimeout(() => {
-                            confetti({ particleCount: 600, spread: 140, origin: { y: 0.5 }, startVelocity: 30, colors: ['#ffd700', '#ffaa00', '#ff5500', '#ffffff'], zIndex: 2147483647 });
-                            setTimeout(() => {
-                                confetti({ particleCount: 400, spread: 120, origin: { y: 0.2 }, startVelocity: 25, colors: ['#ffd700', '#ffaa00', '#ff5500'], zIndex: 2147483647 });
-                            }, 300);
-                        }, 200);
-                    }
-                }
-                closeGiftDrawer();
-                await refreshRecentGiftCard();
-                if (category === 'overpriced') await verifyPremiumStatus();
-                showThankYouModal(giftName, giftEmoji);
-            } else {
-                if (tg.showAlert) tg.showAlert("Gift purchase cancelled or failed.");
-            }
-        });
-    } catch (err) {
-        console.error("Gift error:", err);
-        if (tg.showAlert) tg.showAlert("Error sending gift. Please try again.");
-    }
-}
-
 // Refresh "Recent Gift" card in menu
 export async function refreshRecentGiftCard() {
     const tg = window.Telegram.WebApp;
@@ -268,146 +249,177 @@ export async function refreshRecentGiftCard() {
     }
 }
 
-// Gift drawer payment method toggle (Stars ↔ TON) with mode classes
+// Optimized payment toggle (class-based, no DOM loops)
 function initGiftPaymentToggle() {
     const toggleContainer = document.getElementById('giftPaymentToggle');
-    if (!toggleContainer) return;
-    const giftDrawer = document.getElementById('giftDrawer');
+    const drawer = document.getElementById('giftDrawer');
+    if (!toggleContainer || !drawer) return;
 
     toggleContainer.querySelectorAll('.seg-option').forEach(btn => {
-        btn.addEventListener('click', async () => {
-            // Update active state
+        btn.addEventListener('click', () => {
             toggleContainer.querySelectorAll('.seg-option').forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
             const method = btn.dataset.payment;
-
-            // Update all gift item price displays
-            document.querySelectorAll('.gift-item').forEach(item => {
-                const starsSpan = item.querySelector('.stars-price');
-                const tonSpan = item.querySelector('.ton-price');
-                if (method === 'stars') {
-                    starsSpan.style.display = 'block';
-                    tonSpan.style.display = 'none';
-                } else {
-                    starsSpan.style.display = 'none';
-                    tonSpan.style.display = 'block';
-                }
-            });
-
-            // Change drawer mode class
+            
+            // Just toggle classes on drawer – CSS handles price visibility
             if (method === 'stars') {
-                giftDrawer.classList.remove('mode-ton');
-                giftDrawer.classList.add('mode-stars');
+                drawer.classList.remove('mode-ton');
+                drawer.classList.add('mode-stars');
             } else {
-                giftDrawer.classList.remove('mode-stars');
-                giftDrawer.classList.add('mode-ton');
+                drawer.classList.remove('mode-stars');
+                drawer.classList.add('mode-ton');
             }
         });
     });
 
-    // Set initial mode based on active button
+    // Set initial mode
     const activeBtn = toggleContainer.querySelector('.seg-option.active');
     if (activeBtn && activeBtn.dataset.payment === 'stars') {
-        giftDrawer.classList.add('mode-stars');
-    } else if (activeBtn && activeBtn.dataset.payment === 'ton') {
-        giftDrawer.classList.add('mode-ton');
+        drawer.classList.add('mode-stars');
+    } else {
+        drawer.classList.add('mode-ton');
     }
 }
 
-// Open gift drawer
+// Close gift drawer – full reset
+export function closeGiftDrawer() {
+    const drawer = document.getElementById('giftDrawer');
+    const overlay = document.getElementById('drawerOverlay');
+    if (!drawer) return;
+    
+    drawer.classList.remove('open');
+    if (overlay) overlay.classList.remove('active');
+    document.body.style.overflow = '';
+    currentGiftDrawerOpen = false;
+}
+
+// OPTIMIZED DRAG HANDLING with requestAnimationFrame
+function handleDragStart(e) {
+    e.preventDefault();
+    isDragging = true;
+    dragStartY = e.type === 'touchstart' ? e.touches[0].clientY : e.clientY;
+    const drawer = document.getElementById('giftDrawer');
+    if (drawer) {
+        drawer.style.transition = 'none';
+        // Get current computed transform to avoid jumps
+        const computedStyle = window.getComputedStyle(drawer);
+        const transform = computedStyle.transform;
+        if (transform !== 'none') {
+            const matrix = transform.match(/matrix.*\((.+)\)/);
+            if (matrix) {
+                const values = matrix[1].split(', ');
+                const currentY = parseFloat(values[values.length - 1]);
+                if (!isNaN(currentY)) dragStartY -= currentY;
+            }
+        }
+    }
+}
+
+function handleDragMove(e) {
+    if (!isDragging) return;
+    
+    if (dragRAF) cancelAnimationFrame(dragRAF);
+    dragRAF = requestAnimationFrame(() => {
+        const clientY = e.type === 'touchmove' ? e.touches[0].clientY : e.clientY;
+        let deltaY = clientY - dragStartY;
+        
+        // Only allow dragging downward (opening upward not needed)
+        if (deltaY < 0) deltaY = 0;
+        
+        const drawer = document.getElementById('giftDrawer');
+        if (drawer) {
+            drawer.style.transform = `translateY(${deltaY}px)`;
+        }
+    });
+}
+
+function handleDragEnd(e) {
+    if (!isDragging) return;
+    isDragging = false;
+    if (dragRAF) cancelAnimationFrame(dragRAF);
+    
+    const drawer = document.getElementById('giftDrawer');
+    const overlay = document.getElementById('drawerOverlay');
+    if (!drawer) return;
+    
+    const clientY = e.type === 'touchend' ? e.changedTouches[0].clientY : e.clientY;
+    const deltaY = clientY - dragStartY;
+    
+    // Re-enable transition for smooth snap/close
+    drawer.style.transition = 'transform 0.3s cubic-bezier(0.2, 0.9, 0.4, 1.1)';
+    
+    if (deltaY > 100) {
+        // Close drawer
+        drawer.style.transform = `translateY(100%)`;
+        if (overlay) overlay.classList.remove('active');
+        setTimeout(() => {
+            closeGiftDrawer();
+        }, 300);
+    } else {
+        // Snap back to open position
+        drawer.style.transform = 'translateY(0)';
+        setTimeout(() => {
+            if (!isDragging) drawer.style.transition = '';
+        }, 300);
+    }
+}
+
+function initDrawerDrag() {
+    const handle = document.getElementById('drawerDragHandle');
+    if (!handle) return;
+    
+    // Remove old listeners to prevent duplicates
+    handle.removeEventListener('touchstart', handleDragStart);
+    handle.removeEventListener('touchmove', handleDragMove);
+    handle.removeEventListener('touchend', handleDragEnd);
+    handle.removeEventListener('mousedown', handleDragStart);
+    document.removeEventListener('mousemove', handleDragMove);
+    document.removeEventListener('mouseup', handleDragEnd);
+    
+    handle.addEventListener('touchstart', handleDragStart, { passive: false });
+    handle.addEventListener('touchmove', handleDragMove, { passive: false });
+    handle.addEventListener('touchend', handleDragEnd);
+    handle.addEventListener('mousedown', handleDragStart);
+    document.addEventListener('mousemove', handleDragMove);
+    document.addEventListener('mouseup', handleDragEnd);
+}
+
+// Open gift drawer (no re-render, just show)
 export function showGiftDrawer() {
     if (currentGiftDrawerOpen) return;
     closeMenuIfOpen();
     const drawer = document.getElementById('giftDrawer');
     const overlay = document.getElementById('drawerOverlay');
     if (!drawer) return;
+    
+    // Ensure drawer has correct mode class
+    const toggleContainer = document.getElementById('giftPaymentToggle');
+    if (toggleContainer) {
+        const activeBtn = toggleContainer.querySelector('.seg-option.active');
+        if (activeBtn && activeBtn.dataset.payment === 'stars') {
+            drawer.classList.add('mode-stars');
+            drawer.classList.remove('mode-ton');
+        } else {
+            drawer.classList.add('mode-ton');
+            drawer.classList.remove('mode-stars');
+        }
+    }
+    
     drawer.classList.add('open');
-    overlay.classList.add('active');
-    overlay.style.pointerEvents = 'auto';
+    if (overlay) overlay.classList.add('active');
     document.body.style.overflow = 'hidden';
     currentGiftDrawerOpen = true;
-    renderGiftDrawerContent();
-    initGiftPaymentToggle();     // ensure toggle works after render
 }
 
-// ========== FRICTIONLESS DRAG LOGIC ==========
-function handleDragStart(e) {
-    e.preventDefault();
-    isDragging = true;
-    dragStartY = e.type === 'touchstart' ? e.touches[0].clientY : e.clientY;
-    const drawer = document.getElementById('giftDrawer');
-    drawer.style.transition = 'none';
-}
-
-function handleDragMove(e) {
-    if (!isDragging) return;
-    
-    const clientY = e.type === 'touchmove' ? e.touches[0].clientY : e.clientY;
-    const deltaY = clientY - dragStartY;
-
-    if (deltaY > 0) {
-        const drawer = document.getElementById('giftDrawer');
-        drawer.style.transition = 'none';
-        drawer.style.transform = `translateY(${deltaY}px)`;
-    }
-}
-
-function handleDragEnd(e) {
-    if (!isDragging) return;
-    isDragging = false;
-
-    const drawer = document.getElementById('giftDrawer');
-    const overlay = document.getElementById('drawerOverlay');
-    
-    const clientY = e.type === 'touchend' ? e.changedTouches[0].clientY : e.clientY;
-    const deltaY = clientY - dragStartY;
-
-    // Re‑enable transition
-    drawer.style.transition = 'transform 0.4s cubic-bezier(0.16, 1, 0.3, 1)';
-    
-    requestAnimationFrame(() => {
-        if (deltaY > 100) {
-            // Slide all the way down
-            drawer.style.transform = `translateY(100%)`;
-            overlay.classList.remove('active');
-            
-            // After slide completes, fully close and reset
-            setTimeout(() => {
-                closeGiftDrawer();  // this resets class, transform, overlay, and state
-            }, 400);
-        } else {
-            // Snap back
-            drawer.style.transform = 'translateY(0)';
-            // No close, just reset transition after a short delay
-            setTimeout(() => {
-                if (!isDragging) drawer.style.transition = '';
-            }, 400);
-        }
-    });
-}
-
-function initDrawerDrag() {
-    const handle = document.getElementById('drawerDragHandle');
-    if (!handle) return;
-    handle.removeEventListener('touchstart', handleDragStart);
-    handle.removeEventListener('touchmove', handleDragMove);
-    handle.removeEventListener('touchend', handleDragEnd);
-    handle.removeEventListener('mousedown', handleDragStart);
-    handle.removeEventListener('mousemove', handleDragMove);
-    handle.removeEventListener('mouseup', handleDragEnd);
-    
-    handle.addEventListener('touchstart', handleDragStart, { passive: false });
-    handle.addEventListener('touchmove', handleDragMove);
-    handle.addEventListener('touchend', handleDragEnd);
-    handle.addEventListener('mousedown', handleDragStart);
-    window.addEventListener('mousemove', handleDragMove);
-    window.addEventListener('mouseup', handleDragEnd);
-}
-
-// Initialize gift system
+// Initialize gift system – pre-render everything
 export async function initGiftSystem() {
     await loadGifts();
+    buildDrawerHTML();           // Pre-render once
+    initGiftPaymentToggle();
+    initDrawerDrag();
+    await refreshRecentGiftCard();
     
+    // Delegate gift button clicks from feed
     document.getElementById('feed').addEventListener('click', (e) => {
         const giftBtn = e.target.closest('.gift-icon-btn');
         if (giftBtn) {
@@ -417,10 +429,7 @@ export async function initGiftSystem() {
         }
     });
     
+    // Close drawer when clicking overlay
     const overlay = document.getElementById('drawerOverlay');
     if (overlay) overlay.addEventListener('click', closeGiftDrawer);
-    
-    initDrawerDrag();
-    
-    await refreshRecentGiftCard();
         }
