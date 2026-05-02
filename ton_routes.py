@@ -106,4 +106,9 @@ async def verify_ton_payment(request: Request):
         except Exception as e:
             logging.error(f"TON verification error: {e}", exc_info=True)
             raise HTTPException(status_code=500, detail="Internal error")
+
+@router.get("/api/ton-config")
+async def ton_config():
+    return {"adminAddress": ADMIN_ADDRESS}
+    
           
