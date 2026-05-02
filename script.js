@@ -34,6 +34,20 @@ async function goPremium() {
     const tg = window.Telegram.WebApp;
     const statusEl = document.getElementById('paymentStatus');
     const btn = document.getElementById('btnBuy');
+
+    // --- Check which payment method is active ---
+    const tonOption = document.querySelector('.seg-option.active[data-payment="ton"]');
+    if (tonOption) {
+        // TON side: show "Coming soon" alert and do nothing else
+        if (tg.showAlert) {
+            tg.showAlert("TON payments are coming soon. Please use Telegram Stars for now.");
+        } else {
+            alert("TON payments are coming soon. Please use Telegram Stars for now.");
+        }
+        return;
+    }
+
+    // --- Stars (default) flow ---
     if (!tg.openInvoice) {
         statusEl.textContent = "Opening Telegram...";
         const userId = tg.initDataUnsafe?.user?.id;
