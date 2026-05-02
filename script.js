@@ -8,6 +8,7 @@ import { verifyPremiumStatus, updateWatchAdCard, startTempPremiumCountdown, show
 import { loadFeed, resetAndLoadFeed } from './feedManager.js';
 import { toggleMenu, applyTheme, triggerSearch, shareBot, openPremium, closePremium, openCopyright, closeCopyright, openPrivacy, closePrivacy, copyUserId, toggleDarkText, initUI } from './uiManager.js';
 import { initGiftSystem, refreshRecentGiftCard, showGiftDrawer } from './giftManager.js';   // NEW
+import { initWalletUI, sendTonPremiumPayment } from './tonPayment.js';   // NEW for TON wallet
 
 const API_URL = "https://imagifhub.onrender.com";
 
@@ -29,7 +30,7 @@ window.copyUserId = copyUserId;
 window.openPrivacy = openPrivacy;
 window.closePrivacy = closePrivacy;
 
-// Payment / invoice function (needs API call)
+// Payment / invoice function (updated to support TON)
 async function goPremium() {
     const tg = window.Telegram.WebApp;
     const statusEl = document.getElementById('paymentStatus');
@@ -38,11 +39,19 @@ async function goPremium() {
     // --- Check which payment method is active ---
     const tonOption = document.querySelector('.seg-option.active[data-payment="ton"]');
     if (tonOption) {
-        // TON side: show "Coming soon" alert and do nothing else
-        if (tg.showAlert) {
-            tg.showAlert("TON payments are coming soon. Please use Telegram Stars for now.");
-        } else {
-            alert("TON payments are coming soon. Please use Telegram Stars for now.");
+        // TON payment flow
+        statusEl.textContent = "Processing TON payment...";
+        btn.disabled = true;
+        try {
+            await sendTonPremiumPayment();
+            statusEl.textContent = "✅ Payment successful! Premium activated.";
+            setTimeout(() => closePremium(), 1500);
+        } catch (err) {
+            console.error(err);
+            statusEl.textContent = "❌ Payment failed: " + err.message;
+            if (tg.showAlert) tg.showAlert("Payment failed. Please try again or use Stars.");
+        } finally {
+            btn.disabled = false;
         }
         return;
     }
@@ -128,7 +137,6 @@ function initWatchAdButton() {
 }
 
 // Premium modal payment method toggle (Stars ↔ TON)
-// Now toggles both old and new prices
 function initPremiumPaymentToggle() {
     const toggleContainer = document.getElementById('premiumPaymentToggle');
     if (!toggleContainer) return;
@@ -206,6 +214,9 @@ window.onload = async () => {
     // Attach menu button for gift drawer
     const openGiftMenuBtn = document.getElementById('openGiftFromMenuBtn');
     if (openGiftMenuBtn) openGiftMenuBtn.addEventListener('click', () => showGiftDrawer());
+
+    // Initialize TON wallet UI inside user card
+    await initWalletUI();
 
     // Welcome overlay
     const welcomeOverlay = document.getElementById('welcomeOverlay');
