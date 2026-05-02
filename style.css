@@ -103,6 +103,13 @@ body { margin:0; background:var(--bg); color:var(--text); font-family: 'Inter', 
     border-radius: 16px;
 }
 
+/* Top row: avatar + details side by side */
+.user-card-top {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
 .user-avatar {
     width: 50px;
     height: 50px;
@@ -161,15 +168,15 @@ body { margin:0; background:var(--bg); color:var(--text); font-family: 'Inter', 
     color: #000;
 }
 
-/* Wallet row – sits at the bottom of the card */
+/* Wallet row – full width, placed after the top row */
 #walletConnectRow {
-    margin-top: auto;
+    width: 100%;
     padding: 8px 0;
     border-top: 1px solid rgba(255,255,255,0.1);
     cursor: pointer;
     transition: background 0.2s;
     font-size: 14px;
-    width: 100%;
+    margin-top: 0;
 }
 #walletConnectRow:hover {
     background: rgba(255,255,255,0.05);
