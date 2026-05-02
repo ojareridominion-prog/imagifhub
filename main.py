@@ -17,6 +17,7 @@ from admin import router as admin_router
 from ads_router import router as ads_router
 from ad_trigger import router as ad_trigger_router
 from gift_routes import router as gift_router          # NEW
+from ton_routes import router as ton_router            # NEW for TON payments
 
 # Import bot handlers to register them with dispatcher
 import bot_handlers  # noqa
@@ -49,6 +50,7 @@ app.include_router(admin_router)
 app.include_router(ads_router)
 app.include_router(ad_trigger_router)
 app.include_router(gift_router)          # NEW
+app.include_router(ton_router)           # NEW for TON payments
 
 @app.get("/")
 async def root():
