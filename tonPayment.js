@@ -58,7 +58,6 @@ export async function connectTonWallet() {
     try {
         const connector = await initTonConnect();
         
-        // Already connected
         if (connector.connected) {
             walletConnected = true;
             walletAddress = connector.wallet.account.address;
@@ -67,7 +66,6 @@ export async function connectTonWallet() {
             return walletAddress;
         }
 
-        // Get available wallets
         let walletsList = [];
         try {
             walletsList = await connector.getWallets();
@@ -75,12 +73,10 @@ export async function connectTonWallet() {
             console.warn("getWallets failed, using fallback", e);
         }
 
-        // Choose wallet: Tonkeeper (Telegram) or first available
         let selectedWallet = null;
         if (walletsList.length > 0) {
             selectedWallet = walletsList.find(w => w.name === "Tonkeeper") || walletsList[0];
         } else {
-            // Fallback – assume Tonkeeper is available via universal link
             if (window.TonConnect && window.TonConnect.Wallet) {
                 selectedWallet = window.TonConnect.Wallet.Tonkeeper;
             } else {
@@ -88,7 +84,6 @@ export async function connectTonWallet() {
             }
         }
 
-        // Connect
         const result = await connector.connect(selectedWallet);
         walletConnected = true;
         walletAddress = result.account.address;
@@ -235,21 +230,14 @@ export async function initWalletUI() {
         const userCard = document.querySelector('.user-info-card');
         if (!userCard) return;
 
+        // Remove existing row if present
         const oldRow = document.getElementById('walletConnectRow');
         if (oldRow) oldRow.remove();
 
+        // Create wallet row (it will be placed at bottom due to CSS)
         const walletRow = document.createElement('div');
         walletRow.id = 'walletConnectRow';
-        walletRow.style.cssText = `
-            margin-top: 12px;
-            padding: 8px 0;
-            border-top: 1px solid rgba(255,255,255,0.1);
-            cursor: pointer;
-            transition: background 0.2s;
-            font-size: 14px;
-        `;
-        walletRow.onmouseenter = () => walletRow.style.background = 'rgba(255,255,255,0.05)';
-        walletRow.onmouseleave = () => walletRow.style.background = '';
+        // CSS handles the layout – no inline styles needed
         userCard.appendChild(walletRow);
 
         const saved = localStorage.getItem("ton_wallet_address");
@@ -257,7 +245,7 @@ export async function initWalletUI() {
             walletAddress = saved;
             walletConnected = true;
             updateWalletUI();
-            // Silently verify connection
+            // Silent verification
             try {
                 const connector = await initTonConnect();
                 if (connector && !connector.connected) {
