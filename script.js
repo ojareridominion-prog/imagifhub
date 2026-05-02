@@ -3,12 +3,12 @@ import { musicLibrary, categories } from './music.js';
 import { getHolidayImage, getFestiveTitle } from './welcome.js';
 import { state } from './state.js';
 import { playRandomMusic, toggleMute } from './musicManager.js';
-import { fetchNativeAds, setupAdButtonListeners } from './adsManager.js';   // removed showRewardedAdWrapper
+import { fetchNativeAds, setupAdButtonListeners } from './adsManager.js';
 import { verifyPremiumStatus, updateWatchAdCard, startTempPremiumCountdown, showRewardedAdWrapper as premiumRewardedWrapper } from './premiumManager.js';
 import { loadFeed, resetAndLoadFeed } from './feedManager.js';
 import { toggleMenu, applyTheme, triggerSearch, shareBot, openPremium, closePremium, openCopyright, closeCopyright, openPrivacy, closePrivacy, copyUserId, toggleDarkText, initUI } from './uiManager.js';
-import { initGiftSystem, refreshRecentGiftCard, showGiftDrawer } from './giftManager.js';   // NEW
-import { initWalletUI, sendTonPremiumPayment } from './tonPayment.js';   // NEW for TON wallet
+import { initGiftSystem, refreshRecentGiftCard, showGiftDrawer } from './giftManager.js';
+import { initWalletUI, sendTonPremiumPayment } from './tonPayment.js';
 
 const API_URL = "https://imagifhub.onrender.com";
 
@@ -21,7 +21,7 @@ window.applyTheme = applyTheme;
 window.shareBot = shareBot;
 window.openPremium = openPremium;
 window.closePremium = closePremium;
-window.goPremium = goPremium;        // defined below
+window.goPremium = goPremium;
 window.verifyPremiumStatus = verifyPremiumStatus;
 window.toggleDarkText = toggleDarkText;
 window.openCopyright = openCopyright;
@@ -30,16 +30,14 @@ window.copyUserId = copyUserId;
 window.openPrivacy = openPrivacy;
 window.closePrivacy = closePrivacy;
 
-// Payment / invoice function (updated to support TON)
+// Payment / invoice function (supports TON)
 async function goPremium() {
     const tg = window.Telegram.WebApp;
     const statusEl = document.getElementById('paymentStatus');
     const btn = document.getElementById('btnBuy');
 
-    // --- Check which payment method is active ---
     const tonOption = document.querySelector('.seg-option.active[data-payment="ton"]');
     if (tonOption) {
-        // TON payment flow
         statusEl.textContent = "Processing TON payment...";
         btn.disabled = true;
         try {
@@ -56,7 +54,7 @@ async function goPremium() {
         return;
     }
 
-    // --- Stars (default) flow ---
+    // Stars flow
     if (!tg.openInvoice) {
         statusEl.textContent = "Opening Telegram...";
         const userId = tg.initDataUnsafe?.user?.id;
@@ -94,7 +92,6 @@ async function goPremium() {
 }
 window.goPremium = goPremium;
 
-// Helper to add manual check button to premium modal
 function addManualPremiumCheck() {
     const premiumCard = document.querySelector('.premium-card');
     if (premiumCard) {
@@ -118,7 +115,6 @@ function addManualPremiumCheck() {
     }
 }
 
-// Watch ad button listener
 function initWatchAdButton() {
     const watchAdBtn = document.getElementById('watchAdBtn');
     if (watchAdBtn) {
@@ -136,7 +132,6 @@ function initWatchAdButton() {
     }
 }
 
-// Premium modal payment method toggle (Stars ↔ TON)
 function initPremiumPaymentToggle() {
     const toggleContainer = document.getElementById('premiumPaymentToggle');
     if (!toggleContainer) return;
@@ -151,10 +146,8 @@ function initPremiumPaymentToggle() {
 
     toggleContainer.querySelectorAll('.seg-option').forEach(btn => {
         btn.addEventListener('click', (e) => {
-            // Update active state
             toggleContainer.querySelectorAll('.seg-option').forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
-
             const method = btn.dataset.payment;
             if (method === 'stars') {
                 starsOldSpan.style.display = 'block';
@@ -174,7 +167,6 @@ function initPremiumPaymentToggle() {
         });
     });
 
-    // Set initial state (default Stars)
     const activeBtn = toggleContainer.querySelector('.seg-option.active');
     if (activeBtn && activeBtn.dataset.payment === 'stars') {
         premiumCard.classList.add('payment-mode-stars');
@@ -185,12 +177,16 @@ function initPremiumPaymentToggle() {
 
 // Initialization
 window.onload = async () => {
-    // Expand Telegram WebApp
     const tg = window.Telegram.WebApp;
     if (tg && tg.expand) tg.expand();
 
-    await fetchNativeAds();
-    await verifyPremiumStatus();
+    try {
+        await fetchNativeAds();
+    } catch (e) { console.warn("fetchNativeAds error:", e); }
+
+    try {
+        await verifyPremiumStatus();
+    } catch (e) { console.warn("verifyPremiumStatus error:", e); }
 
     // Build category bar
     document.getElementById('catBar').innerHTML = categories.map(c => 
@@ -207,25 +203,25 @@ window.onload = async () => {
     initWatchAdButton();
     setupAdButtonListeners();
     addManualPremiumCheck();
-    initPremiumPaymentToggle();   // NEW: enable segmented toggle in premium modal
+    initPremiumPaymentToggle();
 
-    // Initialize gift system
-    await initGiftSystem();
-    // Attach menu button for gift drawer
-    const openGiftMenuBtn = document.getElementById('openGiftFromMenuBtn');
-    if (openGiftMenuBtn) openGiftMenuBtn.addEventListener('click', () => showGiftDrawer());
+    try {
+        await initGiftSystem();
+        const openGiftMenuBtn = document.getElementById('openGiftFromMenuBtn');
+        if (openGiftMenuBtn) openGiftMenuBtn.addEventListener('click', () => showGiftDrawer());
+    } catch (e) { console.warn("Gift system init error:", e); }
 
-    // Initialize TON wallet UI inside user card
-    await initWalletUI();
+    try {
+        await initWalletUI();
+    } catch (e) { console.warn("Wallet UI init error:", e); }
 
-    // Welcome overlay
+    // Welcome overlay (must always work)
     const welcomeOverlay = document.getElementById('welcomeOverlay');
     const continueBtn = document.getElementById('welcomeContinueBtn');
     if (welcomeOverlay && continueBtn) {
         welcomeOverlay.style.backgroundImage = `url('${getHolidayImage()}')`;
         continueBtn.addEventListener('click', () => {
             welcomeOverlay.classList.add('hidden');
-            // Trigger bot ad (optional)
             fetch(`${API_URL}/api/trigger-ad`, {
                 method: 'POST',
                 headers: { 'X-Telegram-Init-Data': tg.initData }
@@ -258,14 +254,11 @@ window.onload = async () => {
     });
 };
 
-// Global guard – blocks clicks on hidden elements containing "Join"
+// Global guard – blocks clicks on hidden Join elements
 document.addEventListener('click', (e) => {
     const target = e.target.closest('a, button, [role="button"]');
     if (!target) return;
-    
-    // Check if the element contains the text "Join" (case‑insensitive)
     if (target.innerText && /join/i.test(target.innerText)) {
-        // Only allow click if the element is inside the open menu panel OR is a visible ad button
         const isVisibleMenu = target.closest('#menuPanel.open');
         const isVisibleAd = target.closest('.swiper-slide') && target.closest('.ad-action-btn');
         if (!isVisibleMenu && !isVisibleAd) {
