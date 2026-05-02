@@ -1,14 +1,13 @@
-// tonPayment.js - TON Connect 2.0 integration
+// tonPayment.js - TON Connect 2.0 integration with error resilience
 import { state } from './state.js';
 import { verifyPremiumStatus } from './premiumManager.js';
 
-const TONCENTER_API = "https://toncenter.com/api/v3";
 let tonConnectInstance = null;
 let walletConnected = false;
 let walletAddress = null;
 
-const TON_PAYMENT_AMOUNT = 1.12; // TON
-const ADMIN_ADDRESS = ""; // will be filled from backend
+const TON_PAYMENT_AMOUNT = 1.12;
+const API_URL = "https://imagifhub.onrender.com";
 
 // Load TON Connect SDK dynamically
 export async function initTonConnect() {
@@ -22,15 +21,18 @@ export async function initTonConnect() {
         const script = document.createElement('script');
         script.src = 'https://unpkg.com/@tonconnect/sdk@2.0.0/dist/tonconnect.js';
         script.onload = () => {
-            tonConnectInstance = new window.TonConnect();
-            resolve(tonConnectInstance);
+            if (window.TonConnect) {
+                tonConnectInstance = new window.TonConnect();
+                resolve(tonConnectInstance);
+            } else {
+                reject(new Error("TonConnect SDK loaded but constructor missing"));
+            }
         };
-        script.onerror = reject;
+        script.onerror = () => reject(new Error("Failed to load TonConnect SDK"));
         document.head.appendChild(script);
     });
 }
 
-// Get admin address from backend (you can also hardcode env var)
 export async function fetchTonAdminAddress() {
     try {
         const res = await fetch(`${API_URL}/api/ton-config`);
@@ -42,19 +44,17 @@ export async function fetchTonAdminAddress() {
     }
 }
 
-// Connect wallet – opens QR or in-app wallet selection
 export async function connectTonWallet() {
-    const connector = await initTonConnect();
-    if (connector.connected) {
-        walletConnected = true;
-        walletAddress = connector.wallet.account.address;
-        localStorage.setItem("ton_wallet_address", walletAddress);
-        updateWalletUI();
-        return walletAddress;
-    }
     try {
+        const connector = await initTonConnect();
+        if (connector.connected) {
+            walletConnected = true;
+            walletAddress = connector.wallet.account.address;
+            localStorage.setItem("ton_wallet_address", walletAddress);
+            updateWalletUI();
+            return walletAddress;
+        }
         const walletsList = await connector.getWallets();
-        // Use the first available (Telegram wallet if in app)
         const wallet = walletsList.find(w => w.name === "Tonkeeper") || walletsList[0];
         const result = await connector.connect(wallet);
         walletConnected = true;
@@ -63,19 +63,22 @@ export async function connectTonWallet() {
         updateWalletUI();
         return walletAddress;
     } catch (e) {
-        console.error("Wallet connection error", e);
-        if (window.Telegram.WebApp.showAlert) {
+        console.error("Wallet connection error:", e);
+        if (window.Telegram?.WebApp?.showAlert) {
             window.Telegram.WebApp.showAlert("Failed to connect wallet. Please try again.");
         }
         return null;
     }
 }
 
-// Disconnect wallet
 export async function disconnectTonWallet() {
-    const connector = await initTonConnect();
-    if (connector.connected) {
-        await connector.disconnect();
+    try {
+        const connector = await initTonConnect();
+        if (connector.connected) {
+            await connector.disconnect();
+        }
+    } catch (e) {
+        console.error("Disconnect error:", e);
     }
     walletConnected = false;
     walletAddress = null;
@@ -83,7 +86,6 @@ export async function disconnectTonWallet() {
     updateWalletUI();
 }
 
-// Send TON payment for premium
 export async function sendTonPremiumPayment() {
     const connector = await initTonConnect();
     if (!connector.connected) {
@@ -93,12 +95,12 @@ export async function sendTonPremiumPayment() {
         }
     }
 
-    // Get admin address from backend
     const adminAddr = await fetchTonAdminAddress();
     if (!adminAddr) throw new Error("Admin address not configured");
 
     const amountNano = Math.floor(TON_PAYMENT_AMOUNT * 1e9);
-    const comment = `premium_${window.Telegram.WebApp.initDataUnsafe?.user?.id || Date.now()}`;
+    const userId = window.Telegram.WebApp.initDataUnsafe?.user?.id || Date.now();
+    const comment = `premium_${userId}`;
 
     const transaction = {
         validUntil: Math.floor(Date.now() / 1000) + 600,
@@ -111,37 +113,28 @@ export async function sendTonPremiumPayment() {
         ]
     };
 
-    try {
-        const result = await connector.sendTransaction(transaction);
-        // result contains boc or hash – we need tx hash
-        // For toncenter we need the tx hash. We'll get it from the result (depends on wallet)
-        // If result has 'hash' use that, otherwise we might need to decode.
-        let txHash = result.hash || result.boc;
-        if (!txHash) throw new Error("No transaction hash returned");
-        // Verify with backend
-        const tg = window.Telegram.WebApp;
-        const verifyRes = await fetch(`${API_URL}/api/verify-ton-payment`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-Telegram-Init-Data': tg.initData
-            },
-            body: JSON.stringify({ txHash })
-        });
-        const verification = await verifyRes.json();
-        if (verification.success) {
-            await verifyPremiumStatus(); // refresh UI
-            return true;
-        } else {
-            throw new Error(verification.reason || "Payment verification failed");
-        }
-    } catch (err) {
-        console.error("TON payment error", err);
-        throw err;
+    const result = await connector.sendTransaction(transaction);
+    let txHash = result.hash || result.boc;
+    if (!txHash) throw new Error("No transaction hash returned");
+
+    const tg = window.Telegram.WebApp;
+    const verifyRes = await fetch(`${API_URL}/api/verify-ton-payment`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-Telegram-Init-Data': tg.initData
+        },
+        body: JSON.stringify({ txHash })
+    });
+    const verification = await verifyRes.json();
+    if (verification.success) {
+        await verifyPremiumStatus();
+        return true;
+    } else {
+        throw new Error(verification.reason || "Payment verification failed");
     }
 }
 
-// Update UI with wallet status
 function updateWalletUI() {
     const walletRow = document.getElementById('walletConnectRow');
     if (!walletRow) return;
@@ -199,48 +192,51 @@ function showDisconnectConfirm() {
     overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
 }
 
-// Initialize wallet row inside user card (called from uiManager)
 export async function initWalletUI() {
-    const userCard = document.querySelector('.user-info-card');
-    if (!userCard) return;
-    // Remove existing if any
-    const oldRow = document.getElementById('walletConnectRow');
-    if (oldRow) oldRow.remove();
-    const walletRow = document.createElement('div');
-    walletRow.id = 'walletConnectRow';
-    walletRow.style.cssText = `
-        margin-top: 12px;
-        padding: 8px 0;
-        border-top: 1px solid rgba(255,255,255,0.1);
-        cursor: pointer;
-        transition: background 0.2s;
-        font-size: 14px;
-    `;
-    walletRow.onmouseenter = () => walletRow.style.background = 'rgba(255,255,255,0.05)';
-    walletRow.onmouseleave = () => walletRow.style.background = '';
-    userCard.appendChild(walletRow);
+    try {
+        const userCard = document.querySelector('.user-info-card');
+        if (!userCard) return;
 
-    // Restore saved address if exists
-    const saved = localStorage.getItem("ton_wallet_address");
-    if (saved) {
-        walletAddress = saved;
-        walletConnected = true;
-        // Auto-connect to TonConnect SDK? We'll just show as connected but not active.
-        // We'll lazy-connect when sending payment.
-        // But we need to reflect UI.
-        updateWalletUI();
-    } else {
-        updateWalletUI();
+        const oldRow = document.getElementById('walletConnectRow');
+        if (oldRow) oldRow.remove();
+
+        const walletRow = document.createElement('div');
+        walletRow.id = 'walletConnectRow';
+        walletRow.style.cssText = `
+            margin-top: 12px;
+            padding: 8px 0;
+            border-top: 1px solid rgba(255,255,255,0.1);
+            cursor: pointer;
+            transition: background 0.2s;
+            font-size: 14px;
+        `;
+        walletRow.onmouseenter = () => walletRow.style.background = 'rgba(255,255,255,0.05)';
+        walletRow.onmouseleave = () => walletRow.style.background = '';
+        userCard.appendChild(walletRow);
+
+        const saved = localStorage.getItem("ton_wallet_address");
+        if (saved) {
+            walletAddress = saved;
+            walletConnected = true;
+            updateWalletUI();
+        } else {
+            updateWalletUI();
+        }
+
+        // Try to sync with SDK but don't crash if fails
+        try {
+            const connector = await initTonConnect();
+            if (connector && connector.connected) {
+                walletConnected = true;
+                walletAddress = connector.wallet.account.address;
+                localStorage.setItem("ton_wallet_address", walletAddress);
+                updateWalletUI();
+            }
+        } catch (e) {
+            console.warn("TON SDK sync failed, but UI continues", e);
+        }
+    } catch (err) {
+        console.error("initWalletUI fatal error, skipping wallet", err);
+        // Do nothing – just let the rest of the app run
     }
-
-    // Also listen to connection events from SDK after async init
-    const connector = await initTonConnect();
-    if (connector.connected) {
-        walletConnected = true;
-        walletAddress = connector.wallet.account.address;
-        localStorage.setItem("ton_wallet_address", walletAddress);
-        updateWalletUI();
-    }
-}
-
-const API_URL = "https://imagifhub.onrender.com";
+            }
