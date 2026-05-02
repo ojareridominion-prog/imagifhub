@@ -76,19 +76,23 @@
     <div id="menuPanel" class="menu-panel">
         <a href="#" class="menu-link" onclick="toggleMenu()" style="color:var(--accent)">✕ Close Menu</a>
         
+        
         <!-- USER INFO CARD -->
-        <div class="user-info-card" id="userInfoCard">
-            <div class="user-avatar">
-                <img id="userAvatar" src="assets/default-avatar.png" alt="User">
-            </div>
-            <div class="user-details">
-                <div id="userName" class="user-name">Loading...</div>
-                <div class="user-id-row">
-                    <span id="userId">-</span>
-                    <button id="copyIdBtn" onclick="copyUserId()">📋 Copy</button>
-                </div>
+<div class="user-info-card" id="userInfoCard">
+    <div class="user-card-top">
+        <div class="user-avatar">
+            <img id="userAvatar" src="assets/default-avatar.png" alt="User">
+        </div>
+        <div class="user-details">
+            <div id="userName" class="user-name">Loading...</div>
+            <div class="user-id-row">
+                <span id="userId">-</span>
+                <button id="copyIdBtn" onclick="copyUserId()">📋 Copy</button>
             </div>
         </div>
+    </div>
+    <!-- Wallet row will be inserted here by initWalletUI() -->
+</div>
 
         <!-- PAID PREMIUM CARD -->
         <div class="premium-box">
