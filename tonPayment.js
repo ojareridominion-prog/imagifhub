@@ -1,36 +1,46 @@
-// tonPayment.js - TON Connect 2.0 integration with error resilience
-import { state } from './state.js';
+// tonPayment.js - TON Connect 2.0 with improved connection
 import { verifyPremiumStatus } from './premiumManager.js';
 
 let tonConnectInstance = null;
 let walletConnected = false;
 let walletAddress = null;
+let sdkReady = false;
 
 const TON_PAYMENT_AMOUNT = 1.12;
 const API_URL = "https://imagifhub.onrender.com";
 
-// Load TON Connect SDK dynamically
-export async function initTonConnect() {
-    if (tonConnectInstance) return tonConnectInstance;
+// Wait for TonConnect SDK to be available
+function waitForTonConnect(timeout = 5000) {
     return new Promise((resolve, reject) => {
         if (window.TonConnect) {
-            tonConnectInstance = new window.TonConnect();
-            resolve(tonConnectInstance);
+            sdkReady = true;
+            resolve(window.TonConnect);
             return;
         }
-        const script = document.createElement('script');
-        script.src = 'https://unpkg.com/@tonconnect/sdk@2.0.0/dist/tonconnect.js';
-        script.onload = () => {
+        const startTime = Date.now();
+        const interval = setInterval(() => {
             if (window.TonConnect) {
-                tonConnectInstance = new window.TonConnect();
-                resolve(tonConnectInstance);
-            } else {
-                reject(new Error("TonConnect SDK loaded but constructor missing"));
+                clearInterval(interval);
+                sdkReady = true;
+                resolve(window.TonConnect);
+            } else if (Date.now() - startTime > timeout) {
+                clearInterval(interval);
+                reject(new Error("TON Connect SDK timeout"));
             }
-        };
-        script.onerror = () => reject(new Error("Failed to load TonConnect SDK"));
-        document.head.appendChild(script);
+        }, 100);
     });
+}
+
+export async function initTonConnect() {
+    if (tonConnectInstance) return tonConnectInstance;
+    try {
+        await waitForTonConnect();
+        tonConnectInstance = new window.TonConnect();
+        return tonConnectInstance;
+    } catch (e) {
+        console.error("Failed to init TonConnect:", e);
+        throw new Error("TON SDK not available");
+    }
 }
 
 export async function fetchTonAdminAddress() {
@@ -47,6 +57,8 @@ export async function fetchTonAdminAddress() {
 export async function connectTonWallet() {
     try {
         const connector = await initTonConnect();
+        
+        // Already connected
         if (connector.connected) {
             walletConnected = true;
             walletAddress = connector.wallet.account.address;
@@ -54,9 +66,30 @@ export async function connectTonWallet() {
             updateWalletUI();
             return walletAddress;
         }
-        const walletsList = await connector.getWallets();
-        const wallet = walletsList.find(w => w.name === "Tonkeeper") || walletsList[0];
-        const result = await connector.connect(wallet);
+
+        // Get available wallets
+        let walletsList = [];
+        try {
+            walletsList = await connector.getWallets();
+        } catch (e) {
+            console.warn("getWallets failed, using fallback", e);
+        }
+
+        // Choose wallet: Tonkeeper (Telegram) or first available
+        let selectedWallet = null;
+        if (walletsList.length > 0) {
+            selectedWallet = walletsList.find(w => w.name === "Tonkeeper") || walletsList[0];
+        } else {
+            // Fallback – assume Tonkeeper is available via universal link
+            if (window.TonConnect && window.TonConnect.Wallet) {
+                selectedWallet = window.TonConnect.Wallet.Tonkeeper;
+            } else {
+                throw new Error("No wallets available");
+            }
+        }
+
+        // Connect
+        const result = await connector.connect(selectedWallet);
         walletConnected = true;
         walletAddress = result.account.address;
         localStorage.setItem("ton_wallet_address", walletAddress);
@@ -64,9 +97,14 @@ export async function connectTonWallet() {
         return walletAddress;
     } catch (e) {
         console.error("Wallet connection error:", e);
-        if (window.Telegram?.WebApp?.showAlert) {
-            window.Telegram.WebApp.showAlert("Failed to connect wallet. Please try again.");
-        }
+        const tg = window.Telegram?.WebApp;
+        let errorMsg = "Failed to connect wallet. ";
+        if (e.message.includes("timeout")) errorMsg += "SDK loading timeout. Please refresh.";
+        else if (e.message.includes("No wallets")) errorMsg += "No TON wallets found. Install Tonkeeper.";
+        else errorMsg += "Please try again later.";
+        
+        if (tg && tg.showAlert) tg.showAlert(errorMsg);
+        else alert(errorMsg);
         return null;
     }
 }
@@ -219,24 +257,22 @@ export async function initWalletUI() {
             walletAddress = saved;
             walletConnected = true;
             updateWalletUI();
+            // Silently verify connection
+            try {
+                const connector = await initTonConnect();
+                if (connector && !connector.connected) {
+                    walletConnected = false;
+                    walletAddress = null;
+                    localStorage.removeItem("ton_wallet_address");
+                    updateWalletUI();
+                }
+            } catch (e) {
+                console.warn("Reconnection check failed", e);
+            }
         } else {
             updateWalletUI();
         }
-
-        // Try to sync with SDK but don't crash if fails
-        try {
-            const connector = await initTonConnect();
-            if (connector && connector.connected) {
-                walletConnected = true;
-                walletAddress = connector.wallet.account.address;
-                localStorage.setItem("ton_wallet_address", walletAddress);
-                updateWalletUI();
-            }
-        } catch (e) {
-            console.warn("TON SDK sync failed, but UI continues", e);
-        }
     } catch (err) {
-        console.error("initWalletUI fatal error, skipping wallet", err);
-        // Do nothing – just let the rest of the app run
+        console.error("initWalletUI error", err);
     }
-            }
+}
