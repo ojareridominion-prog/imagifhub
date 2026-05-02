@@ -95,9 +95,14 @@ body { margin:0; background:var(--bg); color:var(--text); font-family: 'Inter', 
     margin: 15px;
     padding: 15px;
     display: flex;
-    align-items: center;
-    gap: 15px;
+    flex-direction: column;
+    gap: 12px;
+    background: rgba(255, 255, 255, 0.1) !important;
+    backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 16px;
 }
+
 .user-avatar {
     width: 50px;
     height: 50px;
@@ -111,10 +116,12 @@ body { margin:0; background:var(--bg); color:var(--text); font-family: 'Inter', 
     height: 100%;
     object-fit: cover;
 }
+
 .user-details {
     flex: 1;
     min-width: 0;
 }
+
 .user-name {
     font-weight: bold;
     font-size: 16px;
@@ -125,6 +132,7 @@ body { margin:0; background:var(--bg); color:var(--text); font-family: 'Inter', 
     color: #fff;
     text-shadow: none;
 }
+
 .user-id-row {
     display: flex;
     align-items: center;
@@ -151,6 +159,20 @@ body { margin:0; background:var(--bg); color:var(--text); font-family: 'Inter', 
 .user-id-row button:hover {
     background: #fff;
     color: #000;
+}
+
+/* Wallet row – sits at the bottom of the card */
+#walletConnectRow {
+    margin-top: auto;
+    padding: 8px 0;
+    border-top: 1px solid rgba(255,255,255,0.1);
+    cursor: pointer;
+    transition: background 0.2s;
+    font-size: 14px;
+    width: 100%;
+}
+#walletConnectRow:hover {
+    background: rgba(255,255,255,0.05);
 }
 
 /* Dark text override remains as is */
