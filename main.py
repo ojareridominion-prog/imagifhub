@@ -39,14 +39,11 @@ app.add_middleware(
 
 @app.get("/ton-manifest.json")
 async def ton_manifest(request: Request):
-    # Use the request's base URL (scheme + host)
     base_url = str(request.base_url).rstrip('/')
     return {
         "url": base_url,
         "name": "IMAGIFHUB",
-        "iconUrl": f"{base_url}/assets/icon.png",
-        "termsOfUseUrl": f"{base_url}/terms",
-        "privacyPolicyUrl": f"{base_url}/privacy"
+        "iconUrl": f"{base_url}/assets/icon.png"
     }
 
 @app.get("/debug/ton-manifest")
