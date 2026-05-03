@@ -34,27 +34,32 @@
     })();
     </script>
 
-    <!-- TON Connect SDK -->
-<script src="https://unpkg.com/@tonconnect/ui@latest/dist/tonconnect-ui.min.js"></script>
-<link rel="ton-manifest" href="https://imagifhub.onrender.com/ton-manifest.json">
+    
+    <!-- TON Connect SDK – robust loading + fallback -->
 <script>
-    // Global flag to check availability
-    window.tonConnectLoaded = false;
-    if (typeof window.TonConnectUI !== 'undefined') {
-        window.tonConnectLoaded = true;
-        console.log('TonConnectUI loaded');
-    } else {
-        console.warn('TonConnectUI not loaded, will retry');
-        // Retry after a short delay
-        setTimeout(() => {
-            if (typeof window.TonConnectUI !== 'undefined') {
-                window.tonConnectLoaded = true;
-                console.log('TonConnectUI loaded after retry');
-            }
-        }, 500);
-    }
+    (function loadTonConnect() {
+        // If already loaded, exit
+        if (window.TonConnectUI) return;
+
+        const script = document.createElement('script');
+        script.src = 'https://unpkg.com/@tonconnect/ui@latest/dist/tonconnect-ui.min.js';
+        script.integrity = ''; // optional, remove if not needed
+        script.crossOrigin = 'anonymous';
+        script.onload = () => {
+            console.log('[TON] TonConnectUI loaded');
+            window.tonConnectLoaded = true;
+            // Dispatch an event that initWalletUI can listen to
+            window.dispatchEvent(new Event('tonconnect-ready'));
+        };
+        script.onerror = () => {
+            console.error('[TON] TonConnectUI failed to load – retrying in 2s');
+            setTimeout(loadTonConnect, 2000);
+        };
+        document.head.appendChild(script);
+    })();
 </script>
-    <link rel="ton-manifest" href="https://ojareridominion-prog.github.io/imagifhub/tonconnect-manifest.json">
+<!-- Manifest link MUST point to your GitHub Pages domain -->
+<link rel="ton-manifest" href="https://ojareridominion-prog.github.io/imagifhub/tonconnect-manifest.json">
     
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.css"/>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
