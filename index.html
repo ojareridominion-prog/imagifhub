@@ -34,33 +34,44 @@
     })();
     </script>
 
-    
-    <!-- TON Connect SDK – robust loading + fallback -->
+    <!-- TON Connect SDK -->
+<script src="https://unpkg.com/@tonconnect/ui@latest/dist/tonconnect-ui.min.js"></script>
 <script>
-    (function loadTonConnect() {
-        // If already loaded, exit
-        if (window.TonConnectUI) return;
-
-        const script = document.createElement('script');
-        script.src = 'https://unpkg.com/@tonconnect/ui@latest/dist/tonconnect-ui.min.js';
-        script.integrity = ''; // optional, remove if not needed
-        script.crossOrigin = 'anonymous';
-        script.onload = () => {
-            console.log('[TON] TonConnectUI loaded');
+    (function() {
+        console.log('[TON] Checking TonConnectUI availability');
+        if (typeof window.TonConnectUI !== 'undefined') {
             window.tonConnectLoaded = true;
-            // Dispatch an event that initWalletUI can listen to
+            console.log('[TON] SDK already available');
             window.dispatchEvent(new Event('tonconnect-ready'));
-        };
-        script.onerror = () => {
-            console.error('[TON] TonConnectUI failed to load – retrying in 2s');
-            setTimeout(loadTonConnect, 2000);
-        };
-        document.head.appendChild(script);
+            return;
+        }
+        console.log('[TON] SDK not loaded, waiting for script onload');
+        // The SDK script will fire its own 'load' event when ready
+        window.addEventListener('load', function() {
+            if (typeof window.TonConnectUI !== 'undefined') {
+                window.tonConnectLoaded = true;
+                console.log('[TON] SDK loaded on window load');
+                window.dispatchEvent(new Event('tonconnect-ready'));
+            }
+        });
+        // Fallback check every 200ms for 5 seconds
+        let attempts = 0;
+        const interval = setInterval(() => {
+            if (typeof window.TonConnectUI !== 'undefined') {
+                window.tonConnectLoaded = true;
+                console.log('[TON] SDK loaded after polling');
+                window.dispatchEvent(new Event('tonconnect-ready'));
+                clearInterval(interval);
+            } else if (++attempts > 25) {
+                console.error('[TON] SDK failed to load after timeout');
+                clearInterval(interval);
+            }
+        }, 200);
     })();
 </script>
-<!-- Manifest link MUST point to your GitHub Pages domain -->
 <link rel="ton-manifest" href="https://ojareridominion-prog.github.io/imagifhub/tonconnect-manifest.json">
     
+
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.css"/>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.js"></script>
