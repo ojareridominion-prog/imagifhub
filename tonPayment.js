@@ -1,33 +1,52 @@
-// tonPayment.js - TON Connect 2.0 with proper SDK & manifest
+// tonPayment.js - TON Connect with dynamic script loading and fallback
 import { verifyPremiumStatus } from './premiumManager.js';
 
 let tonConnect = null;
 let walletConnected = false;
 let walletAddress = null;
+let sdkLoadPromise = null;
 
 const TON_PAYMENT_AMOUNT = 1.12;
 const API_URL = "https://imagifhub.onrender.com";
 
 /**
- * Wait for TonConnect SDK to be available
+ * Dynamically load TonConnect SDK with fallback CDN
  */
-function waitForTonConnect(timeout = 8000) {
-    return new Promise((resolve, reject) => {
-        if (window.TonConnect) {
-            resolve(window.TonConnect);
-            return;
-        }
-        const start = Date.now();
-        const interval = setInterval(() => {
-            if (window.TonConnect) {
-                clearInterval(interval);
-                resolve(window.TonConnect);
-            } else if (Date.now() - start > timeout) {
-                clearInterval(interval);
-                reject(new Error("TON Connect SDK timeout"));
-            }
-        }, 100);
+function loadTonConnectSDK() {
+    if (window.TonConnect) return Promise.resolve(window.TonConnect);
+    if (sdkLoadPromise) return sdkLoadPromise;
+
+    sdkLoadPromise = new Promise((resolve, reject) => {
+        const primarySrc = 'https://unpkg.com/@tonconnect/sdk@2.2.2/dist/tonconnect.js';
+        const fallbackSrc = 'https://cdn.jsdelivr.net/npm/@tonconnect/sdk@2.2.2/dist/tonconnect.js';
+        
+        let attempt = 0;
+        const tryLoad = (src) => {
+            const script = document.createElement('script');
+            script.src = src;
+            script.async = true;
+            script.onload = () => {
+                if (window.TonConnect) {
+                    console.log("[TON] SDK loaded from", src);
+                    resolve(window.TonConnect);
+                } else {
+                    reject(new Error("TonConnect not available after script load"));
+                }
+            };
+            script.onerror = () => {
+                console.warn(`[TON] Failed to load from ${src}`);
+                if (attempt === 0) {
+                    attempt++;
+                    tryLoad(fallbackSrc);
+                } else {
+                    reject(new Error("Failed to load TonConnect SDK from both sources"));
+                }
+            };
+            document.head.appendChild(script);
+        };
+        tryLoad(primarySrc);
     });
+    return sdkLoadPromise;
 }
 
 /**
@@ -35,9 +54,23 @@ function waitForTonConnect(timeout = 8000) {
  */
 export async function initTonConnect() {
     if (tonConnect) return tonConnect;
-    const TonConnectClass = await waitForTonConnect();
-    tonConnect = new TonConnectClass({
+    await loadTonConnectSDK();
+    tonConnect = new window.TonConnect({
         manifestUrl: `${API_URL}/ton-manifest.json`
+    });
+    // Listen to connection status changes
+    tonConnect.onStatusChange((wallet) => {
+        if (wallet) {
+            walletConnected = true;
+            walletAddress = wallet.account.address;
+            localStorage.setItem("ton_wallet_address", walletAddress);
+            updateWalletUI();
+        } else {
+            walletConnected = false;
+            walletAddress = null;
+            localStorage.removeItem("ton_wallet_address");
+            updateWalletUI();
+        }
     });
     return tonConnect;
 }
@@ -60,6 +93,7 @@ export async function fetchTonAdminAddress() {
  * Connect TON wallet
  */
 export async function connectTonWallet() {
+    const tg = window.Telegram?.WebApp;
     try {
         const connector = await initTonConnect();
         if (connector.connected) {
@@ -70,11 +104,12 @@ export async function connectTonWallet() {
             return walletAddress;
         }
 
-        // Get available wallets (Tonkeeper, etc.)
+        // Get available wallets
         const wallets = await connector.getWallets();
+        if (!wallets || wallets.length === 0) {
+            throw new Error("No TON wallets found. Please install Tonkeeper.");
+        }
         let selected = wallets.find(w => w.name === "Tonkeeper") || wallets[0];
-        if (!selected) throw new Error("No TON wallets found");
-
         const result = await connector.connect(selected);
         walletConnected = true;
         walletAddress = result.account.address;
@@ -83,7 +118,6 @@ export async function connectTonWallet() {
         return walletAddress;
     } catch (e) {
         console.error("Wallet connection error:", e);
-        const tg = window.Telegram?.WebApp;
         let errorMsg = "Failed to connect wallet. ";
         if (e.message?.includes("timeout")) errorMsg += "SDK loading timeout. Please refresh.";
         else if (e.message?.includes("No wallets")) errorMsg += "No TON wallets found. Install Tonkeeper.";
@@ -142,13 +176,10 @@ export async function sendTonPremiumPayment() {
         ]
     };
 
-    // Send transaction
     const result = await connector.sendTransaction(transaction);
-    // result is { boc: string } in TonConnect v2
     let txHash = result.hash || result.boc;
     if (!txHash) throw new Error("No transaction hash returned");
 
-    // Verify with backend
     const tg = window.Telegram.WebApp;
     const verifyRes = await fetch(`${API_URL}/api/verify-ton-payment`, {
         method: 'POST',
@@ -247,7 +278,7 @@ export async function initWalletUI() {
             walletAddress = saved;
             walletConnected = true;
             updateWalletUI();
-            // Silent reconnection check
+            // Verify connection silently
             try {
                 const connector = await initTonConnect();
                 if (connector && !connector.connected) {
@@ -265,4 +296,4 @@ export async function initWalletUI() {
     } catch (err) {
         console.error("initWalletUI error", err);
     }
-                }
+}
