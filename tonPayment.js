@@ -256,3 +256,8 @@ async function fetchTonAdminAddress() {
         return null;
     }
 }
+
+// Add these lines at the very bottom of tonPayment.js
+window.initWalletUI = initWalletUI;
+window.sendTonPremiumPayment = sendTonPremiumPayment;
+window.disconnectTonWallet = disconnectTonWallet;
