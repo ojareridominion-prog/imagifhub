@@ -269,3 +269,8 @@ document.addEventListener('click', (e) => {
         }
     }
 });
+
+document.addEventListener("DOMContentLoaded", () => {
+    // Initialize TonConnect UI
+    initWalletUI();
+});
