@@ -1,12 +1,13 @@
-// tonPayment.js - TON Connect integration (working inside Telegram Mini App)
+// tonPayment.js - TON Connect integration (fixed manifest URL + readiness)
 import { verifyPremiumStatus } from './premiumManager.js';
 
 let tonConnectUI = null;
 let walletConnected = false;
 let walletAddress = null;
 
+// ✅ CRITICAL: manifest must be served from the same origin as the Mini App (GitHub Pages)
+const MANIFEST_URL = 'https://ojareridominion-prog.github.io/imagifhub/tonconnect-manifest.json';
 const API_URL = "https://imagifhub.onrender.com";
-const MANIFEST_URL = `${API_URL}/ton-manifest.json`;
 
 // Helper: update wallet row in menu
 function updateWalletUI() {
@@ -43,13 +44,28 @@ function setStatusMessage(msg, isError = false) {
     }, 3000);
 }
 
+// Wait for TonConnectUI to be available (supports dynamic loading)
+async function waitForTonConnectUI() {
+    if (window.TonConnectUI) return window.TonConnectUI;
+    return new Promise((resolve) => {
+        if (window.TonConnectUI) resolve(window.TonConnectUI);
+        window.addEventListener('tonconnect-ready', () => resolve(window.TonConnectUI), { once: true });
+        // Also check every 200ms as fallback
+        const interval = setInterval(() => {
+            if (window.TonConnectUI) {
+                clearInterval(interval);
+                resolve(window.TonConnectUI);
+            }
+        }, 200);
+    });
+}
+
 // Initialize TonConnectUI once
 async function initTonConnectUI() {
     if (tonConnectUI) return tonConnectUI;
-    if (!window.TonConnectUI) {
-        throw new Error("TonConnectUI library not loaded");
-    }
-    tonConnectUI = new window.TonConnectUI({
+    const TonConnectUIClass = await waitForTonConnectUI();
+    if (!TonConnectUIClass) throw new Error("TonConnectUI library not loaded after retry");
+    tonConnectUI = new TonConnectUIClass({
         manifestUrl: MANIFEST_URL,
         actionsConfiguration: {
             twaReturnUrl: 'https://t.me/IMAGIFHUB_bot/imagifhub'
@@ -82,7 +98,7 @@ async function initTonConnectUI() {
     return tonConnectUI;
 }
 
-// Public function to connect wallet (called when clicking the wallet row)
+// Public function to connect wallet
 export async function connectWallet() {
     try {
         const ui = await initTonConnectUI();
@@ -163,6 +179,7 @@ export async function initWalletUI() {
         } catch (e) {
             console.warn("TON init failed:", e);
             walletConnected = false;
+            setStatusMessage("Wallet SDK not ready – tap to retry", true);
         }
         updateWalletUI();
     } catch (err) {
@@ -170,7 +187,7 @@ export async function initWalletUI() {
     }
 }
 
-// Premium payment via TON (uses Stars-style invoice fallback if TON fails)
+// Premium payment via TON
 export async function sendTonPremiumPayment() {
     // First ensure wallet is connected
     if (!walletConnected) {
