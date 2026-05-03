@@ -175,39 +175,7 @@ function initPremiumPaymentToggle() {
     }
 }
 
-// Dedicated function to initialize the welcome overlay
-async function initWelcomeOverlay() {
-    const welcomeOverlay = document.getElementById('welcomeOverlay');
-    const continueBtn = document.getElementById('welcomeContinueBtn');
-    
-    if (!welcomeOverlay || !continueBtn) {
-        console.error("Welcome overlay elements missing – loading feed directly");
-        loadFeed("Discover", "", true);
-        return false;
-    }
-    
-    // Set holiday background (image will be loaded from assets)
-    const holidayImage = getHolidayImage();
-    welcomeOverlay.style.backgroundImage = `url('${holidayImage}')`;
-    welcomeOverlay.style.display = 'flex';
-    welcomeOverlay.classList.remove('hidden'); // ensure visible
-    
-    // Handle continue click
-    const handleContinue = () => {
-        welcomeOverlay.classList.add('hidden');
-        const tg = window.Telegram.WebApp;
-        fetch(`${API_URL}/api/trigger-ad`, {
-            method: 'POST',
-            headers: { 'X-Telegram-Init-Data': tg.initData }
-        }).catch(() => {});
-        loadFeed("Discover", "", true);
-        continueBtn.removeEventListener('click', handleContinue);
-    };
-    continueBtn.addEventListener('click', handleContinue);
-    return true;
-}
-
-// Main initialization
+// Initialization
 window.onload = async () => {
     const tg = window.Telegram.WebApp;
     if (tg && tg.expand) tg.expand();
@@ -247,12 +215,24 @@ window.onload = async () => {
         await initWalletUI();
     } catch (e) { console.warn("Wallet UI init error:", e); }
 
-    // Set festive title
-    const titleElem = document.querySelector('.top-bar h2');
-    if (titleElem) titleElem.innerText = getFestiveTitle();
+    // Welcome overlay (must always work)
+    const welcomeOverlay = document.getElementById('welcomeOverlay');
+    const continueBtn = document.getElementById('welcomeContinueBtn');
+    if (welcomeOverlay && continueBtn) {
+        welcomeOverlay.style.backgroundImage = `url('${getHolidayImage()}')`;
+        continueBtn.addEventListener('click', () => {
+            welcomeOverlay.classList.add('hidden');
+            fetch(`${API_URL}/api/trigger-ad`, {
+                method: 'POST',
+                headers: { 'X-Telegram-Init-Data': tg.initData }
+            }).catch(() => {});
+            loadFeed("Discover", "", true);
+        });
+    } else {
+        loadFeed("Discover", "", true);
+    }
 
-    // Initialize welcome overlay (must run last)
-    await initWelcomeOverlay();
+    document.querySelector('.top-bar h2').innerText = getFestiveTitle();
 
     // Keyword expand/collapse listeners
     document.getElementById('feed').addEventListener('click', (e) => {
@@ -285,6 +265,7 @@ document.addEventListener('click', (e) => {
             e.preventDefault();
             e.stopPropagation();
             console.warn('Blocked click on hidden Join element', target);
+            return false;
         }
     }
 });
