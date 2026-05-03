@@ -5,9 +5,10 @@ import { verifyPremiumStatus } from './premiumManager.js';
 let tonConnect = null;
 let walletConnected = false;
 let walletAddress = null;
+let reconnectAttempts = 0;
 
 const TON_PAYMENT_AMOUNT = 1.12;
-const API_URL = "https://imagifhub.onrender.com";  // can be changed to dynamic if needed
+const API_URL = "https://imagifhub.onrender.com";
 
 function logDebug(...args) {
     console.log("[TON]", ...args);
@@ -41,7 +42,7 @@ function loadTonConnectSDK() {
                 if (window.TonConnect) {
                     clearInterval(interval);
                     resolve(window.TonConnect);
-                } else if (++attempts > 40) { // 8 seconds timeout
+                } else if (++attempts > 100) { // 20 seconds timeout
                     clearInterval(interval);
                     reject(new Error("SDK load timeout"));
                 }
@@ -56,7 +57,6 @@ export async function initTonConnect() {
     logDebug("Initializing TonConnect...");
     try {
         await loadTonConnectSDK();
-        // Use dynamic manifest URL (relative to current origin)
         const manifestUrl = `${window.location.origin}/ton-manifest.json`;
         logDebug(`Manifest URL: ${manifestUrl}`);
         tonConnect = new window.TonConnect({ manifestUrl });
@@ -84,12 +84,10 @@ export async function initTonConnect() {
     }
 }
 
-// Manually check current connection (e.g., after page load)
+// Manually check current connection after page load
 async function refreshConnectionStatus() {
     try {
         const connector = await initTonConnect();
-        // The onStatusChange will fire automatically if a session exists
-        // But we also request the current wallet manually (if any)
         if (connector && typeof connector.getWallet === 'function') {
             const wallet = connector.getWallet();
             if (wallet) {
@@ -103,16 +101,22 @@ async function refreshConnectionStatus() {
             }
             updateWalletUI();
         } else {
-            // Fallback: use saved address but mark as not connected – user must reconnect
             const saved = localStorage.getItem("ton_wallet_address");
             if (saved) {
                 walletAddress = saved;
-                walletConnected = false; // not actually connected
+                walletConnected = false;
+                updateWalletUI();
+                if (reconnectAttempts < 2) {
+                    reconnectAttempts++;
+                    setTimeout(() => connectTonWallet(true), 1000);
+                }
+            } else {
                 updateWalletUI();
             }
         }
     } catch (e) {
         logError("refreshConnectionStatus error", e);
+        updateWalletUI();
     }
 }
 
@@ -129,27 +133,25 @@ export async function fetchTonAdminAddress() {
 }
 
 // Connect wallet – user action
-export async function connectTonWallet() {
+export async function connectTonWallet(silent = false) {
     const tg = window.Telegram?.WebApp;
-    logDebug("connectTonWallet called");
-    setStatusMessage("Initializing TON...");
+    if (!silent) setStatusMessage("Initializing TON...");
     try {
         const connector = await initTonConnect();
         if (connector.connected) {
             logDebug("Already connected");
-            // Force refresh status
             const wallet = connector.getWallet?.();
             if (wallet) {
                 walletConnected = true;
                 walletAddress = wallet.account.address;
                 localStorage.setItem("ton_wallet_address", walletAddress);
                 updateWalletUI();
-                setStatusMessage("Wallet already connected");
+                if (!silent) setStatusMessage("Wallet already connected");
                 return walletAddress;
             }
         }
 
-        setStatusMessage("Fetching wallets...");
+        if (!silent) setStatusMessage("Fetching wallets...");
         let wallets = [];
         try {
             wallets = await connector.getWallets();
@@ -165,7 +167,7 @@ export async function connectTonWallet() {
 
         let selected = wallets.find(w => w.name === "Tonkeeper") || wallets[0];
         logDebug(`Selected wallet: ${selected.name}`);
-        setStatusMessage(`Connecting to ${selected.name}...`);
+        if (!silent) setStatusMessage(`Connecting to ${selected.name}...`);
 
         const result = await connector.connect(selected);
         logDebug("Connection result", result);
@@ -173,17 +175,19 @@ export async function connectTonWallet() {
         walletAddress = result.account.address;
         localStorage.setItem("ton_wallet_address", walletAddress);
         updateWalletUI();
-        setStatusMessage("Connected!");
+        if (!silent) setStatusMessage("Connected!");
         return walletAddress;
     } catch (e) {
         logError("Wallet connection error:", e);
-        let errorMsg = "Failed to connect wallet. ";
-        if (e.message?.includes("timeout")) errorMsg += "SDK loading timeout. Please refresh.";
-        else if (e.message?.includes("No wallets")) errorMsg += "No TON wallets found. Install Tonkeeper.";
-        else errorMsg += e.message || "Please try again later.";
-        setStatusMessage(errorMsg, true);
-        if (tg?.showAlert) tg.showAlert(errorMsg);
-        else alert(errorMsg);
+        if (!silent) {
+            let errorMsg = "Failed to connect wallet. ";
+            if (e.message?.includes("timeout")) errorMsg += "SDK loading timeout. Please refresh.";
+            else if (e.message?.includes("No wallets")) errorMsg += "No TON wallets found. Install Tonkeeper.";
+            else errorMsg += e.message || "Please try again later.";
+            setStatusMessage(errorMsg, true);
+            if (tg?.showAlert) tg.showAlert(errorMsg);
+            else alert(errorMsg);
+        }
         return null;
     }
 }
@@ -339,7 +343,7 @@ function showDisconnectConfirm() {
 export async function initWalletUI() {
     logDebug("initWalletUI called");
     try {
-        const userCard = document.querySelector('.user-info-card');
+        let userCard = document.querySelector('.user-info-card');
         if (!userCard) {
             setTimeout(initWalletUI, 500);
             return;
@@ -356,4 +360,4 @@ export async function initWalletUI() {
     } catch (err) {
         logError("initWalletUI error", err);
     }
-    }
+                                      }
