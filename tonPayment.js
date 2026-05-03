@@ -1,4 +1,4 @@
-// tonPayment.js – Updated Modern SDK Integration
+// tonPayment.js – TON Connect with webhook support
 import { verifyPremiumStatus } from './premiumManager.js';
 
 let tonConnectUI = null;
@@ -21,7 +21,6 @@ function updateWalletUI() {
     }
 }
 
-// Initialize TonConnectUI with modern API
 export async function initTonConnectUI() {
     if (tonConnectUI) return tonConnectUI;
     if (window.TonConnectUI) {
@@ -31,13 +30,15 @@ export async function initTonConnectUI() {
                 twaReturnUrl: 'https://t.me/IMAGIFHUB_bot/imagifhub'
             }
         });
+        
         // Restore connection if exists
         const storedWallet = localStorage.getItem("ton_wallet_address");
-        if (storedWallet && tonConnectUI && tonConnectUI.wallet) {
+        if (storedWallet && tonConnectUI.wallet) {
             walletConnected = true;
             walletAddress = tonConnectUI.wallet.account.address;
             updateWalletUI();
         }
+        
         tonConnectUI.onStatusChange((wallet) => {
             if (wallet) {
                 walletConnected = true;
@@ -82,7 +83,27 @@ export async function disconnectTonWallet() {
 }
 
 function showDisconnectConfirm() {
-    // ... (your existing disconnect confirm code)
+    const overlay = document.createElement('div');
+    overlay.style.cssText = `position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); z-index:20000; display:flex; align-items:center; justify-content:center;`;
+    const box = document.createElement('div');
+    box.style.cssText = `background:#1a1a1a; padding:20px 30px; border-radius:20px; text-align:center; color:white; max-width:280px; backdrop-filter:blur(12px); border:1px solid rgba(255,255,255,0.2);`;
+    box.innerHTML = `
+        <div style="margin-bottom:20px;">Disconnect wallet?</div>
+        <div style="display:flex; gap:12px; justify-content:center;">
+            <button id="confirmDisconnect" style="background:#ff4444; border:none; padding:8px 20px; border-radius:30px; color:white; font-weight:bold;">Disconnect</button>
+            <button id="cancelDisconnect" style="background:transparent; border:1px solid white; padding:8px 20px; border-radius:30px; color:white;">Cancel</button>
+        </div>
+    `;
+    overlay.appendChild(box);
+    document.body.appendChild(overlay);
+    const confirmBtn = box.querySelector('#confirmDisconnect');
+    const cancelBtn = box.querySelector('#cancelDisconnect');
+    confirmBtn.onclick = async () => {
+        await disconnectTonWallet();
+        overlay.remove();
+    };
+    cancelBtn.onclick = () => overlay.remove();
+    overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
 }
 
 export async function initWalletUI() {
@@ -105,7 +126,13 @@ export async function initWalletUI() {
     }
 }
 
+let paymentPollingInterval = null;
+
 export async function sendTonPremiumPayment() {
+    const tg = window.Telegram.WebApp;
+    const adminAddr = await fetchTonAdminAddress();
+    if (!adminAddr) throw new Error("Admin address missing");
+
     if (!walletConnected) {
         await connectWallet();
         let attempts = 0;
@@ -115,10 +142,6 @@ export async function sendTonPremiumPayment() {
         }
         if (!walletConnected) throw new Error("Wallet not connected");
     }
-
-    const tg = window.Telegram.WebApp;
-    const adminAddr = await fetchTonAdminAddress();
-    if (!adminAddr) throw new Error("Admin address missing");
 
     const amountNano = Math.floor(1.12 * 1e9);
     const userId = tg.initDataUnsafe?.user?.id || Date.now();
@@ -136,17 +159,57 @@ export async function sendTonPremiumPayment() {
     try {
         const ui = await initTonConnectUI();
         if (!ui) throw new Error("TON SDK unavailable");
+        
         const result = await ui.sendTransaction(transaction);
         const boc = result.boc;
         if (!boc) throw new Error("No transaction data");
 
+        // Show payment pending status
+        const statusEl = document.getElementById('paymentStatus');
+        if (statusEl) {
+            statusEl.textContent = "⏳ Payment submitted. Waiting for confirmation...";
+            statusEl.style.color = "#ffd700";
+        }
+        
+        // Submit for verification (webhook will handle confirmation)
         const verifyRes = await fetch(`${API_URL}/api/verify-ton-payment`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'X-Telegram-Init-Data': tg.initData },
             body: JSON.stringify({ boc })
         });
+        
         const data = await verifyRes.json();
-        if (data.success) {
+        
+        if (data.pending) {
+            if (statusEl) {
+                statusEl.textContent = "✅ Payment submitted! Premium will activate automatically once confirmed.";
+                statusEl.style.color = "#4CAF50";
+            }
+            
+            // Fallback polling in case webhook is delayed (10 seconds max)
+            let attempts = 0;
+            const maxAttempts = 20; // 20 * 500ms = 10 seconds
+            const pollInterval = setInterval(async () => {
+                attempts++;
+                const isPremium = await verifyPremiumStatus();
+                if (isPremium) {
+                    clearInterval(pollInterval);
+                    if (statusEl) {
+                        statusEl.textContent = "✅ Premium activated!";
+                        setTimeout(() => {
+                            if (window.closePremium) window.closePremium();
+                        }, 1500);
+                    }
+                } else if (attempts >= maxAttempts) {
+                    clearInterval(pollInterval);
+                    if (statusEl) {
+                        statusEl.textContent = "⚠️ Payment confirmed but activation may be delayed. Please refresh in a few seconds.";
+                    }
+                }
+            }, 500);
+            
+            return true;
+        } else if (data.success) {
             await verifyPremiumStatus();
             return true;
         } else {
