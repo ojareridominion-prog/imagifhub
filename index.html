@@ -37,6 +37,21 @@
     <!-- TON Connect SDK -->
 <!-- TonConnect UI -->
 <script src="https://unpkg.com/@tonconnect/ui@latest/dist/tonconnect-ui.min.js"></script>
+<script>
+    // Verify that TonConnectUI is available
+    if (typeof window.TonConnectUI === 'undefined') {
+        console.error('TonConnectUI failed to load');
+        // Optional: show a user-friendly message
+        document.addEventListener('DOMContentLoaded', function() {
+            const walletRow = document.getElementById('walletConnectRow');
+            if (walletRow) {
+                walletRow.innerHTML = '<div style="color:#ff8888;">⚠️ Wallet service temporarily unavailable. Please reload later.</div>';
+            }
+        });
+    } else {
+        console.log('TonConnectUI loaded successfully');
+    }
+</script>
     
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.css"/>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
