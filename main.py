@@ -41,9 +41,9 @@ app.add_middleware(
 async def ton_manifest(request: Request):
     base_url = str(request.base_url).rstrip('/')
     return {
-        "url": base_url,
-        "name": "IMAGIFHUB",
-        "iconUrl": f"{base_url}/assets/icon.png"
+  "url": "https://imagifhub.onrender.com",
+  "name": "IMAGIFHUB",
+  "iconUrl": "https://imagifhub.onrender.com/assets/icon.png"
     }
 
 @app.get("/debug/ton-manifest")
