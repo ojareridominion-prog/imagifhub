@@ -45,6 +45,10 @@ async def ton_manifest():
         "privacyPolicyUrl": "https://imagifhub.onrender.com/privacy"
     }
 
+@app.get("/debug/ton-manifest")
+async def debug_ton_manifest():
+    return {"url": "https://imagifhub.onrender.com/ton-manifest.json", "status": "ok"}
+
 # Mount static files for ads images (if the folder exists)
 if os.path.exists("ads"):
     app.mount("/ads", StaticFiles(directory="ads"), name="ads")
