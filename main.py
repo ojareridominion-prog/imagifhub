@@ -62,11 +62,10 @@ else:
 async def ton_manifest(request: Request):
     base_url = str(request.base_url).rstrip('/')
     return {
-  "url": "https://ojareridominion-prog.github.io/imagifhub",
-  "name": "IMAGIFHUB",
-  "iconUrl": "https://ojareridominion-prog.github.io/imagifhub/assets/icon.png"
+        "url": "https://ojareridominion-prog.github.io/imagifhub",
+        "name": "IMAGIFHUB",
+        "iconUrl": "https://ojareridominion-prog.github.io/imagifhub/assets/icon.png"
     }
-
 # Optional debug endpoint
 @app.get("/debug/ton-manifest")
 async def debug_ton_manifest():
