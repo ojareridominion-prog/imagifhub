@@ -35,14 +35,18 @@ app.add_middleware(
 )
 
 # TON Connect manifest – required for TonConnect SDK
+# main.py (only the relevant part – replace the existing manifest route)
+
 @app.get("/ton-manifest.json")
-async def ton_manifest():
+async def ton_manifest(request: Request):
+    # Use the request's base URL (scheme + host)
+    base_url = str(request.base_url).rstrip('/')
     return {
-        "url": "https://imagifhub.onrender.com",
+        "url": base_url,
         "name": "IMAGIFHUB",
-        "iconUrl": "https://ojareridominion-prog.github.io/imagifhub/assets/icon.png",
-        "termsOfUseUrl": "https://imagifhub.onrender.com/terms",
-        "privacyPolicyUrl": "https://imagifhub.onrender.com/privacy"
+        "iconUrl": f"{base_url}/assets/icon.png",
+        "termsOfUseUrl": f"{base_url}/terms",
+        "privacyPolicyUrl": f"{base_url}/privacy"
     }
 
 @app.get("/debug/ton-manifest")
