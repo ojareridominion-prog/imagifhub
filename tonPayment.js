@@ -356,4 +356,4 @@ export async function initWalletUI() {
     } catch (err) {
         logError("initWalletUI error", err);
     }
-        }
+    }
