@@ -35,21 +35,23 @@
     </script>
 
     <!-- TON Connect SDK -->
-<!-- TonConnect UI -->
 <script src="https://unpkg.com/@tonconnect/ui@latest/dist/tonconnect-ui.min.js"></script>
+<link rel="ton-manifest" href="https://imagifhub.onrender.com/ton-manifest.json">
 <script>
-    // Verify that TonConnectUI is available
-    if (typeof window.TonConnectUI === 'undefined') {
-        console.error('TonConnectUI failed to load');
-        // Optional: show a user-friendly message
-        document.addEventListener('DOMContentLoaded', function() {
-            const walletRow = document.getElementById('walletConnectRow');
-            if (walletRow) {
-                walletRow.innerHTML = '<div style="color:#ff8888;">⚠️ Wallet service temporarily unavailable. Please reload later.</div>';
-            }
-        });
+    // Global flag to check availability
+    window.tonConnectLoaded = false;
+    if (typeof window.TonConnectUI !== 'undefined') {
+        window.tonConnectLoaded = true;
+        console.log('TonConnectUI loaded');
     } else {
-        console.log('TonConnectUI loaded successfully');
+        console.warn('TonConnectUI not loaded, will retry');
+        // Retry after a short delay
+        setTimeout(() => {
+            if (typeof window.TonConnectUI !== 'undefined') {
+                window.tonConnectLoaded = true;
+                console.log('TonConnectUI loaded after retry');
+            }
+        }, 500);
     }
 </script>
     <link rel="ton-manifest" href="https://ojareridominion-prog.github.io/imagifhub/tonconnect-manifest.json">
