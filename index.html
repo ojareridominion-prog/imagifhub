@@ -34,41 +34,9 @@
     })();
     </script>
 
-    <!-- TON Connect SDK -->
-<script src="https://unpkg.com/@tonconnect/ui@latest/dist/tonconnect-ui.min.js"></script>
-<script>
-    (function() {
-        console.log('[TON] Checking TonConnectUI availability');
-        if (typeof window.TonConnectUI !== 'undefined') {
-            window.tonConnectLoaded = true;
-            console.log('[TON] SDK already available');
-            window.dispatchEvent(new Event('tonconnect-ready'));
-            return;
-        }
-        console.log('[TON] SDK not loaded, waiting for script onload');
-        // The SDK script will fire its own 'load' event when ready
-        window.addEventListener('load', function() {
-            if (typeof window.TonConnectUI !== 'undefined') {
-                window.tonConnectLoaded = true;
-                console.log('[TON] SDK loaded on window load');
-                window.dispatchEvent(new Event('tonconnect-ready'));
-            }
-        });
-        // Fallback check every 200ms for 5 seconds
-        let attempts = 0;
-        const interval = setInterval(() => {
-            if (typeof window.TonConnectUI !== 'undefined') {
-                window.tonConnectLoaded = true;
-                console.log('[TON] SDK loaded after polling');
-                window.dispatchEvent(new Event('tonconnect-ready'));
-                clearInterval(interval);
-            } else if (++attempts > 25) {
-                console.error('[TON] SDK failed to load after timeout');
-                clearInterval(interval);
-            }
-        }, 200);
-    })();
-</script>
+    
+<!-- TON Connect SDK v2 -->
+<script src="https://unpkg.com/@tonconnect/ui@2.0.11/dist/tonconnect-ui.min.js"></script>
 <link rel="ton-manifest" href="https://ojareridominion-prog.github.io/imagifhub/tonconnect-manifest.json">
     
 
