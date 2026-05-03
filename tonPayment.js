@@ -1,4 +1,4 @@
-// tonPayment.js - working with TonConnect UI
+// tonPayment.js - working with TonConnect UI (fixed: connection, transaction, polling)
 import { verifyPremiumStatus } from './premiumManager.js';
 
 let tonConnectUI = null;
@@ -31,12 +31,14 @@ function setStatusMessage(msg, isError = false) {
 export async function initTonConnect() {
     if (tonConnectUI) return tonConnectUI;
     try {
-        // Wait for the global TonConnectUI constructor
-        if (!window.TonConnectUI) {
-            throw new Error("TonConnectUI not loaded – check script tag");
-        }
-        tonConnectUI = new window.TonConnectUI({
-            manifestUrl: `${API_URL}/ton-manifest.json`   // your existing manifest endpoint
+        // Use a static manifest URL (must be served via HTTPS)
+        const manifestUrl = 'https://ojareridominion-prog.github.io/imagifhub/tonconnect-manifest.json';
+        const { TonConnectUI } = await import('https://unpkg.com/@tonconnect/ui@latest/dist/tonconnect-ui.min.js');
+        tonConnectUI = new TonConnectUI({
+            manifestUrl: manifestUrl,
+            actionsConfiguration: {
+                twaReturnUrl: 'https://t.me/IMAGIFHUB_bot/imagifhub'
+            }
         });
 
         // Listen for connection changes
@@ -60,6 +62,28 @@ export async function initTonConnect() {
         logError("initTonConnect error", e);
         return null;
     }
+}
+
+// Helper: ensure wallet is connected (open modal + wait)
+async function ensureConnection() {
+    const connector = await initTonConnect();
+    if (!connector) throw new Error("TON SDK failed to load");
+    if (connector.connected) return true;
+
+    // Force open wallet selection modal
+    await connector.openModal();
+
+    // Wait for connection with timeout
+    return new Promise((resolve, reject) => {
+        const timeout = setTimeout(() => reject(new Error("Connection timeout")), 30000);
+        const unsubscribe = connector.onStatusChange(wallet => {
+            if (wallet) {
+                clearTimeout(timeout);
+                unsubscribe();
+                resolve(true);
+            }
+        });
+    });
 }
 
 // Build the wallet row inside the user info card
@@ -118,7 +142,6 @@ async function openWalletModal() {
         return;
     }
     try {
-        // This opens the built‑in wallet selection modal
         await connector.openModal();
     } catch (e) {
         logError("Modal open error", e);
@@ -185,26 +208,20 @@ function showDisconnectConfirm() {
     overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
 }
 
-// Premium payment via TON (calls the backend verification)
+// Premium payment via TON (with BOC verification)
 export async function sendTonPremiumPayment() {
-    setStatusMessage("Preparing TON payment...");
+    setStatusMessage("Connecting wallet...");
     try {
+        await ensureConnection();
         const connector = await initTonConnect();
-        if (!connector || !connector.connected) {
-            await openWalletModal();
-            // Wait a bit for connection
-            await new Promise(r => setTimeout(r, 2000));
-            if (!connector || !connector.connected) {
-                throw new Error("Please connect your wallet first");
-            }
-        }
+        if (!connector || !connector.connected) throw new Error("Wallet not connected");
 
         const adminAddr = await fetchTonAdminAddress();
         if (!adminAddr) throw new Error("Admin address not configured");
 
+        const amountNano = Math.floor(TON_PAYMENT_AMOUNT * 1e9); // 1.12 TON in nano
         const userId = window.Telegram.WebApp.initDataUnsafe?.user?.id || Date.now();
         const comment = `premium_${userId}`;
-        const amountNano = Math.floor(TON_PAYMENT_AMOUNT * 1e9); // 1.12 TON in nano
 
         const transaction = {
             validUntil: Math.floor(Date.now() / 1000) + 600,
@@ -219,15 +236,15 @@ export async function sendTonPremiumPayment() {
 
         setStatusMessage("Sending transaction...");
         const result = await connector.sendTransaction(transaction);
-        let txHash = result?.boc || result?.hash;
-        if (!txHash) throw new Error("No transaction hash returned");
+        const boc = result.boc;   // Base64‑encoded BOC
+        if (!boc) throw new Error("No transaction data returned");
 
         setStatusMessage("Verifying payment...");
         const tg = window.Telegram.WebApp;
-        const verifyRes = await fetch(`${API_URL}/api/verify-ton-payment`, {
+        const verifyRes = await fetch(`${API_URL}/api/verify-ton-payment-v2`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'X-Telegram-Init-Data': tg.initData },
-            body: JSON.stringify({ txHash })
+            body: JSON.stringify({ boc })
         });
         const verification = await verifyRes.json();
         if (verification.success) {
@@ -257,7 +274,7 @@ async function fetchTonAdminAddress() {
     }
 }
 
-// Add these lines at the very bottom of tonPayment.js
+// Expose globally (needed for inline onclick buttons)
 window.initWalletUI = initWalletUI;
 window.sendTonPremiumPayment = sendTonPremiumPayment;
 window.disconnectTonWallet = disconnectTonWallet;
