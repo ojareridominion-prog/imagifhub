@@ -1,3 +1,5 @@
+# ton_routes.py (only the verify endpoint is shown; replace the whole file with this)
+
 from fastapi import APIRouter, Request, HTTPException
 from datetime import datetime, timedelta
 import logging
@@ -54,7 +56,6 @@ async def verify_ton_payment(request: Request):
             found = False
             for msg in out_msgs:
                 if msg.get("destination") == ADMIN_ADDRESS:
-                    # Check amount (in nanoTONs)
                     value_nano = int(msg.get("value", "0"))
                     value_ton = value_nano / 1e9
                     if value_ton >= PAYMENT_AMOUNT:
@@ -63,9 +64,6 @@ async def verify_ton_payment(request: Request):
             if not found:
                 return {"success": False, "reason": "Amount too low or wrong recipient"}
 
-            # Optional: check comment contains user_id (if comment is included)
-            # We'll rely on the transaction being from the same user that called the endpoint.
-            # Because only the logged-in user knows the tx hash.
             # Grant premium
             now = datetime.utcnow()
             result = supabase.table("users").select("premium_expires_at").eq("telegram_id", user_id).execute()
@@ -111,4 +109,3 @@ async def verify_ton_payment(request: Request):
 async def ton_config():
     return {"adminAddress": ADMIN_ADDRESS}
     
-          
