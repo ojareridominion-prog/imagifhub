@@ -339,25 +339,33 @@ function showDisconnectConfirm() {
     overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
 }
 
-// Initialize wallet UI: add row and check existing connection
+// Initialize wallet UI: wait for user-info-card to exist, then add row
 export async function initWalletUI() {
     logDebug("initWalletUI called");
-    try {
-        let userCard = document.querySelector('.user-info-card');
+    
+    // Wait for the user-info-card to appear (max 5 seconds)
+    let userCard = null;
+    let attempts = 0;
+    while (!userCard && attempts < 25) {
+        userCard = document.querySelector('.user-info-card');
         if (!userCard) {
-            setTimeout(initWalletUI, 500);
-            return;
+            await new Promise(resolve => setTimeout(resolve, 200));
+            attempts++;
         }
-        const oldRow = document.getElementById('walletConnectRow');
-        if (oldRow) oldRow.remove();
-
-        const walletRow = document.createElement('div');
-        walletRow.id = 'walletConnectRow';
-        userCard.appendChild(walletRow);
-        logDebug("Wallet row added");
-
-        await refreshConnectionStatus();
-    } catch (err) {
-        logError("initWalletUI error", err);
     }
-                                      }
+    
+    if (!userCard) {
+        logError("user-info-card not found after 5 seconds, aborting wallet UI");
+        return;
+    }
+    
+    const oldRow = document.getElementById('walletConnectRow');
+    if (oldRow) oldRow.remove();
+
+    const walletRow = document.createElement('div');
+    walletRow.id = 'walletConnectRow';
+    userCard.appendChild(walletRow);
+    logDebug("Wallet row added");
+
+    await refreshConnectionStatus();
+    }
