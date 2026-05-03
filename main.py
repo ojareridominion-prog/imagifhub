@@ -34,6 +34,17 @@ app.add_middleware(
     allow_headers=["*"]
 )
 
+# TON Connect manifest – required for TonConnect SDK
+@app.get("/ton-manifest.json")
+async def ton_manifest():
+    return {
+        "url": "https://imagifhub.onrender.com",
+        "name": "IMAGIFHUB",
+        "iconUrl": "https://ojareridominion-prog.github.io/imagifhub/assets/icon.png",
+        "termsOfUseUrl": "https://imagifhub.onrender.com/terms",
+        "privacyPolicyUrl": "https://imagifhub.onrender.com/privacy"
+    }
+
 # Mount static files for ads images (if the folder exists)
 if os.path.exists("ads"):
     app.mount("/ads", StaticFiles(directory="ads"), name="ads")
