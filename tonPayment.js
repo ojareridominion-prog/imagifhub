@@ -4,6 +4,7 @@ import { verifyPremiumStatus } from './premiumManager.js';
 let tonConnectUI = null;
 let walletConnected = false;
 let walletAddress = null;
+let initializationPromise = null;
 
 const API_URL = "https://imagifhub.onrender.com";
 const MANIFEST_URL = `${API_URL}/ton-manifest.json`;
@@ -22,53 +23,86 @@ function updateWalletUI() {
 }
 
 export async function initTonConnectUI() {
+    // If already initialized, return the instance
     if (tonConnectUI) return tonConnectUI;
     
-    // Wait for the SDK to load (max 5 seconds)
-    const startTime = Date.now();
-    // ✅ CORRECT: Use window.TonConnectUI (not TON_CONNECT_UI)
-    while (!window.TonConnectUI && (Date.now() - startTime) < 5000) {
-        await new Promise(r => setTimeout(r, 50));
-    }
+    // If initialization is already in progress, wait for it
+    if (initializationPromise) return initializationPromise;
     
-    if (!window.TonConnectUI) {
-        console.error("TonConnectUI SDK failed to load");
-        // 🔇 No alert here – let the caller decide whether to show error
-        return null;
-    }
-    
-    // ✅ CORRECT instantiation
-    tonConnectUI = new window.TonConnectUI({
-        manifestUrl: MANIFEST_URL,
-        actionsConfiguration: {
-            twaReturnUrl: 'https://t.me/IMAGIFHUB_bot/imagifhub'
+    // Create a new initialization promise
+    initializationPromise = (async () => {
+        // Wait for DOM to be ready (required for localStorage and window)
+        if (document.readyState === 'loading') {
+            await new Promise(resolve => {
+                document.addEventListener('DOMContentLoaded', resolve, { once: true });
+            });
         }
-    });
-    
-    // Restore connection if exists
-    const storedWallet = localStorage.getItem("ton_wallet_address");
-    if (storedWallet && tonConnectUI.wallet) {
-        walletConnected = true;
-        walletAddress = tonConnectUI.wallet.account.address;
-        updateWalletUI();
-    }
-    
-    tonConnectUI.onStatusChange((wallet) => {
-        if (wallet) {
-            walletConnected = true;
-            walletAddress = wallet.account.address;
-            localStorage.setItem("ton_wallet_address", wallet.address);
-            updateWalletUI();
-        } else {
-            walletConnected = false;
-            walletAddress = null;
-            localStorage.removeItem("ton_wallet_address");
-            updateWalletUI();
+        
+        // Wait for the SDK to load (max 8 seconds)
+        const startTime = Date.now();
+        const maxWaitTime = 8000;
+        
+        while (!window.TON_CONNECT_UI && (Date.now() - startTime) < maxWaitTime) {
+            await new Promise(r => setTimeout(r, 100));
         }
-    });
-    return tonConnectUI;
+        
+        if (!window.TON_CONNECT_UI) {
+            console.error("TonConnectUI SDK failed to load after", maxWaitTime, "ms");
+            return null;
+        }
+        
+        // Look for the constructor in the global namespace
+        const TonConnectUIConstructor = window.TON_CONNECT_UI.TonConnectUI || window.TON_CONNECT_UI.default?.TonConnectUI;
+        if (!TonConnectUIConstructor) {
+            console.error("TonConnectUI constructor not found in namespace", window.TON_CONNECT_UI);
+            return null;
+        }
+        
+        tonConnectUI = new TonConnectUIConstructor({
+            manifestUrl: MANIFEST_URL,
+            actionsConfiguration: {
+                twaReturnUrl: 'https://t.me/IMAGIFHUB_bot/imagifhub'
+            }
+        });
+        
+        // Restore connection if exists
+        try {
+            const storedWallet = localStorage.getItem("ton_wallet_address");
+            if (storedWallet && tonConnectUI.wallet) {
+                walletConnected = true;
+                walletAddress = tonConnectUI.wallet.account.address;
+                updateWalletUI();
+            }
+        } catch (localStorageError) {
+            console.warn("localStorage access error:", localStorageError);
+        }
+        
+        // Set up status change listener
+        tonConnectUI.onStatusChange((wallet) => {
+            if (wallet) {
+                walletConnected = true;
+                walletAddress = wallet.account.address;
+                try {
+                    localStorage.setItem("ton_wallet_address", wallet.account.address);
+                } catch (e) { console.warn(e); }
+                updateWalletUI();
+            } else {
+                walletConnected = false;
+                walletAddress = null;
+                try {
+                    localStorage.removeItem("ton_wallet_address");
+                } catch (e) { console.warn(e); }
+                updateWalletUI();
+            }
+        });
+        
+        return tonConnectUI;
+    })();
+    
+    return initializationPromise;
 }
 
+// Rest of the file remains exactly the same...
 export async function connectWallet() {
     try {
         const ui = await initTonConnectUI();
@@ -88,7 +122,9 @@ export async function disconnectTonWallet() {
     }
     walletConnected = false;
     walletAddress = null;
-    localStorage.removeItem("ton_wallet_address");
+    try {
+        localStorage.removeItem("ton_wallet_address");
+    } catch(e) { console.warn(e); }
     updateWalletUI();
 }
 
@@ -116,8 +152,6 @@ function showDisconnectConfirm() {
     overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
 }
 
-// ✅ NEW: This function now does NOT show any automatic alert on failure
-// It simply tries to set up the UI silently. Errors are logged only.
 export async function initWalletUI() {
     try {
         const userCard = document.querySelector('.user-info-card');
@@ -131,11 +165,11 @@ export async function initWalletUI() {
         walletRow.id = 'walletConnectRow';
         walletRow.style.cssText = 'width:100%; margin-top:12px; padding:8px 0; border-top:1px solid rgba(255,255,255,0.1); cursor:pointer;';
         userCard.appendChild(walletRow);
-        await initTonConnectUI();  // No alert inside this function anymore
+        await initTonConnectUI();  // This will now wait for DOM ready
         updateWalletUI();
     } catch (err) {
         console.error("initWalletUI error:", err);
-        // Silently fail – do not interrupt user experience
+        // Silently fail - do not show alerts automatically
     }
 }
 
