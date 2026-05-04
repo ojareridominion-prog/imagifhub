@@ -1,4 +1,4 @@
-// tonPayment.js – TON Connect with webhook support
+// tonPayment.js – Direct blockchain polling (no webhooks)
 import { verifyPremiumStatus } from './premiumManager.js';
 
 let tonConnectUI = null;
@@ -23,38 +23,28 @@ function updateWalletUI() {
 }
 
 export async function initTonConnectUI() {
-    // If already initialized, return the instance
     if (tonConnectUI) return tonConnectUI;
-    
-    // If initialization is already in progress, wait for it
     if (initializationPromise) return initializationPromise;
     
-    // Create a new initialization promise
     initializationPromise = (async () => {
-        // Wait for DOM to be ready (required for localStorage and window)
         if (document.readyState === 'loading') {
             await new Promise(resolve => {
                 document.addEventListener('DOMContentLoaded', resolve, { once: true });
             });
         }
         
-        // Wait for the SDK to load (max 8 seconds)
         const startTime = Date.now();
         const maxWaitTime = 8000;
-        
         while (!window.TON_CONNECT_UI && (Date.now() - startTime) < maxWaitTime) {
             await new Promise(r => setTimeout(r, 100));
         }
-        
         if (!window.TON_CONNECT_UI) {
-            console.error("TonConnectUI SDK failed to load after", maxWaitTime, "ms");
+            console.error("TonConnectUI SDK failed to load");
             return null;
         }
-        
-        // Look for the constructor in the global namespace
         const TonConnectUIConstructor = window.TON_CONNECT_UI.TonConnectUI || window.TON_CONNECT_UI.default?.TonConnectUI;
         if (!TonConnectUIConstructor) {
-            console.error("TonConnectUI constructor not found in namespace", window.TON_CONNECT_UI);
+            console.error("TonConnectUI constructor not found");
             return null;
         }
         
@@ -65,7 +55,6 @@ export async function initTonConnectUI() {
             }
         });
         
-        // Restore connection if exists
         try {
             const storedWallet = localStorage.getItem("ton_wallet_address");
             if (storedWallet && tonConnectUI.wallet) {
@@ -73,36 +62,27 @@ export async function initTonConnectUI() {
                 walletAddress = tonConnectUI.wallet.account.address;
                 updateWalletUI();
             }
-        } catch (localStorageError) {
-            console.warn("localStorage access error:", localStorageError);
-        }
+        } catch (e) { console.warn(e); }
         
-        // Set up status change listener
         tonConnectUI.onStatusChange((wallet) => {
             if (wallet) {
                 walletConnected = true;
                 walletAddress = wallet.account.address;
-                try {
-                    localStorage.setItem("ton_wallet_address", wallet.account.address);
-                } catch (e) { console.warn(e); }
+                try { localStorage.setItem("ton_wallet_address", wallet.account.address); } catch(e) {}
                 updateWalletUI();
             } else {
                 walletConnected = false;
                 walletAddress = null;
-                try {
-                    localStorage.removeItem("ton_wallet_address");
-                } catch (e) { console.warn(e); }
+                try { localStorage.removeItem("ton_wallet_address"); } catch(e) {}
                 updateWalletUI();
             }
         });
         
         return tonConnectUI;
     })();
-    
     return initializationPromise;
 }
 
-// Helper: close the menu panel if it is open
 function closeMenuIfOpen() {
     const panel = document.getElementById('menuPanel');
     const overlay = document.getElementById('menuOverlay');
@@ -114,12 +94,8 @@ function closeMenuIfOpen() {
 }
 
 export async function connectWallet() {
-    // Close menu before opening TonConnect modal so the modal appears on top
     closeMenuIfOpen();
-    
-    // Small delay to allow menu close animation to complete
     await new Promise(resolve => setTimeout(resolve, 150));
-    
     try {
         const ui = await initTonConnectUI();
         if (!ui) throw new Error("TON SDK not ready");
@@ -138,9 +114,7 @@ export async function disconnectTonWallet() {
     }
     walletConnected = false;
     walletAddress = null;
-    try {
-        localStorage.removeItem("ton_wallet_address");
-    } catch(e) { console.warn(e); }
+    try { localStorage.removeItem("ton_wallet_address"); } catch(e) {}
     updateWalletUI();
 }
 
@@ -185,11 +159,27 @@ export async function initWalletUI() {
         updateWalletUI();
     } catch (err) {
         console.error("initWalletUI error:", err);
-        // Silently fail - do not show alerts automatically
     }
 }
 
-let paymentPollingInterval = null;
+async function pollPaymentConfirmation(txHash, maxAttempts = 30, intervalMs = 2000) {
+    const tg = window.Telegram.WebApp;
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+        try {
+            const response = await fetch(`${API_URL}/api/ton-check-tx?tx_hash=${txHash}`, {
+                headers: { 'X-Telegram-Init-Data': tg.initData }
+            });
+            const result = await response.json();
+            if (result.status === 'completed') {
+                return true;
+            }
+        } catch (err) {
+            console.warn("Polling error:", err);
+        }
+        await new Promise(r => setTimeout(r, intervalMs));
+    }
+    return false;
+}
 
 export async function sendTonPremiumPayment() {
     const tg = window.Telegram.WebApp;
@@ -224,56 +214,28 @@ export async function sendTonPremiumPayment() {
         if (!ui) throw new Error("TON SDK unavailable");
         
         const result = await ui.sendTransaction(transaction);
-        const boc = result.boc;
-        if (!boc) throw new Error("No transaction data");
+        const txHash = result.transactionHash;
+        if (!txHash) throw new Error("No transaction hash received");
 
         const statusEl = document.getElementById('paymentStatus');
         if (statusEl) {
-            statusEl.textContent = "⏳ Payment submitted. Waiting for confirmation...";
+            statusEl.textContent = "⏳ Payment sent. Waiting for blockchain confirmation...";
             statusEl.style.color = "#ffd700";
         }
         
-        const verifyRes = await fetch(`${API_URL}/api/verify-ton-payment`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'X-Telegram-Init-Data': tg.initData },
-            body: JSON.stringify({ boc })
-        });
+        const confirmed = await pollPaymentConfirmation(txHash, 45, 2000);
         
-        const data = await verifyRes.json();
-        
-        if (data.pending) {
+        if (confirmed) {
+            // Force refresh premium status
+            await verifyPremiumStatus();
             if (statusEl) {
-                statusEl.textContent = "✅ Payment submitted! Premium will activate automatically once confirmed.";
+                statusEl.textContent = "✅ Premium activated!";
                 statusEl.style.color = "#4CAF50";
             }
-            
-            let attempts = 0;
-            const maxAttempts = 20;
-            const pollInterval = setInterval(async () => {
-                attempts++;
-                const isPremium = await verifyPremiumStatus();
-                if (isPremium) {
-                    clearInterval(pollInterval);
-                    if (statusEl) {
-                        statusEl.textContent = "✅ Premium activated!";
-                        setTimeout(() => {
-                            if (window.closePremium) window.closePremium();
-                        }, 1500);
-                    }
-                } else if (attempts >= maxAttempts) {
-                    clearInterval(pollInterval);
-                    if (statusEl) {
-                        statusEl.textContent = "⚠️ Payment confirmed but activation may be delayed. Please refresh in a few seconds.";
-                    }
-                }
-            }, 500);
-            
-            return true;
-        } else if (data.success) {
-            await verifyPremiumStatus();
+            setTimeout(() => { if (window.closePremium) window.closePremium(); }, 1500);
             return true;
         } else {
-            throw new Error(data.reason || "Verification failed");
+            throw new Error("Confirmation timeout – please check premium status manually");
         }
     } catch (err) {
         console.error("TON payment error:", err);
