@@ -1,4 +1,4 @@
-# ton_routes.py - Direct blockchain polling for TON payments (no webhooks)
+# ton_routes.py - Direct blockchain polling (no webhooks, no payload required)
 from fastapi import APIRouter, Request, HTTPException, BackgroundTasks
 from datetime import datetime, timedelta
 import logging
@@ -59,16 +59,13 @@ async def check_transaction_on_chain(tx_hash: str, expected_user_id: int) -> boo
     Verify that a valid transaction exists on the TON blockchain:
     - Sent to ADMIN_ADDRESS
     - Amount >= PAYMENT_AMOUNT
-    - Contains comment "premium_{user_id}"
+    (No comment/payload verification – the user is identified by the polling request)
     Returns True if valid and premium granted.
     """
     if not TON_API_KEY or not ADMIN_ADDRESS:
         logging.error("Missing TON API key or admin address")
         return False
 
-    # Use TON Center API to fetch transaction by hash
-    # Endpoint: https://toncenter.com/api/v2/getTransactions?address={admin}&hash={tx_hash}&limit=1
-    # We'll use v3 API if available, v2 works too.
     url = f"https://toncenter.com/api/v2/getTransactions"
     params = {
         "address": ADMIN_ADDRESS,
@@ -105,37 +102,21 @@ async def check_transaction_on_chain(tx_hash: str, expected_user_id: int) -> boo
                     logging.warning(f"Insufficient amount: {amount_nano} nano < {expected_nano}")
                     return False
                 
-                # Check comment (payload) – stored in in_msg.message if present
-                comment = in_msg.get("message", "")
-                # If comment is hex-encoded, decode it
-                if comment and comment.startswith("hex:"):
-                    try:
-                        comment = bytes.fromhex(comment[4:]).decode("utf-8", errors="ignore")
-                    except:
-                        pass
-                
-                expected_comment = f"premium_{expected_user_id}"
-                if comment != expected_comment:
-                    logging.warning(f"Wrong comment: {comment} (expected {expected_comment})")
-                    return False
-                
-                # All checks passed
+                # No comment/payload validation needed – we trust the caller's initData
                 return True
                 
         except Exception as e:
             logging.error(f"Error checking transaction {tx_hash}: {e}")
             return False
 
-# ========== POLLING ENDPOINT (replaces webhook) ==========
 @router.get("/api/ton-check-tx")
 async def ton_check_transaction(request: Request, tx_hash: str):
     """
     Polling endpoint for frontend.
     - Pass tx_hash returned by TonConnect.
-    - Backend checks the blockchain and grants premium if valid.
+    - Backend checks the blockchain (destination + amount) and grants premium if valid.
     - Returns { "status": "pending" } or { "status": "completed" }.
     """
-    # Extract user_id from initData
     init_data = request.headers.get("X-Telegram-Init-Data", "")
     if not init_data:
         raise HTTPException(status_code=401, detail="Missing init data")
@@ -146,12 +127,11 @@ async def ton_check_transaction(request: Request, tx_hash: str):
     if not tx_hash:
         raise HTTPException(status_code=400, detail="Missing tx_hash")
     
-    # Check if payment already recorded (to avoid double grants)
+    # Prevent double‑granting for the same tx_hash
     existing = supabase.table("payments").select("id").eq("transaction_id", tx_hash).eq("status", "completed").execute()
     if existing.data:
         return {"status": "completed", "already_granted": True}
     
-    # Verify on-chain
     valid = await check_transaction_on_chain(tx_hash, user_id)
     if valid:
         await grant_premium(user_id, tx_hash, PAYMENT_AMOUNT)
@@ -159,21 +139,18 @@ async def ton_check_transaction(request: Request, tx_hash: str):
     else:
         return {"status": "pending"}
 
-# ========== CONFIG ENDPOINT (kept) ==========
 @router.get("/api/ton-config")
 async def ton_config():
     return {
         "adminAddress": ADMIN_ADDRESS,
         "amount": PAYMENT_AMOUNT,
-        "webhookConfigured": False      # No longer using webhooks
+        "webhookConfigured": False
     }
 
-# ========== (Optional) Legacy endpoint - kept for compatibility but not webhook ==========
 @router.post("/api/verify-ton-payment")
 async def verify_ton_payment_deprecated(request: Request, background_tasks: BackgroundTasks):
     """
     Deprecated: replaced by polling. Kept for backward compatibility.
-    It immediately returns that polling should be used instead.
     """
     init_data = request.headers.get("X-Telegram-Init-Data", "")
     if not init_data:
@@ -187,11 +164,9 @@ async def verify_ton_payment_deprecated(request: Request, background_tasks: Back
     if not boc:
         raise HTTPException(status_code=400, detail="Missing BOC")
     
-    # The frontend must now extract tx_hash from the TonConnect response and poll /api/ton-check-tx
-    # We cannot derive tx_hash from BOC easily on backend, so we instruct the frontend.
     return {
         "success": False,
         "pending": False,
         "error": "This endpoint is deprecated. Please use the new polling method (get tx_hash from TonConnect and call /api/ton-check-tx)."
-}
+                }
     
