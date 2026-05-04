@@ -102,8 +102,24 @@ export async function initTonConnectUI() {
     return initializationPromise;
 }
 
-// Rest of the file remains exactly the same...
+// Helper: close the menu panel if it is open
+function closeMenuIfOpen() {
+    const panel = document.getElementById('menuPanel');
+    const overlay = document.getElementById('menuOverlay');
+    if (panel && panel.classList.contains('open')) {
+        panel.classList.remove('open');
+        if (overlay) overlay.classList.remove('active');
+        document.body.style.overflow = '';
+    }
+}
+
 export async function connectWallet() {
+    // Close menu before opening TonConnect modal so the modal appears on top
+    closeMenuIfOpen();
+    
+    // Small delay to allow menu close animation to complete
+    await new Promise(resolve => setTimeout(resolve, 150));
+    
     try {
         const ui = await initTonConnectUI();
         if (!ui) throw new Error("TON SDK not ready");
@@ -165,7 +181,7 @@ export async function initWalletUI() {
         walletRow.id = 'walletConnectRow';
         walletRow.style.cssText = 'width:100%; margin-top:12px; padding:8px 0; border-top:1px solid rgba(255,255,255,0.1); cursor:pointer;';
         userCard.appendChild(walletRow);
-        await initTonConnectUI();  // This will now wait for DOM ready
+        await initTonConnectUI();
         updateWalletUI();
     } catch (err) {
         console.error("initWalletUI error:", err);
