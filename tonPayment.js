@@ -1,4 +1,4 @@
-// tonPayment.js – Direct blockchain polling (no webhooks)
+// tonPayment.js – Direct blockchain polling (no webhooks, no payload)
 import { verifyPremiumStatus } from './premiumManager.js';
 
 let tonConnectUI = null;
@@ -197,15 +197,14 @@ export async function sendTonPremiumPayment() {
     }
 
     const amountNano = Math.floor(1.12 * 1e9);
-    const userId = tg.initDataUnsafe?.user?.id || Date.now();
-    const comment = `premium_${userId}`;
-
+    
+    // Build transaction WITHOUT any payload/comment to avoid SDK validation errors
     const transaction = {
         validUntil: Math.floor(Date.now() / 1000) + 600,
         messages: [{
             address: adminAddr,
-            amount: amountNano.toString(),
-            payload: comment
+            amount: amountNano.toString()
+            // no 'payload' field – the transaction will be a plain transfer
         }]
     };
 
@@ -226,7 +225,6 @@ export async function sendTonPremiumPayment() {
         const confirmed = await pollPaymentConfirmation(txHash, 45, 2000);
         
         if (confirmed) {
-            // Force refresh premium status
             await verifyPremiumStatus();
             if (statusEl) {
                 statusEl.textContent = "✅ Premium activated!";
