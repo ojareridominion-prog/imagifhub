@@ -6,7 +6,7 @@ let walletConnected = false;
 let walletAddress = null;
 
 const API_URL = "https://imagifhub.onrender.com";
-const MANIFEST_URL = "https://ojareridominion-prog.github.io/imagifhub/tonconnect-manifest.json";
+const MANIFEST_URL = `${API_URL}/ton-manifest.json`;  // ✅ use backend manifest
 
 function updateWalletUI() {
     const walletRow = document.getElementById('walletConnectRow');
@@ -23,40 +23,47 @@ function updateWalletUI() {
 
 export async function initTonConnectUI() {
     if (tonConnectUI) return tonConnectUI;
-    if (window.TonConnectUI) {
-        tonConnectUI = new window.TonConnectUI({
-            manifestUrl: MANIFEST_URL,
-            actionsConfiguration: {
-                twaReturnUrl: 'https://t.me/IMAGIFHUB_bot/imagifhub'
-            }
-        });
-        
-        // Restore connection if exists
-        const storedWallet = localStorage.getItem("ton_wallet_address");
-        if (storedWallet && tonConnectUI.wallet) {
-            walletConnected = true;
-            walletAddress = tonConnectUI.wallet.account.address;
-            updateWalletUI();
-        }
-        
-        tonConnectUI.onStatusChange((wallet) => {
-            if (wallet) {
-                walletConnected = true;
-                walletAddress = wallet.account.address;
-                localStorage.setItem("ton_wallet_address", wallet.address);
-                updateWalletUI();
-            } else {
-                walletConnected = false;
-                walletAddress = null;
-                localStorage.removeItem("ton_wallet_address");
-                updateWalletUI();
-            }
-        });
-        return tonConnectUI;
-    } else {
-        console.error("TonConnectUI library not loaded");
+    
+    // ✅ Wait for the SDK to load (max 5 seconds)
+    const startTime = Date.now();
+    while (!window.TonConnectUI && (Date.now() - startTime) < 5000) {
+        await new Promise(r => setTimeout(r, 50));
+    }
+    
+    if (!window.TonConnectUI) {
+        console.error("TonConnectUI SDK failed to load");
         return null;
     }
+    
+    tonConnectUI = new window.TonConnectUI({
+        manifestUrl: MANIFEST_URL,
+        actionsConfiguration: {
+            twaReturnUrl: 'https://t.me/IMAGIFHUB_bot/imagifhub'
+        }
+    });
+    
+    // Restore connection if exists
+    const storedWallet = localStorage.getItem("ton_wallet_address");
+    if (storedWallet && tonConnectUI.wallet) {
+        walletConnected = true;
+        walletAddress = tonConnectUI.wallet.account.address;
+        updateWalletUI();
+    }
+    
+    tonConnectUI.onStatusChange((wallet) => {
+        if (wallet) {
+            walletConnected = true;
+            walletAddress = wallet.account.address;
+            localStorage.setItem("ton_wallet_address", wallet.address);
+            updateWalletUI();
+        } else {
+            walletConnected = false;
+            walletAddress = null;
+            localStorage.removeItem("ton_wallet_address");
+            updateWalletUI();
+        }
+    });
+    return tonConnectUI;
 }
 
 export async function connectWallet() {
