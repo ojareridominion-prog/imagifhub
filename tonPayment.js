@@ -1,4 +1,4 @@
-// tonPayment.js – Direct blockchain polling (no webhooks, no payload)
+// tonPayment.js – Direct blockchain polling (no payload, dynamic amount)
 import { verifyPremiumStatus } from './premiumManager.js';
 
 let tonConnectUI = null;
@@ -183,6 +183,17 @@ async function pollPaymentConfirmation(txHash, maxAttempts = 30, intervalMs = 20
 
 export async function sendTonPremiumPayment() {
     const tg = window.Telegram.WebApp;
+    
+    // Fetch current payment amount from backend (respects environment variable)
+    let amountTon = 1.12; // fallback
+    try {
+        const configRes = await fetch(`${API_URL}/api/ton-config`);
+        const config = await configRes.json();
+        if (config.amount) amountTon = config.amount;
+    } catch (e) {
+        console.warn("Could not fetch TON amount, using default 1.12", e);
+    }
+    
     const adminAddr = await fetchTonAdminAddress();
     if (!adminAddr) throw new Error("Admin address missing");
 
@@ -196,15 +207,14 @@ export async function sendTonPremiumPayment() {
         if (!walletConnected) throw new Error("Wallet not connected");
     }
 
-    const amountNano = Math.floor(1.12 * 1e9);
+    const amountNano = Math.floor(amountTon * 1e9);
     
-    // Build transaction WITHOUT any payload/comment to avoid SDK validation errors
     const transaction = {
         validUntil: Math.floor(Date.now() / 1000) + 600,
         messages: [{
             address: adminAddr,
             amount: amountNano.toString()
-            // no 'payload' field – the transaction will be a plain transfer
+            // No payload field – plain transfer
         }]
     };
 
