@@ -26,16 +26,20 @@ export async function initTonConnectUI() {
     
     // ✅ Wait for the SDK to load (max 5 seconds)
     const startTime = Date.now();
-    while (!window.TonConnectUI && (Date.now() - startTime) < 5000) {
+    
+    // 1. Corrected check: Use window.TON_CONNECT_UI
+    while (!window.TON_CONNECT_UI && (Date.now() - startTime) < 5000) {
         await new Promise(r => setTimeout(r, 50));
     }
     
-    if (!window.TonConnectUI) {
+    // 2. Corrected check: Use window.TON_CONNECT_UI
+    if (!window.TON_CONNECT_UI) {
         console.error("TonConnectUI SDK failed to load");
         return null;
     }
     
-    tonConnectUI = new window.TonConnectUI({
+    // 3. Corrected instantiation: Use window.TON_CONNECT_UI.TonConnectUI
+    tonConnectUI = new window.TON_CONNECT_UI.TonConnectUI({
         manifestUrl: MANIFEST_URL,
         actionsConfiguration: {
             twaReturnUrl: 'https://t.me/IMAGIFHUB_bot/imagifhub'
