@@ -1,4 +1,4 @@
-# ton_routes.py - with detailed logging and fallback API method
+# ton_routes.py - Fixed TON Center API calls (uses /getTransaction with hex hash)
 from fastapi import APIRouter, Request, HTTPException
 from datetime import datetime, timedelta
 import logging
@@ -53,33 +53,65 @@ async def grant_premium(user_id: int, tx_hash: str = None, amount: float = PAYME
     logging.info(f"✅ Premium granted to {user_id} until {new_expiry.isoformat()}")
     return True
 
-async def check_transaction_on_chain(tx_hash: str, expected_amount_nano: int) -> bool:
-    """Return True if a valid tx to ADMIN_ADDRESS with sufficient amount exists."""
+async def check_transaction_on_chain(tx_hash_hex: str, expected_amount_nano: int) -> bool:
+    """Verify a transaction using TON Center's /getTransaction endpoint (hex hash)."""
     if not TON_API_KEY or not ADMIN_ADDRESS:
-        logging.error("Missing TON API config: API_KEY or ADMIN_ADDRESS empty")
+        logging.error("Missing TON API config: TON_API_KEY or ADMIN_ADDRESS empty")
         return False
 
-    # Decode transaction hash (support hex or base64)
-    hash_bytes = None
-    for attempt in [tx_hash, tx_hash.replace('0x', '')]:
+    # Ensure we have hex (without 0x)
+    tx_hash_hex = tx_hash_hex.lower().replace('0x', '')
+    if len(tx_hash_hex) != 64:
+        logging.error(f"Invalid tx hash length: {len(tx_hash_hex)}")
+        return False
+
+    url = "https://toncenter.com/api/v2/getTransaction"
+    params = {
+        "hash": tx_hash_hex,
+        "api_key": TON_API_KEY
+    }
+    logging.info(f"Checking tx with hex hash: {tx_hash_hex}")
+
+    async with aiohttp.ClientSession() as session:
         try:
-            if len(attempt) == 64:  # hex
-                hash_bytes = bytes.fromhex(attempt)
-            elif len(attempt) == 44:  # base64
-                hash_bytes = base64.b64decode(attempt)
-            if hash_bytes:
-                break
-        except:
-            continue
+            async with session.get(url, params=params, timeout=15) as resp:
+                if resp.status != 200:
+                    logging.warning(f"TON API error: HTTP {resp.status}")
+                    # Try fallback with /getTransactions (old method)
+                    return await fallback_check_transaction(tx_hash_hex, expected_amount_nano)
+                data = await resp.json()
+                if not data.get("ok"):
+                    logging.warning(f"TON API returned not ok: {data}")
+                    return False
+                tx = data.get("result")
+                if not tx:
+                    logging.info(f"Transaction {tx_hash_hex} not found")
+                    return False
+                # Check outgoing messages to our admin address
+                out_msgs = tx.get("out_msgs", [])
+                for msg in out_msgs:
+                    dest = msg.get("destination", "")
+                    if dest.lower() == ADMIN_ADDRESS.lower():
+                        amount_nano = int(msg.get("value", "0"))
+                        if amount_nano >= expected_amount_nano:
+                            logging.info(f"✅ Transaction verified on chain: {tx_hash_hex}")
+                            return True
+                logging.warning(f"No message to admin address in tx {tx_hash_hex}")
+                return False
+        except Exception as e:
+            logging.error(f"Check error: {e}")
+            return False
 
-    if not hash_bytes:
-        logging.error(f"Unable to decode tx_hash: {tx_hash}")
+async def fallback_check_transaction(tx_hash_hex: str, expected_amount_nano: int) -> bool:
+    """Fallback: use /getTransactions with address and base64 hash (legacy)."""
+    # Convert hex to base64
+    try:
+        hash_bytes = bytes.fromhex(tx_hash_hex)
+        raw_hash_base64 = base64.b64encode(hash_bytes).decode()
+    except:
+        logging.error("Failed to convert hex to base64")
         return False
 
-    raw_hash_base64 = base64.b64encode(hash_bytes).decode()
-    logging.info(f"Checking tx with raw hash (base64): {raw_hash_base64}")
-
-    # Method 1: use /getTransactions (by address + hash)
     url = "https://toncenter.com/api/v2/getTransactions"
     params = {
         "address": ADMIN_ADDRESS,
@@ -87,70 +119,27 @@ async def check_transaction_on_chain(tx_hash: str, expected_amount_nano: int) ->
         "limit": 1,
         "api_key": TON_API_KEY
     }
-    
     async with aiohttp.ClientSession() as session:
         try:
-            async with session.get(url, params=params, timeout=10) as resp:
-                if resp.status != 200:
-                    logging.warning(f"TON API error: HTTP {resp.status}")
-                    return False
-                data = await resp.json()
-                if not data.get("ok"):
-                    logging.warning(f"TON API not ok: {data}")
-                    return False
-                if not data.get("result"):
-                    logging.info(f"Transaction {tx_hash} not found in /getTransactions")
-                    # Try method 2: /getTransaction by hash only (requires hash as hex)
-                    return await check_transaction_by_hash_only(tx_hash, expected_amount_nano)
-                tx = data["result"][0]
-                in_msg = tx.get("in_msg", {})
-                dest = in_msg.get("destination", "") or in_msg.get("dest", "")
-                if dest.lower() != ADMIN_ADDRESS.lower():
-                    logging.warning(f"Wrong destination: {dest} vs {ADMIN_ADDRESS}")
-                    return False
-                amount_nano = int(in_msg.get("value", "0"))
-                if amount_nano < expected_amount_nano:
-                    logging.warning(f"Amount too low: {amount_nano} < {expected_amount_nano}")
-                    return False
-                logging.info(f"✅ Transaction verified on chain: {tx_hash}")
-                return True
-        except Exception as e:
-            logging.error(f"Check error in /getTransactions: {e}")
-            return False
-
-async def check_transaction_by_hash_only(tx_hash_hex: str, expected_amount_nano: int) -> bool:
-    """Fallback: use /getTransaction by hash (hex)."""
-    # Ensure we have hex (without 0x)
-    tx_hash_hex = tx_hash_hex.lower().replace('0x', '')
-    url = "https://toncenter.com/api/v2/getTransaction"
-    params = {
-        "hash": tx_hash_hex,
-        "api_key": TON_API_KEY
-    }
-    async with aiohttp.ClientSession() as session:
-        try:
-            async with session.get(url, params=params, timeout=10) as resp:
+            async with session.get(url, params=params, timeout=15) as resp:
                 if resp.status != 200:
                     logging.warning(f"Fallback API error: {resp.status}")
                     return False
                 data = await resp.json()
                 if not data.get("ok") or not data.get("result"):
-                    logging.info(f"Transaction {tx_hash_hex} not found in fallback")
                     return False
-                tx = data["result"]
-                # Check that the outgoing message is to ADMIN_ADDRESS
-                out_msgs = tx.get("out_msgs", [])
-                for msg in out_msgs:
-                    dest = msg.get("destination", "")
-                    if dest.lower() == ADMIN_ADDRESS.lower():
-                        amount_nano = int(msg.get("value", "0"))
-                        if amount_nano >= expected_amount_nano:
-                            logging.info(f"✅ Fallback verified: {tx_hash_hex}")
-                            return True
-                logging.warning(f"Fallback: no message to admin address in tx {tx_hash_hex}")
-                return False
+                tx = data["result"][0]
+                in_msg = tx.get("in_msg", {})
+                dest = in_msg.get("destination", "") or in_msg.get("dest", "")
+                if dest.lower() != ADMIN_ADDRESS.lower():
+                    return False
+                amount_nano = int(in_msg.get("value", "0"))
+                if amount_nano < expected_amount_nano:
+                    return False
+                logging.info(f"✅ Fallback verification success for {tx_hash_hex}")
+                return True
         except Exception as e:
-            logging.error(f"Fallback check error: {e}")
+            logging.error(f"Fallback error: {e}")
             return False
 
 async def verify_payment(user_id: int, tx_hash: str, boc: str, amount_nano: int) -> bool:
@@ -170,12 +159,12 @@ async def verify_payment(user_id: int, tx_hash: str, boc: str, amount_nano: int)
         logging.error("No tx_hash or BOC provided")
         return False
 
-    # Retry up to 12 times (60 seconds)
-    for attempt in range(12):
+    # Retry up to 15 times (75 seconds)
+    for attempt in range(15):
         valid = await check_transaction_on_chain(tx_hash, amount_nano)
         if valid:
             return True
-        logging.info(f"Retry {attempt+1}/12 for tx {tx_hash}")
+        logging.info(f"Retry {attempt+1}/15 for tx {tx_hash}")
         await asyncio.sleep(5)
     logging.warning(f"On-chain verification failed for {tx_hash} after multiple attempts")
     return False
