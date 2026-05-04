@@ -1,4 +1,4 @@
-// tonPayment.js – Direct blockchain polling (no payload, dynamic amount)
+// tonPayment.js – Direct blockchain polling (no payload, dynamic amount, BOC fallback)
 import { verifyPremiumStatus } from './premiumManager.js';
 
 let tonConnectUI = null;
@@ -181,11 +181,29 @@ async function pollPaymentConfirmation(txHash, maxAttempts = 30, intervalMs = 20
     return false;
 }
 
+async function verifyWithBoc(boc) {
+    const tg = window.Telegram.WebApp;
+    try {
+        const response = await fetch(`${API_URL}/api/ton-verify-boc`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Telegram-Init-Data': tg.initData
+            },
+            body: JSON.stringify({ boc })
+        });
+        const data = await response.json();
+        return data.status === 'completed';
+    } catch (err) {
+        console.error("BOC verification error:", err);
+        return false;
+    }
+}
+
 export async function sendTonPremiumPayment() {
     const tg = window.Telegram.WebApp;
     
-    // Fetch current payment amount from backend (respects environment variable)
-    let amountTon = 1.12; // fallback
+    let amountTon = 1.12;
     try {
         const configRes = await fetch(`${API_URL}/api/ton-config`);
         const config = await configRes.json();
@@ -214,7 +232,6 @@ export async function sendTonPremiumPayment() {
         messages: [{
             address: adminAddr,
             amount: amountNano.toString()
-            // No payload field – plain transfer
         }]
     };
 
@@ -223,16 +240,36 @@ export async function sendTonPremiumPayment() {
         if (!ui) throw new Error("TON SDK unavailable");
         
         const result = await ui.sendTransaction(transaction);
-        const txHash = result.transactionHash;
-        if (!txHash) throw new Error("No transaction hash received");
-
-        const statusEl = document.getElementById('paymentStatus');
-        if (statusEl) {
-            statusEl.textContent = "⏳ Payment sent. Waiting for blockchain confirmation...";
-            statusEl.style.color = "#ffd700";
+        
+        // Try to get transaction hash from different possible fields
+        let txHash = null;
+        if (result.transactionHash) {
+            txHash = result.transactionHash;
+        } else if (result.transaction && result.transaction.hash) {
+            txHash = result.transaction.hash;
+        } else if (result.hash) {
+            txHash = result.hash;
         }
         
-        const confirmed = await pollPaymentConfirmation(txHash, 45, 2000);
+        const statusEl = document.getElementById('paymentStatus');
+        let confirmed = false;
+        
+        if (txHash) {
+            if (statusEl) {
+                statusEl.textContent = "⏳ Payment sent. Waiting for blockchain confirmation...";
+                statusEl.style.color = "#ffd700";
+            }
+            confirmed = await pollPaymentConfirmation(txHash, 45, 2000);
+        } else if (result.boc) {
+            // Fallback: use BOC verification
+            if (statusEl) {
+                statusEl.textContent = "⏳ Verifying transaction via BOC...";
+                statusEl.style.color = "#ffd700";
+            }
+            confirmed = await verifyWithBoc(result.boc);
+        } else {
+            throw new Error("No transaction hash or BOC received from wallet");
+        }
         
         if (confirmed) {
             await verifyPremiumStatus();
@@ -243,7 +280,7 @@ export async function sendTonPremiumPayment() {
             setTimeout(() => { if (window.closePremium) window.closePremium(); }, 1500);
             return true;
         } else {
-            throw new Error("Confirmation timeout – please check premium status manually");
+            throw new Error("Transaction not confirmed on blockchain after multiple attempts");
         }
     } catch (err) {
         console.error("TON payment error:", err);
