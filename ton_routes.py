@@ -1,4 +1,4 @@
-# ton_routes.py - Direct blockchain polling (no webhooks, no payload required)
+# ton_routes.py - Direct blockchain polling + BOC fallback
 from fastapi import APIRouter, Request, HTTPException, BackgroundTasks
 from datetime import datetime, timedelta
 import logging
@@ -6,6 +6,7 @@ import os
 import hashlib
 import json
 import aiohttp
+import base64
 from config import supabase
 from utils import get_user_id_from_init_data
 
@@ -59,8 +60,6 @@ async def check_transaction_on_chain(tx_hash: str, expected_user_id: int) -> boo
     Verify that a valid transaction exists on the TON blockchain:
     - Sent to ADMIN_ADDRESS
     - Amount >= PAYMENT_AMOUNT
-    (No comment/payload verification – the user is identified by the polling request)
-    Returns True if valid and premium granted.
     """
     if not TON_API_KEY or not ADMIN_ADDRESS:
         logging.error("Missing TON API key or admin address")
@@ -87,22 +86,18 @@ async def check_transaction_on_chain(tx_hash: str, expected_user_id: int) -> boo
                     return False
                 
                 transaction = data["result"][0]
-                
-                # Check destination address (in_message)
                 in_msg = transaction.get("in_msg", {})
                 destination = in_msg.get("destination", "") or in_msg.get("dest", "")
                 if destination.lower() != ADMIN_ADDRESS.lower():
                     logging.warning(f"Wrong destination: {destination}")
                     return False
                 
-                # Check amount (in nanoTON)
                 amount_nano = int(in_msg.get("value", "0"))
                 expected_nano = int(PAYMENT_AMOUNT * 1e9)
                 if amount_nano < expected_nano:
                     logging.warning(f"Insufficient amount: {amount_nano} nano < {expected_nano}")
                     return False
                 
-                # No comment/payload validation needed – we trust the caller's initData
                 return True
                 
         except Exception as e:
@@ -111,12 +106,7 @@ async def check_transaction_on_chain(tx_hash: str, expected_user_id: int) -> boo
 
 @router.get("/api/ton-check-tx")
 async def ton_check_transaction(request: Request, tx_hash: str):
-    """
-    Polling endpoint for frontend.
-    - Pass tx_hash returned by TonConnect.
-    - Backend checks the blockchain (destination + amount) and grants premium if valid.
-    - Returns { "status": "pending" } or { "status": "completed" }.
-    """
+    """Polling endpoint for frontend using transaction hash."""
     init_data = request.headers.get("X-Telegram-Init-Data", "")
     if not init_data:
         raise HTTPException(status_code=401, detail="Missing init data")
@@ -127,7 +117,44 @@ async def ton_check_transaction(request: Request, tx_hash: str):
     if not tx_hash:
         raise HTTPException(status_code=400, detail="Missing tx_hash")
     
-    # Prevent double‑granting for the same tx_hash
+    existing = supabase.table("payments").select("id").eq("transaction_id", tx_hash).eq("status", "completed").execute()
+    if existing.data:
+        return {"status": "completed", "already_granted": True}
+    
+    valid = await check_transaction_on_chain(tx_hash, user_id)
+    if valid:
+        await grant_premium(user_id, tx_hash, PAYMENT_AMOUNT)
+        return {"status": "completed"}
+    else:
+        return {"status": "pending"}
+
+@router.post("/api/ton-verify-boc")
+async def ton_verify_boc(request: Request):
+    """
+    Fallback endpoint using BOC (Bag of Cells) when transaction hash is missing.
+    Computes hash from BOC and verifies the transaction.
+    """
+    init_data = request.headers.get("X-Telegram-Init-Data", "")
+    if not init_data:
+        raise HTTPException(status_code=401, detail="Missing init data")
+    user_id = get_user_id_from_init_data(init_data)
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Invalid user")
+    
+    body = await request.json()
+    boc = body.get("boc")
+    if not boc:
+        raise HTTPException(status_code=400, detail="Missing BOC")
+    
+    # Compute transaction hash from BOC (SHA256 of the base64-decoded boc)
+    try:
+        boc_bytes = base64.b64decode(boc)
+        tx_hash = hashlib.sha256(boc_bytes).hexdigest()
+    except Exception as e:
+        logging.error(f"Failed to compute hash from BOC: {e}")
+        raise HTTPException(status_code=400, detail="Invalid BOC format")
+    
+    # Prevent double processing
     existing = supabase.table("payments").select("id").eq("transaction_id", tx_hash).eq("status", "completed").execute()
     if existing.data:
         return {"status": "completed", "already_granted": True}
@@ -149,9 +176,7 @@ async def ton_config():
 
 @router.post("/api/verify-ton-payment")
 async def verify_ton_payment_deprecated(request: Request, background_tasks: BackgroundTasks):
-    """
-    Deprecated: replaced by polling. Kept for backward compatibility.
-    """
+    """Deprecated: kept for backward compatibility."""
     init_data = request.headers.get("X-Telegram-Init-Data", "")
     if not init_data:
         raise HTTPException(status_code=401, detail="Missing init data")
@@ -167,6 +192,6 @@ async def verify_ton_payment_deprecated(request: Request, background_tasks: Back
     return {
         "success": False,
         "pending": False,
-        "error": "This endpoint is deprecated. Please use the new polling method (get tx_hash from TonConnect and call /api/ton-check-tx)."
-                }
+        "error": "This endpoint is deprecated. Please use the new polling method (get tx_hash from TonConnect and call /api/ton-check-tx) or the BOC endpoint /api/ton-verify-boc."
+    }
     
