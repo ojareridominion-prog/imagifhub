@@ -162,7 +162,8 @@ export async function initWalletUI() {
     }
 }
 
-async function pollPaymentConfirmation(txHash, maxAttempts = 30, intervalMs = 2000) {
+// Increased polling attempts and improved error handling
+async function pollPaymentConfirmation(txHash, maxAttempts = 60, intervalMs = 2000) {
     const tg = window.Telegram.WebApp;
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
         try {
@@ -202,6 +203,7 @@ async function verifyWithBoc(boc) {
 
 export async function sendTonPremiumPayment() {
     const tg = window.Telegram.WebApp;
+    const statusEl = document.getElementById('paymentStatus');
     
     let amountTon = 1.12;
     try {
@@ -251,7 +253,6 @@ export async function sendTonPremiumPayment() {
             txHash = result.hash;
         }
         
-        const statusEl = document.getElementById('paymentStatus');
         let confirmed = false;
         
         if (txHash) {
@@ -259,9 +260,8 @@ export async function sendTonPremiumPayment() {
                 statusEl.textContent = "⏳ Payment sent. Waiting for blockchain confirmation...";
                 statusEl.style.color = "#ffd700";
             }
-            confirmed = await pollPaymentConfirmation(txHash, 45, 2000);
+            confirmed = await pollPaymentConfirmation(txHash, 60, 2000); // 2 minutes total
         } else if (result.boc) {
-            // Fallback: use BOC verification
             if (statusEl) {
                 statusEl.textContent = "⏳ Verifying transaction via BOC...";
                 statusEl.style.color = "#ffd700";
@@ -280,7 +280,24 @@ export async function sendTonPremiumPayment() {
             setTimeout(() => { if (window.closePremium) window.closePremium(); }, 1500);
             return true;
         } else {
-            throw new Error("Transaction not confirmed on blockchain after multiple attempts");
+            // Instead of throwing an immediate error, show a pending message and check again later
+            if (statusEl) {
+                statusEl.textContent = "⏳ Payment received. Activation may take a few moments. Checking again...";
+                statusEl.style.color = "#ffd700";
+            }
+            // Wait 5 seconds and verify premium status one more time
+            await new Promise(r => setTimeout(r, 5000));
+            const premiumActive = await verifyPremiumStatus();
+            if (premiumActive) {
+                if (statusEl) {
+                    statusEl.textContent = "✅ Premium activated!";
+                    statusEl.style.color = "#4CAF50";
+                }
+                setTimeout(() => { if (window.closePremium) window.closePremium(); }, 1500);
+                return true;
+            } else {
+                throw new Error("Transaction not confirmed on blockchain after multiple attempts");
+            }
         }
     } catch (err) {
         console.error("TON payment error:", err);
