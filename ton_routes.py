@@ -2,6 +2,7 @@
 import os
 import logging
 import httpx
+import base64
 from fastapi import APIRouter, Request, HTTPException
 from utils import get_user_id_from_init_data
 from config import supabase
@@ -21,9 +22,47 @@ TONCENTER_API_URL = "https://toncenter.com/api/v2"
 logger = logging.getLogger(__name__)
 
 
-# ========== HELPER: VERIFY TRANSACTION VIA TONCENTER ==========
+# ========== ADDRESS NORMALIZATION (supports raw hex and user‑friendly EQ/UQ) ==========
+def normalize_ton_address(addr: str) -> str:
+    """
+    Convert any TON address to its raw hex representation (without 0: prefix).
+    Handles raw hex (0:...), raw hex without prefix, and user‑friendly (EQ/UQ...).
+    """
+    addr = addr.strip()
+    if not addr:
+        return ""
+
+    # Already raw hex without prefix?
+    if len(addr) == 64 and all(c in "0123456789abcdefABCDEF" for c in addr):
+        return addr.lower()
+
+    # Raw hex with 0: prefix
+    if addr.startswith("0:"):
+        return addr[2:].lower()
+
+    # User‑friendly format (EQ... or UQ...)
+    if addr.startswith("EQ") or addr.startswith("UQ"):
+        # Decode base64url to bytes
+        b64 = addr[2:].replace('-', '+').replace('_', '/')
+        # Add padding if needed
+        missing = len(b64) % 4
+        if missing:
+            b64 += '=' * (4 - missing)
+        try:
+            decoded = base64.b64decode(b64)
+            # First byte is workchain (usually 0x11 for EQ, 0x12 for UQ)
+            # Rest is the raw hex part (64 hex chars = 32 bytes)
+            hex_part = decoded[1:].hex()
+            return hex_part
+        except Exception:
+            pass
+
+    # Fallback: return as is (lowercase)
+    return addr.lower()
+
+
+# ========== HELPER: VERIFY TRANSACTION VIA TONCENTER (legacy) ==========
 async def verify_transaction_by_hash(tx_hash: str, expected_amount_nano: int) -> bool:
-    """Original hash‑based verification (kept for compatibility)"""
     if TON_DEV_MODE:
         logger.info(f"[DEV MODE] Skipping real TON verification for hash {tx_hash}")
         return True
@@ -69,10 +108,10 @@ async def verify_transaction_by_hash(tx_hash: str, expected_amount_nano: int) ->
                 logger.error("Could not extract destination address from transaction")
                 return False
 
-            admin_raw = TON_ADMIN_ADDRESS.lower().strip()
-            dest_raw = dest.lower().strip()
-            if admin_raw != dest_raw:
-                logger.error(f"Destination mismatch: {dest_raw} != {admin_raw}")
+            admin_norm = normalize_ton_address(TON_ADMIN_ADDRESS)
+            dest_norm = normalize_ton_address(dest)
+            if admin_norm != dest_norm:
+                logger.error(f"Destination mismatch: {dest_norm} != {admin_norm}")
                 return False
 
             value_nano = txn.get("value")
@@ -103,7 +142,7 @@ async def verify_transaction_by_hash(tx_hash: str, expected_amount_nano: int) ->
             return False
 
 
-# ========== NEW HELPER: CHECK WALLET OUTGOING TRANSACTIONS ==========
+# ========== MAIN VERIFICATION: CHECK WALLET OUTGOING TRANSACTIONS ==========
 async def check_wallet_payment(wallet_addr: str, expected_amount_nano: int) -> bool:
     """
     Fetch last 20 outgoing transactions of the given wallet.
@@ -121,13 +160,15 @@ async def check_wallet_payment(wallet_addr: str, expected_amount_nano: int) -> b
     if TON_API_KEY:
         headers["X-API-Key"] = TON_API_KEY
 
-    # Get transactions for the wallet (limit 20, most recent)
     url = f"{TONCENTER_API_URL}/getTransactions"
     params = {
         "address": wallet_addr,
         "limit": 20,
         "archival": True
     }
+
+    admin_norm = normalize_ton_address(TON_ADMIN_ADDRESS)
+    logger.error(f"Normalized admin address: {admin_norm}")
 
     async with httpx.AsyncClient(timeout=15.0) as client:
         try:
@@ -149,9 +190,6 @@ async def check_wallet_payment(wallet_addr: str, expected_amount_nano: int) -> b
                 logger.error(f"No transactions found for wallet {wallet_addr}")
                 return False
 
-            admin_raw = TON_ADMIN_ADDRESS.lower().strip()
-            logger.error(f"Looking for payments to admin address: {admin_raw}")
-
             for idx, tx in enumerate(transactions):
                 tx_hash = tx.get("transaction_id", {}).get("hash", "unknown")
                 logger.error(f"Transaction {idx}: hash={tx_hash}")
@@ -162,7 +200,10 @@ async def check_wallet_payment(wallet_addr: str, expected_amount_nano: int) -> b
                     dest = msg.get("destination", "")
                     value = msg.get("value")
                     logger.error(f"    msg {msg_idx}: dest={dest}, value={value}")
-                    if dest.lower().strip() != admin_raw:
+                    if not dest:
+                        continue
+                    dest_norm = normalize_ton_address(dest)
+                    if dest_norm != admin_norm:
                         continue
                     if value is None:
                         continue
@@ -174,15 +215,12 @@ async def check_wallet_payment(wallet_addr: str, expected_amount_nano: int) -> b
                         logger.error(f"✅ MATCH found: {value_nano} nano to {dest}")
                         return True
 
-                # Also check in_msg (some wallets use internal messages)
+                # Also check in_msg? Not needed for outgoing payments, but we log for completeness
                 in_msg = tx.get("in_msg")
                 if in_msg:
                     source = in_msg.get("source", "")
                     value = in_msg.get("value")
                     logger.error(f"  in_msg: source={source}, value={value}")
-                    if source.lower().strip() == admin_raw:
-                        # This is an incoming message from admin? Not what we want.
-                        pass
 
             logger.error(f"No matching payment found for wallet {wallet_addr} in last 20 transactions")
             return False
@@ -196,7 +234,6 @@ async def check_wallet_payment(wallet_addr: str, expected_amount_nano: int) -> b
 
 @router.get("/api/ton-config")
 async def ton_config():
-    """Return the admin wallet address and the required amount (in TON)."""
     return {
         "adminAddress": TON_ADMIN_ADDRESS,
         "amount": TON_AMOUNT
@@ -205,10 +242,6 @@ async def ton_config():
 
 @router.get("/api/ton-check-tx")
 async def check_transaction(request: Request):
-    """
-    Verify a TON payment by transaction hash (legacy endpoint, kept for compatibility).
-    On success, grant premium (30 days) to the user.
-    """
     init_data = request.headers.get("X-Telegram-Init-Data", "")
     if not init_data:
         raise HTTPException(status_code=401, detail="Missing init data")
@@ -232,12 +265,6 @@ async def check_transaction(request: Request):
 
 @router.get("/api/ton-check-payment")
 async def check_payment(request: Request):
-    """
-    Polls the user's wallet for outgoing payments to admin address.
-    Query params: ?wallet=<user_wallet_address>&amount=<amount_in_TON>
-    Returns {"status": "completed"} if found, else {"status": "pending"}.
-    On first match, grants premium.
-    """
     init_data = request.headers.get("X-Telegram-Init-Data", "")
     if not init_data:
         raise HTTPException(status_code=401, detail="Missing init data")
@@ -275,7 +302,6 @@ async def debug_ton_wallet(wallet: str):
     """
     DEBUG ENDPOINT: returns raw toncenter response for the given wallet.
     No authentication – use only for debugging.
-    Example: /api/debug-ton-wallet?wallet=0:6d3bb7b15a9f3d40fbe836cbe8320ae6a968fbb651de636e0076ac08a5cd3aa5
     """
     headers = {}
     if TON_API_KEY:
@@ -299,11 +325,6 @@ async def debug_ton_wallet(wallet: str):
 
 @router.post("/api/ton-verify-boc")
 async def verify_boc(request: Request):
-    """
-    Alternative verification: accept a BOC (bag of cells) from the wallet,
-    decode it to extract transaction hash, then verify via toncenter.
-    This endpoint is kept but no longer used by the frontend.
-    """
     init_data = request.headers.get("X-Telegram-Init-Data", "")
     if not init_data:
         raise HTTPException(status_code=401, detail="Missing init data")
@@ -352,7 +373,6 @@ async def verify_boc(request: Request):
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
-# Internal helper to grant premium and record payment
 async def _grant_premium(user_id: int, tx_hash: str):
     now = datetime.utcnow()
     new_expiry = now + timedelta(days=30)
