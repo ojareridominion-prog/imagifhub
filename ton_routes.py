@@ -110,7 +110,7 @@ async def check_wallet_payment(wallet_addr: str, expected_amount_nano: int) -> b
     Returns True if a payment to TON_ADMIN_ADDRESS with amount >= expected_amount_nano is found.
     """
     if TON_DEV_MODE:
-        logger.info(f"[DEV MODE] Skipping real TON check for wallet {wallet_addr}")
+        logger.error(f"[DEV MODE] Skipping real TON check for wallet {wallet_addr}")
         return True
 
     if not TON_ADMIN_ADDRESS:
@@ -132,36 +132,36 @@ async def check_wallet_payment(wallet_addr: str, expected_amount_nano: int) -> b
     async with httpx.AsyncClient(timeout=15.0) as client:
         try:
             resp = await client.get(url, params=params, headers=headers)
-            logger.info(f"Toncenter response status: {resp.status_code}")
+            logger.error(f"Toncenter response status: {resp.status_code}")
             if resp.status_code != 200:
                 logger.error(f"toncenter error {resp.status_code}: {resp.text}")
                 return False
 
             data = resp.json()
+            logger.error(f"Toncenter full response (truncated): {str(data)[:1000]}")
             if not data.get("ok"):
                 logger.error(f"toncenter returned not ok: {data}")
                 return False
 
             transactions = data.get("result", [])
-            logger.info(f"Found {len(transactions)} transactions for wallet {wallet_addr}")
+            logger.error(f"Found {len(transactions)} transactions for wallet {wallet_addr}")
             if not transactions:
-                logger.info(f"No transactions found for wallet {wallet_addr}")
+                logger.error(f"No transactions found for wallet {wallet_addr}")
                 return False
 
             admin_raw = TON_ADMIN_ADDRESS.lower().strip()
-            logger.info(f"Looking for payments to admin address: {admin_raw}")
+            logger.error(f"Looking for payments to admin address: {admin_raw}")
 
             for idx, tx in enumerate(transactions):
-                # Log transaction hash for debugging
                 tx_hash = tx.get("transaction_id", {}).get("hash", "unknown")
-                logger.info(f"Transaction {idx}: hash={tx_hash}")
+                logger.error(f"Transaction {idx}: hash={tx_hash}")
 
                 out_msgs = tx.get("out_msgs", [])
-                logger.info(f"  out_msgs count: {len(out_msgs)}")
+                logger.error(f"  out_msgs count: {len(out_msgs)}")
                 for msg_idx, msg in enumerate(out_msgs):
                     dest = msg.get("destination", "")
                     value = msg.get("value")
-                    logger.info(f"    msg {msg_idx}: dest={dest}, value={value}")
+                    logger.error(f"    msg {msg_idx}: dest={dest}, value={value}")
                     if dest.lower().strip() != admin_raw:
                         continue
                     if value is None:
@@ -171,9 +171,20 @@ async def check_wallet_payment(wallet_addr: str, expected_amount_nano: int) -> b
                     except (ValueError, TypeError):
                         continue
                     if value_nano >= expected_amount_nano:
-                        logger.info(f"✅ MATCH found: {value_nano} nano to {dest}")
+                        logger.error(f"✅ MATCH found: {value_nano} nano to {dest}")
                         return True
-            logger.info(f"No matching payment found for wallet {wallet_addr} in last 20 transactions")
+
+                # Also check in_msg (some wallets use internal messages)
+                in_msg = tx.get("in_msg")
+                if in_msg:
+                    source = in_msg.get("source", "")
+                    value = in_msg.get("value")
+                    logger.error(f"  in_msg: source={source}, value={value}")
+                    if source.lower().strip() == admin_raw:
+                        # This is an incoming message from admin? Not what we want.
+                        pass
+
+            logger.error(f"No matching payment found for wallet {wallet_addr} in last 20 transactions")
             return False
 
         except Exception as e:
@@ -248,7 +259,7 @@ async def check_payment(request: Request):
 
     expected_nano = int(amount_ton * 1_000_000_000)
 
-    logger.info(f"Checking payment for user {user_id}, wallet {wallet}, expected {expected_nano} nano")
+    logger.error(f"Checking payment for user {user_id}, wallet {wallet}, expected {expected_nano} nano")
 
     paid = await check_wallet_payment(wallet, expected_nano)
 
@@ -257,6 +268,33 @@ async def check_payment(request: Request):
         return await _grant_premium(user_id, tx_hash)
     else:
         return {"status": "pending"}
+
+
+@router.get("/api/debug-ton-wallet")
+async def debug_ton_wallet(wallet: str):
+    """
+    DEBUG ENDPOINT: returns raw toncenter response for the given wallet.
+    No authentication – use only for debugging.
+    Example: /api/debug-ton-wallet?wallet=0:6d3bb7b15a9f3d40fbe836cbe8320ae6a968fbb651de636e0076ac08a5cd3aa5
+    """
+    headers = {}
+    if TON_API_KEY:
+        headers["X-API-Key"] = TON_API_KEY
+
+    url = f"{TONCENTER_API_URL}/getTransactions"
+    params = {
+        "address": wallet,
+        "limit": 20,
+        "archival": True
+    }
+
+    async with httpx.AsyncClient(timeout=15.0) as client:
+        resp = await client.get(url, params=params, headers=headers)
+        return {
+            "status_code": resp.status_code,
+            "headers": dict(resp.headers),
+            "body": resp.json() if resp.status_code == 200 else resp.text
+        }
 
 
 @router.post("/api/ton-verify-boc")
