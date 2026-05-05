@@ -132,6 +132,7 @@ async def check_wallet_payment(wallet_addr: str, expected_amount_nano: int) -> b
     async with httpx.AsyncClient(timeout=15.0) as client:
         try:
             resp = await client.get(url, params=params, headers=headers)
+            logger.info(f"Toncenter response status: {resp.status_code}")
             if resp.status_code != 200:
                 logger.error(f"toncenter error {resp.status_code}: {resp.text}")
                 return False
@@ -142,19 +143,27 @@ async def check_wallet_payment(wallet_addr: str, expected_amount_nano: int) -> b
                 return False
 
             transactions = data.get("result", [])
+            logger.info(f"Found {len(transactions)} transactions for wallet {wallet_addr}")
             if not transactions:
                 logger.info(f"No transactions found for wallet {wallet_addr}")
                 return False
 
             admin_raw = TON_ADMIN_ADDRESS.lower().strip()
-            for tx in transactions:
-                # Look at outgoing messages (out_msgs)
+            logger.info(f"Looking for payments to admin address: {admin_raw}")
+
+            for idx, tx in enumerate(transactions):
+                # Log transaction hash for debugging
+                tx_hash = tx.get("transaction_id", {}).get("hash", "unknown")
+                logger.info(f"Transaction {idx}: hash={tx_hash}")
+
                 out_msgs = tx.get("out_msgs", [])
-                for msg in out_msgs:
+                logger.info(f"  out_msgs count: {len(out_msgs)}")
+                for msg_idx, msg in enumerate(out_msgs):
                     dest = msg.get("destination", "")
+                    value = msg.get("value")
+                    logger.info(f"    msg {msg_idx}: dest={dest}, value={value}")
                     if dest.lower().strip() != admin_raw:
                         continue
-                    value = msg.get("value")
                     if value is None:
                         continue
                     try:
@@ -162,7 +171,7 @@ async def check_wallet_payment(wallet_addr: str, expected_amount_nano: int) -> b
                     except (ValueError, TypeError):
                         continue
                     if value_nano >= expected_amount_nano:
-                        logger.info(f"Found matching outgoing payment: {value_nano} nano to {dest}")
+                        logger.info(f"✅ MATCH found: {value_nano} nano to {dest}")
                         return True
             logger.info(f"No matching payment found for wallet {wallet_addr} in last 20 transactions")
             return False
@@ -213,7 +222,7 @@ async def check_transaction(request: Request):
 @router.get("/api/ton-check-payment")
 async def check_payment(request: Request):
     """
-    NEW endpoint: Polls the user's wallet for outgoing payments to admin address.
+    Polls the user's wallet for outgoing payments to admin address.
     Query params: ?wallet=<user_wallet_address>&amount=<amount_in_TON>
     Returns {"status": "completed"} if found, else {"status": "pending"}.
     On first match, grants premium.
@@ -239,11 +248,11 @@ async def check_payment(request: Request):
 
     expected_nano = int(amount_ton * 1_000_000_000)
 
-    # Check wallet transactions
+    logger.info(f"Checking payment for user {user_id}, wallet {wallet}, expected {expected_nano} nano")
+
     paid = await check_wallet_payment(wallet, expected_nano)
 
     if paid:
-        # Grant premium (use a placeholder tx hash derived from wallet + timestamp)
         tx_hash = f"wallet_{wallet}_{int(datetime.utcnow().timestamp())}"
         return await _grant_premium(user_id, tx_hash)
     else:
