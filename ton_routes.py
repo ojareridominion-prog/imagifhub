@@ -17,20 +17,13 @@ TON_DEV_MODE = os.environ.get("TON_DEV_MODE", "false").lower() == "true"
 
 # toncenter endpoints (mainnet)
 TONCENTER_API_URL = "https://toncenter.com/api/v2"
-# For testnet you could use: "https://testnet.toncenter.com/api/v2"
-# We assume mainnet here.
 
 logger = logging.getLogger(__name__)
 
 
 # ========== HELPER: VERIFY TRANSACTION VIA TONCENTER ==========
 async def verify_transaction_by_hash(tx_hash: str, expected_amount_nano: int) -> bool:
-    """
-    Call toncenter's getTransaction method and verify:
-    - Transaction exists
-    - Destination matches TON_ADMIN_ADDRESS
-    - Amount >= expected_amount_nano
-    """
+    """Original hash‑based verification (kept for compatibility)"""
     if TON_DEV_MODE:
         logger.info(f"[DEV MODE] Skipping real TON verification for hash {tx_hash}")
         return True
@@ -47,9 +40,8 @@ async def verify_transaction_by_hash(tx_hash: str, expected_amount_nano: int) ->
     if TON_API_KEY:
         headers["X-API-Key"] = TON_API_KEY
 
-    # toncenter endpoint to get a single transaction
     url = f"{TONCENTER_API_URL}/getTransaction"
-    params = {"hash": tx_hash, "shardblock": None}  # shardblock can be omitted
+    params = {"hash": tx_hash, "shardblock": None}
 
     async with httpx.AsyncClient(timeout=15.0) as client:
         try:
@@ -68,10 +60,8 @@ async def verify_transaction_by_hash(tx_hash: str, expected_amount_nano: int) ->
                 logger.error(f"No transaction found for hash {tx_hash}")
                 return False
 
-            # Extract destination address (usually the 'to' field)
             dest = txn.get("to")
             if not dest:
-                # Sometimes the 'out_msgs' array contains the destination
                 out_msgs = txn.get("out_msgs", [])
                 if out_msgs and len(out_msgs) > 0:
                     dest = out_msgs[0].get("destination")
@@ -79,20 +69,16 @@ async def verify_transaction_by_hash(tx_hash: str, expected_amount_nano: int) ->
                 logger.error("Could not extract destination address from transaction")
                 return False
 
-            # Compare addresses (case‑insensitive, strip any protocol prefix)
             admin_raw = TON_ADMIN_ADDRESS.lower().strip()
             dest_raw = dest.lower().strip()
             if admin_raw != dest_raw:
                 logger.error(f"Destination mismatch: {dest_raw} != {admin_raw}")
                 return False
 
-            # Extract amount in nanoTON (1 TON = 1e9 nano)
-            # The field can be 'value' or 'amount'
             value_nano = txn.get("value")
             if value_nano is None:
                 value_nano = txn.get("amount")
             if value_nano is None:
-                # Fallback: look in out_msgs
                 out_msgs = txn.get("out_msgs", [])
                 if out_msgs and len(out_msgs) > 0:
                     value_nano = out_msgs[0].get("value")
@@ -117,6 +103,75 @@ async def verify_transaction_by_hash(tx_hash: str, expected_amount_nano: int) ->
             return False
 
 
+# ========== NEW HELPER: CHECK WALLET OUTGOING TRANSACTIONS ==========
+async def check_wallet_payment(wallet_addr: str, expected_amount_nano: int) -> bool:
+    """
+    Fetch last 20 outgoing transactions of the given wallet.
+    Returns True if a payment to TON_ADMIN_ADDRESS with amount >= expected_amount_nano is found.
+    """
+    if TON_DEV_MODE:
+        logger.info(f"[DEV MODE] Skipping real TON check for wallet {wallet_addr}")
+        return True
+
+    if not TON_ADMIN_ADDRESS:
+        logger.error("TON_ADMIN_ADDRESS not set")
+        return False
+
+    headers = {}
+    if TON_API_KEY:
+        headers["X-API-Key"] = TON_API_KEY
+
+    # Get transactions for the wallet (limit 20, most recent)
+    url = f"{TONCENTER_API_URL}/getTransactions"
+    params = {
+        "address": wallet_addr,
+        "limit": 20,
+        "archival": True
+    }
+
+    async with httpx.AsyncClient(timeout=15.0) as client:
+        try:
+            resp = await client.get(url, params=params, headers=headers)
+            if resp.status_code != 200:
+                logger.error(f"toncenter error {resp.status_code}: {resp.text}")
+                return False
+
+            data = resp.json()
+            if not data.get("ok"):
+                logger.error(f"toncenter returned not ok: {data}")
+                return False
+
+            transactions = data.get("result", [])
+            if not transactions:
+                logger.info(f"No transactions found for wallet {wallet_addr}")
+                return False
+
+            admin_raw = TON_ADMIN_ADDRESS.lower().strip()
+            for tx in transactions:
+                # Look at outgoing messages (out_msgs)
+                out_msgs = tx.get("out_msgs", [])
+                for msg in out_msgs:
+                    dest = msg.get("destination", "")
+                    if dest.lower().strip() != admin_raw:
+                        continue
+                    value = msg.get("value")
+                    if value is None:
+                        continue
+                    try:
+                        value_nano = int(value)
+                    except (ValueError, TypeError):
+                        continue
+                    if value_nano >= expected_amount_nano:
+                        logger.info(f"Found matching outgoing payment: {value_nano} nano to {dest}")
+                        return True
+            logger.info(f"No matching payment found for wallet {wallet_addr} in last 20 transactions")
+            return False
+
+        except Exception as e:
+            logger.error(f"Exception checking wallet transactions: {e}", exc_info=True)
+            return False
+
+
 # ========== ENDPOINTS ==========
 
 @router.get("/api/ton-config")
@@ -131,8 +186,7 @@ async def ton_config():
 @router.get("/api/ton-check-tx")
 async def check_transaction(request: Request):
     """
-    Verify a TON payment by transaction hash.
-    Query parameter: ?tx_hash=<hash>
+    Verify a TON payment by transaction hash (legacy endpoint, kept for compatibility).
     On success, grant premium (30 days) to the user.
     """
     init_data = request.headers.get("X-Telegram-Init-Data", "")
@@ -149,54 +203,51 @@ async def check_transaction(request: Request):
 
     expected_nano = int(TON_AMOUNT * 1_000_000_000)
 
-    # Verify transaction
     valid = await verify_transaction_by_hash(tx_hash, expected_nano)
-    if not valid:
-        # For development mode, if we skip verification we still grant premium
-        if not TON_DEV_MODE:
-            raise HTTPException(status_code=400, detail="Transaction verification failed")
+    if not valid and not TON_DEV_MODE:
+        raise HTTPException(status_code=400, detail="Transaction verification failed")
 
-    # ========== GRANT PREMIUM (30 days) ==========
-    now = datetime.utcnow()
-    new_expiry = now + timedelta(days=30)
+    return await _grant_premium(user_id, tx_hash)
 
-    # Fetch existing expiry to extend if already premium
-    user_result = supabase.table("users").select("premium_expires_at").eq("telegram_id", user_id).execute()
-    if user_result.data and user_result.data[0].get("premium_expires_at"):
-        current_expiry_str = user_result.data[0]["premium_expires_at"]
-        try:
-            if current_expiry_str.endswith('Z'):
-                current_expiry_str = current_expiry_str.replace('Z', '+00:00')
-            current_expiry = datetime.fromisoformat(current_expiry_str)
-            if current_expiry.tzinfo:
-                current_expiry = current_expiry.replace(tzinfo=None)
-            if current_expiry > now and current_expiry > new_expiry:
-                new_expiry = current_expiry + timedelta(days=30)
-        except Exception as e:
-            logger.warning(f"Could not parse existing expiry: {e}")
 
-    # Upsert user premium
-    supabase.table("users").upsert({
-        "telegram_id": user_id,
-        "is_premium": True,
-        "premium_expires_at": new_expiry.isoformat(),
-        "updated_at": now.isoformat()
-    }).execute()
+@router.get("/api/ton-check-payment")
+async def check_payment(request: Request):
+    """
+    NEW endpoint: Polls the user's wallet for outgoing payments to admin address.
+    Query params: ?wallet=<user_wallet_address>&amount=<amount_in_TON>
+    Returns {"status": "completed"} if found, else {"status": "pending"}.
+    On first match, grants premium.
+    """
+    init_data = request.headers.get("X-Telegram-Init-Data", "")
+    if not init_data:
+        raise HTTPException(status_code=401, detail="Missing init data")
 
-    # Record payment
-    supabase.table("payments").insert({
-        "telegram_id": user_id,
-        "provider": "ton",
-        "amount": TON_AMOUNT,
-        "currency": "TON",
-        "payload": f"ton_{user_id}_{tx_hash[:8]}",
-        "transaction_id": tx_hash,
-        "status": "completed",
-        "created_at": now.isoformat()
-    }).execute()
+    user_id = get_user_id_from_init_data(init_data)
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Invalid user")
 
-    logger.info(f"✅ TON payment verified for user {user_id}, tx_hash {tx_hash}")
-    return {"status": "completed", "message": "Premium activated"}
+    wallet = request.query_params.get("wallet")
+    amount_str = request.query_params.get("amount")
+
+    if not wallet or not amount_str:
+        raise HTTPException(status_code=400, detail="Missing wallet or amount")
+
+    try:
+        amount_ton = float(amount_str)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid amount")
+
+    expected_nano = int(amount_ton * 1_000_000_000)
+
+    # Check wallet transactions
+    paid = await check_wallet_payment(wallet, expected_nano)
+
+    if paid:
+        # Grant premium (use a placeholder tx hash derived from wallet + timestamp)
+        tx_hash = f"wallet_{wallet}_{int(datetime.utcnow().timestamp())}"
+        return await _grant_premium(user_id, tx_hash)
+    else:
+        return {"status": "pending"}
 
 
 @router.post("/api/ton-verify-boc")
@@ -204,7 +255,7 @@ async def verify_boc(request: Request):
     """
     Alternative verification: accept a BOC (bag of cells) from the wallet,
     decode it to extract transaction hash, then verify via toncenter.
-    This is used as a fallback in tonPayment.js when no direct hash is returned.
+    This endpoint is kept but no longer used by the frontend.
     """
     init_data = request.headers.get("X-Telegram-Init-Data", "")
     if not init_data:
@@ -221,15 +272,10 @@ async def verify_boc(request: Request):
 
     if TON_DEV_MODE:
         logger.info(f"[DEV MODE] BOC verification skipped for user {user_id}")
-        # Grant premium directly
         return await _grant_premium(user_id, "dev_boc")
 
     try:
-        # Use toncenter's /sendBocReturnHash or decode BOC locally.
-        # Since decoding BOC on the server is complex, we ask toncenter to decode.
         async with httpx.AsyncClient(timeout=15.0) as client:
-            # First, try to decode BOC and get the transaction hash.
-            # toncenter provides /decodeBoc endpoint (if available)
             decode_url = f"{TONCENTER_API_URL}/decodeBoc"
             decode_resp = await client.post(decode_url, json={"boc": boc})
             if decode_resp.status_code != 200:
@@ -237,7 +283,6 @@ async def verify_boc(request: Request):
                 raise HTTPException(status_code=400, detail="Invalid BOC")
 
             decode_data = decode_resp.json()
-            # The response structure may vary – find the first transaction hash
             tx_hash = None
             if "hash" in decode_data:
                 tx_hash = decode_data["hash"]
@@ -246,13 +291,11 @@ async def verify_boc(request: Request):
             if not tx_hash:
                 raise HTTPException(status_code=400, detail="Could not extract tx hash from BOC")
 
-        # Now verify the extracted hash
         expected_nano = int(TON_AMOUNT * 1_000_000_000)
         verified = await verify_transaction_by_hash(tx_hash, expected_nano)
         if not verified:
             raise HTTPException(status_code=400, detail="Transaction verification failed")
 
-        # Grant premium
         return await _grant_premium(user_id, tx_hash)
 
     except HTTPException:
@@ -299,5 +342,6 @@ async def _grant_premium(user_id: int, tx_hash: str):
         "created_at": now.isoformat()
     }).execute()
 
+    logger.info(f"✅ TON payment verified for user {user_id}, tx_hash/ref {tx_hash}")
     return {"status": "completed", "message": "Premium activated"}
     
