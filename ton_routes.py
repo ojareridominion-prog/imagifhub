@@ -1,4 +1,4 @@
-# ton_routes.py - Fixed TON Center verification with proper session handling
+# ton_routes.py - Fixed TON Access (Orbs) verification with proper session handling
 from fastapi import APIRouter, Request, HTTPException
 from datetime import datetime, timedelta
 import logging
@@ -12,7 +12,9 @@ from utils import get_user_id_from_init_data
 
 router = APIRouter()
 
-TON_API_KEY = os.environ.get("TONCENTER_API_KEY", "")
+# TON Access endpoint (no API key required)
+# Can be overridden via environment variable
+TON_ACCESS_ENDPOINT = os.environ.get("TON_ACCESS_ENDPOINT", "https://ton.access.orbs.network/ton-mainnet/v2/")
 ADMIN_ADDRESS = os.environ.get("TON_ADMIN_ADDRESS", "")
 PAYMENT_AMOUNT = float(os.environ.get("TON_PAYMENT_AMOUNT", 1.12))
 DEV_MODE = os.environ.get("TON_DEV_MODE", "false").lower() == "true"
@@ -55,15 +57,15 @@ async def grant_premium(user_id: int, tx_hash: str = None, amount: float = PAYME
 
 async def check_transaction_on_chain(tx_hash_hex: str, expected_amount_nano: int) -> bool:
     """
-    Verify a transaction on TON blockchain.
+    Verify a transaction on TON blockchain using TON Access (Orbs) API.
     - tx_hash_hex: 64-character hex string
     - expected_amount_nano: minimum nanoTON to accept
     """
-    if not TON_API_KEY or not ADMIN_ADDRESS:
-        logging.error("Missing TON API config")
+    if not ADMIN_ADDRESS:
+        logging.error("Missing TON admin address")
         return False
 
-    # Convert hex to base64 (required by TON Center)
+    # Convert hex to base64 (required by TON HTTP API)
     try:
         hash_bytes = bytes.fromhex(tx_hash_hex)
         hash_b64 = base64.b64encode(hash_bytes).decode()
@@ -71,12 +73,12 @@ async def check_transaction_on_chain(tx_hash_hex: str, expected_amount_nano: int
         logging.error(f"Hash conversion error: {e}")
         return False
 
-    logging.info(f"Checking tx with base64 hash: {hash_b64}")
+    logging.info(f"Checking tx with base64 hash: {hash_b64} (via TON Access)")
 
     async with aiohttp.ClientSession() as session:
         # 1. Primary: /getTransaction (requires base64 hash)
-        url1 = "https://toncenter.com/api/v2/getTransaction"
-        params1 = {"hash": hash_b64, "api_key": TON_API_KEY}
+        url1 = f"{TON_ACCESS_ENDPOINT}getTransaction"
+        params1 = {"hash": hash_b64}
         try:
             async with session.get(url1, params=params1, timeout=15) as resp:
                 if resp.status == 200:
@@ -89,7 +91,7 @@ async def check_transaction_on_chain(tx_hash_hex: str, expected_amount_nano: int
                             if dest.lower() == ADMIN_ADDRESS.lower():
                                 amount = int(msg.get("value", "0"))
                                 if amount >= expected_amount_nano:
-                                    logging.info(f"✅ Verified via /getTransaction: {tx_hash_hex}")
+                                    logging.info(f"✅ Verified via /getTransaction (TON Access): {tx_hash_hex}")
                                     return True
                     else:
                         logging.warning(f"/getTransaction response not OK: {data}")
@@ -99,8 +101,8 @@ async def check_transaction_on_chain(tx_hash_hex: str, expected_amount_nano: int
             logging.warning(f"/getTransaction error: {e}")
 
         # 2. Fallback: fetch recent transactions for admin address and match by hash
-        url2 = "https://toncenter.com/api/v2/getTransactions"
-        params2 = {"address": ADMIN_ADDRESS, "limit": 30, "sort": "desc", "api_key": TON_API_KEY}
+        url2 = f"{TON_ACCESS_ENDPOINT}getTransactions"
+        params2 = {"address": ADMIN_ADDRESS, "limit": 30, "sort": "desc"}
         try:
             async with session.get(url2, params=params2, timeout=15) as resp:
                 if resp.status == 200:
