@@ -1,4 +1,5 @@
-# ton_routes.py - Fixed TON Center API calls (uses /getTransaction with hex hash)
+# ton_routes.py - Fixed TON Center API calls (converts hex hash to base64 for /getTransaction,
+#                 fallback fetches recent admin transactions and matches by amount + hash)
 from fastapi import APIRouter, Request, HTTPException
 from datetime import datetime, timedelta
 import logging
@@ -54,93 +55,84 @@ async def grant_premium(user_id: int, tx_hash: str = None, amount: float = PAYME
     return True
 
 async def check_transaction_on_chain(tx_hash_hex: str, expected_amount_nano: int) -> bool:
-    """Verify a transaction using TON Center's /getTransaction endpoint (hex hash)."""
+    """
+    Verify a transaction using TON Center's API.
+    - tx_hash_hex: 64-character hex string
+    - expected_amount_nano: amount in nanoTON that should have been sent to ADMIN_ADDRESS
+    """
     if not TON_API_KEY or not ADMIN_ADDRESS:
         logging.error("Missing TON API config: TON_API_KEY or ADMIN_ADDRESS empty")
         return False
 
-    # Ensure we have hex (without 0x)
-    tx_hash_hex = tx_hash_hex.lower().replace('0x', '')
-    if len(tx_hash_hex) != 64:
-        logging.error(f"Invalid tx hash length: {len(tx_hash_hex)}")
+    # Convert hex to base64 (required by /getTransaction)
+    try:
+        hash_bytes = bytes.fromhex(tx_hash_hex)
+        hash_b64 = base64.b64encode(hash_bytes).decode()
+    except Exception as e:
+        logging.error(f"Failed to convert hash to base64: {e}")
         return False
 
+    # 1. Try /getTransaction with base64 hash (most efficient)
     url = "https://toncenter.com/api/v2/getTransaction"
     params = {
-        "hash": tx_hash_hex,
+        "hash": hash_b64,
         "api_key": TON_API_KEY
     }
-    logging.info(f"Checking tx with hex hash: {tx_hash_hex}")
+    logging.info(f"Checking tx with base64 hash: {hash_b64}")
 
     async with aiohttp.ClientSession() as session:
         try:
             async with session.get(url, params=params, timeout=15) as resp:
-                if resp.status != 200:
+                if resp.status == 200:
+                    data = await resp.json()
+                    if data.get("ok") and data.get("result"):
+                        tx = data["result"]
+                        out_msgs = tx.get("out_msgs", [])
+                        for msg in out_msgs:
+                            dest = msg.get("destination", "")
+                            if dest.lower() == ADMIN_ADDRESS.lower():
+                                amount = int(msg.get("value", "0"))
+                                if amount >= expected_amount_nano:
+                                    logging.info(f"✅ Transaction verified via /getTransaction: {tx_hash_hex}")
+                                    return True
+                else:
                     logging.warning(f"TON API error: HTTP {resp.status}")
-                    # Try fallback with /getTransactions (old method)
-                    return await fallback_check_transaction(tx_hash_hex, expected_amount_nano)
-                data = await resp.json()
-                if not data.get("ok"):
-                    logging.warning(f"TON API returned not ok: {data}")
-                    return False
-                tx = data.get("result")
-                if not tx:
-                    logging.info(f"Transaction {tx_hash_hex} not found")
-                    return False
-                # Check outgoing messages to our admin address
-                out_msgs = tx.get("out_msgs", [])
-                for msg in out_msgs:
-                    dest = msg.get("destination", "")
-                    if dest.lower() == ADMIN_ADDRESS.lower():
-                        amount_nano = int(msg.get("value", "0"))
-                        if amount_nano >= expected_amount_nano:
-                            logging.info(f"✅ Transaction verified on chain: {tx_hash_hex}")
-                            return True
-                logging.warning(f"No message to admin address in tx {tx_hash_hex}")
-                return False
         except Exception as e:
-            logging.error(f"Check error: {e}")
-            return False
+            logging.warning(f"/getTransaction error: {e}")
 
-async def fallback_check_transaction(tx_hash_hex: str, expected_amount_nano: int) -> bool:
-    """Fallback: use /getTransactions with address and base64 hash (legacy)."""
-    # Convert hex to base64
-    try:
-        hash_bytes = bytes.fromhex(tx_hash_hex)
-        raw_hash_base64 = base64.b64encode(hash_bytes).decode()
-    except:
-        logging.error("Failed to convert hex to base64")
-        return False
-
+    # 2. Fallback: fetch recent transactions for admin address and match by amount + hash
     url = "https://toncenter.com/api/v2/getTransactions"
     params = {
         "address": ADMIN_ADDRESS,
-        "hash": raw_hash_base64,
-        "limit": 1,
+        "limit": 30,
+        "sort": "desc",   # newest first
         "api_key": TON_API_KEY
     }
-    async with aiohttp.ClientSession() as session:
-        try:
-            async with session.get(url, params=params, timeout=15) as resp:
-                if resp.status != 200:
-                    logging.warning(f"Fallback API error: {resp.status}")
-                    return False
+    try:
+        async with session.get(url, params=params, timeout=15) as resp:
+            if resp.status == 200:
                 data = await resp.json()
-                if not data.get("ok") or not data.get("result"):
-                    return False
-                tx = data["result"][0]
-                in_msg = tx.get("in_msg", {})
-                dest = in_msg.get("destination", "") or in_msg.get("dest", "")
-                if dest.lower() != ADMIN_ADDRESS.lower():
-                    return False
-                amount_nano = int(in_msg.get("value", "0"))
-                if amount_nano < expected_amount_nano:
-                    return False
-                logging.info(f"✅ Fallback verification success for {tx_hash_hex}")
-                return True
-        except Exception as e:
-            logging.error(f"Fallback error: {e}")
-            return False
+                if data.get("ok") and data.get("result"):
+                    for tx in data["result"]:
+                        # Get the transaction hash from the API response (base64 encoded)
+                        tx_hash_from_api = tx.get("transaction_id", {}).get("hash")
+                        if tx_hash_from_api != hash_b64:
+                            continue
+                        in_msg = tx.get("in_msg", {})
+                        # Ensure the incoming message is from an external sender (source not admin)
+                        if in_msg.get("source") and in_msg["source"].lower() != ADMIN_ADDRESS.lower():
+                            dest = in_msg.get("destination", "")
+                            if dest.lower() == ADMIN_ADDRESS.lower():
+                                amount = int(in_msg.get("value", "0"))
+                                if amount >= expected_amount_nano:
+                                    logging.info(f"✅ Transaction verified via fallback: {tx_hash_hex}")
+                                    return True
+            else:
+                logging.warning(f"Fallback API error: HTTP {resp.status}")
+    except Exception as e:
+        logging.error(f"Fallback verification error: {e}")
+
+    return False
 
 async def verify_payment(user_id: int, tx_hash: str, boc: str, amount_nano: int) -> bool:
     if DEV_MODE:
@@ -159,13 +151,14 @@ async def verify_payment(user_id: int, tx_hash: str, boc: str, amount_nano: int)
         logging.error("No tx_hash or BOC provided")
         return False
 
-    # Retry up to 15 times (75 seconds)
-    for attempt in range(15):
+    # Retry up to 20 times with 10 second intervals (total ~3.3 minutes)
+    for attempt in range(20):
         valid = await check_transaction_on_chain(tx_hash, amount_nano)
         if valid:
             return True
-        logging.info(f"Retry {attempt+1}/15 for tx {tx_hash}")
-        await asyncio.sleep(5)
+        logging.info(f"Retry {attempt+1}/20 for tx {tx_hash}")
+        await asyncio.sleep(10)
+
     logging.warning(f"On-chain verification failed for {tx_hash} after multiple attempts")
     return False
 
