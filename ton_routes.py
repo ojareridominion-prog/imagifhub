@@ -1,4 +1,4 @@
-# ton_routes.py - Fixed TON Access (Orbs) with correct endpoints
+# ton_routes.py - TON payment verification using Toncenter public API
 from fastapi import APIRouter, Request, HTTPException
 from datetime import datetime, timedelta
 import logging
@@ -12,8 +12,10 @@ from utils import get_user_id_from_init_data
 
 router = APIRouter()
 
-# TON Access REST API endpoint (v1 works, v2 may also work but we use v1 for reliability)
-TON_ACCESS_ENDPOINT = os.environ.get("TON_ACCESS_ENDPOINT", "https://ton.access.orbs.network/ton-mainnet/v1/")
+# Toncenter API (public, no key required for basic usage)
+TONCENTER_API_URL = "https://toncenter.com/api/v2/"
+# Optional: if you have an API key, set it in environment
+TONCENTER_API_KEY = os.environ.get("TONCENTER_API_KEY", "")
 ADMIN_ADDRESS = os.environ.get("TON_ADMIN_ADDRESS", "")
 PAYMENT_AMOUNT = float(os.environ.get("TON_PAYMENT_AMOUNT", 1.12))
 DEV_MODE = os.environ.get("TON_DEV_MODE", "false").lower() == "true"
@@ -21,6 +23,7 @@ DEV_MODE = os.environ.get("TON_DEV_MODE", "false").lower() == "true"
 logging.basicConfig(level=logging.INFO)
 
 async def grant_premium(user_id: int, tx_hash: str = None, amount: float = PAYMENT_AMOUNT):
+    """Grant or extend premium subscription for 30 days."""
     now = datetime.utcnow()
     result = supabase.table("users").select("premium_expires_at").eq("telegram_id", user_id).execute()
     new_expiry = now + timedelta(days=30)
@@ -34,7 +37,7 @@ async def grant_premium(user_id: int, tx_hash: str = None, amount: float = PAYME
                 current_expiry = current_expiry.replace(tzinfo=None)
             if current_expiry > now:
                 new_expiry = current_expiry + timedelta(days=30)
-        except:
+        except Exception:
             pass
     supabase.table("users").upsert({
         "telegram_id": user_id,
@@ -56,112 +59,74 @@ async def grant_premium(user_id: int, tx_hash: str = None, amount: float = PAYME
 
 async def check_transaction_on_chain(tx_hash_hex: str, expected_amount_nano: int) -> bool:
     """
-    Verify a transaction on TON blockchain using TON Access (Orbs) REST API.
-    - tx_hash_hex: 64-character hex string
-    - expected_amount_nano: minimum nanoTON to accept
+    Verify a TON transaction using Toncenter API.
+    tx_hash_hex: 64-character hex string (as returned by the wallet)
+    expected_amount_nano: minimum nanoTON required (PAYMENT_AMOUNT * 1e9)
     """
-    if not ADMIN_ADDRESS:
-        logging.error("Missing TON admin address")
-        return False
-
-    # Convert hex to base64 (required by TON HTTP API)
+    # Convert hex to base64 (Toncenter expects base64 hash)
     try:
         hash_bytes = bytes.fromhex(tx_hash_hex)
         hash_b64 = base64.b64encode(hash_bytes).decode()
+        logging.info(f"Checking tx: hex={tx_hash_hex}, b64={hash_b64}")
     except Exception as e:
-        logging.error(f"Hash conversion error: {e}")
+        logging.error(f"Hash conversion failed: {e}")
         return False
 
-    logging.info(f"Checking tx with base64 hash: {hash_b64} (via TON Access)")
-
     async with aiohttp.ClientSession() as session:
-        # Method 1: Use getTransactions for admin address and filter by hash
-        url = f"{TON_ACCESS_ENDPOINT}getTransactions"
+        # Fetch recent transactions for the admin address
         params = {
             "address": ADMIN_ADDRESS,
             "limit": 50,
             "sort": "desc"
         }
+        if TONCENTER_API_KEY:
+            params["api_key"] = TONCENTER_API_KEY
+
+        url = f"{TONCENTER_API_URL}getTransactions"
         try:
             async with session.get(url, params=params, timeout=15) as resp:
-                if resp.status == 200:
-                    data = await resp.json()
-                    if data.get("ok") and data.get("result"):
-                        for tx in data["result"]:
-                            # Transaction hash in response is base64
-                            tx_hash_from_api = tx.get("transaction_id", {}).get("hash")
-                            if tx_hash_from_api != hash_b64:
-                                continue
-                            # Check incoming message
-                            in_msg = tx.get("in_msg", {})
-                            # Ensure it's an incoming transfer (source is not admin)
-                            if in_msg.get("source") and in_msg["source"].lower() != ADMIN_ADDRESS.lower():
-                                if in_msg.get("destination", "").lower() == ADMIN_ADDRESS.lower():
-                                    amount = int(in_msg.get("value", "0"))
-                                    if amount >= expected_amount_nano:
-                                        logging.info(f"✅ Verified via getTransactions (hash match): {tx_hash_hex}")
-                                        return True
-                    else:
-                        logging.warning(f"getTransactions response not OK: {data}")
-                else:
-                    logging.warning(f"getTransactions HTTP {resp.status}")
-        except Exception as e:
-            logging.warning(f"getTransactions error: {e}")
+                if resp.status != 200:
+                    logging.warning(f"Toncenter HTTP {resp.status}")
+                    return False
 
-        # Method 2: Try getTransaction endpoint (some TON Access nodes support it)
-        tx_url = f"{TON_ACCESS_ENDPOINT}getTransaction"
-        tx_params = {"hash": hash_b64}
-        try:
-            async with session.get(tx_url, params=tx_params, timeout=15) as resp:
-                if resp.status == 200:
-                    data = await resp.json()
-                    if data.get("ok") and data.get("result"):
-                        tx = data["result"]
-                        out_msgs = tx.get("out_msgs", [])
-                        for msg in out_msgs:
-                            dest = msg.get("destination", "")
-                            if dest.lower() == ADMIN_ADDRESS.lower():
-                                amount = int(msg.get("value", "0"))
-                                if amount >= expected_amount_nano:
-                                    logging.info(f"✅ Verified via getTransaction: {tx_hash_hex}")
-                                    return True
-                    else:
-                        logging.warning(f"getTransaction response not OK: {data}")
-                else:
-                    logging.warning(f"getTransaction HTTP {resp.status}")
-        except Exception as e:
-            logging.warning(f"getTransaction error: {e}")
+                data = await resp.json()
+                if not data.get("ok") or not data.get("result"):
+                    logging.warning(f"Toncenter API error: {data}")
+                    return False
 
-        # Method 3: Relaxed fallback (any incoming transfer of >= amount in last 10 minutes)
-        try:
-            async with session.get(url, params=params, timeout=15) as resp:
-                if resp.status == 200:
-                    data = await resp.json()
-                    if data.get("ok") and data.get("result"):
-                        now = datetime.utcnow()
-                        for tx in data["result"]:
-                            tx_time = tx.get("utime")
-                            if tx_time:
-                                tx_dt = datetime.utcfromtimestamp(tx_time)
-                                if (now - tx_dt).total_seconds() > 600:  # older than 10 min
-                                    continue
-                                in_msg = tx.get("in_msg", {})
-                                if in_msg.get("source") and in_msg["source"].lower() != ADMIN_ADDRESS.lower():
-                                    if in_msg.get("destination", "").lower() == ADMIN_ADDRESS.lower():
-                                        amount = int(in_msg.get("value", "0"))
-                                        if amount >= expected_amount_nano:
-                                            logging.info(f"✅ Verified via relaxed amount+time: {tx_hash_hex}")
-                                            return True
+                # Find transaction by hash
+                for tx in data["result"]:
+                    tx_hash_api = tx.get("transaction_id", {}).get("hash")
+                    if tx_hash_api != hash_b64:
+                        continue
+
+                    # Check incoming message (in_msg)
+                    in_msg = tx.get("in_msg", {})
+                    source = in_msg.get("source", "")
+                    destination = in_msg.get("destination", "")
+
+                    if not source or not destination:
+                        continue
+
+                    # Ensure it's an incoming transfer to admin address
+                    if source.lower() != ADMIN_ADDRESS.lower() and destination.lower() == ADMIN_ADDRESS.lower():
+                        amount = int(in_msg.get("value", "0"))
+                        if amount >= expected_amount_nano:
+                            logging.info(f"✅ Transaction verified: {tx_hash_hex}")
+                            return True
+
         except Exception as e:
-            logging.error(f"Relaxed fallback error: {e}")
+            logging.warning(f"Toncenter request error: {e}")
 
     return False
 
 async def verify_payment(user_id: int, tx_hash: str, boc: str, amount_nano: int) -> bool:
+    """Main verification logic with retries."""
     if DEV_MODE:
-        logging.warning(f"DEV_MODE: Granting premium to {user_id} without on-chain verification")
+        logging.warning(f"DEV_MODE: Granting premium to {user_id} without on-chain check")
         return True
 
+    # If BOC provided but no hash, compute hash from BOC
     if not tx_hash and boc:
         try:
             boc_bytes = base64.b64decode(boc)
@@ -170,10 +135,10 @@ async def verify_payment(user_id: int, tx_hash: str, boc: str, amount_nano: int)
             logging.error(f"BOC hash computation failed: {e}")
 
     if not tx_hash:
-        logging.error("No tx_hash or BOC provided")
+        logging.error("No transaction hash or BOC provided")
         return False
 
-    # Retry up to 25 times with 8-second intervals
+    # Retry up to 25 times (8 seconds each = 200 seconds ≈ 3.3 min)
     for attempt in range(25):
         valid = await check_transaction_on_chain(tx_hash, amount_nano)
         if valid:
@@ -181,11 +146,14 @@ async def verify_payment(user_id: int, tx_hash: str, boc: str, amount_nano: int)
         logging.info(f"Retry {attempt+1}/25 for tx {tx_hash}")
         await asyncio.sleep(8)
 
-    logging.warning(f"On-chain verification failed for {tx_hash} after multiple attempts")
+    logging.warning(f"Verification failed for {tx_hash} after 25 attempts")
     return False
+
+# ==================== API ENDPOINTS ====================
 
 @router.get("/api/ton-check-tx")
 async def ton_check_transaction(request: Request, tx_hash: str):
+    """Check if a transaction (by hex hash) is confirmed and grant premium."""
     init_data = request.headers.get("X-Telegram-Init-Data", "")
     if not init_data:
         raise HTTPException(status_code=401, detail="Missing init data")
@@ -193,6 +161,7 @@ async def ton_check_transaction(request: Request, tx_hash: str):
     if not user_id:
         raise HTTPException(status_code=401, detail="Invalid user")
 
+    # Already processed?
     existing = supabase.table("payments").select("id").eq("transaction_id", tx_hash).eq("status", "completed").execute()
     if existing.data:
         return {"status": "completed"}
@@ -206,6 +175,7 @@ async def ton_check_transaction(request: Request, tx_hash: str):
 
 @router.post("/api/ton-verify-boc")
 async def ton_verify_boc(request: Request):
+    """Alternative endpoint: verify using BOC (bag of cells) from wallet."""
     init_data = request.headers.get("X-Telegram-Init-Data", "")
     if not init_data:
         raise HTTPException(status_code=401, detail="Missing init data")
@@ -221,7 +191,7 @@ async def ton_verify_boc(request: Request):
     try:
         boc_bytes = base64.b64decode(boc)
         tx_hash = hashlib.sha256(boc_bytes).hexdigest()
-    except Exception as e:
+    except Exception:
         raise HTTPException(status_code=400, detail="Invalid BOC")
 
     existing = supabase.table("payments").select("id").eq("transaction_id", tx_hash).eq("status", "completed").execute()
@@ -237,6 +207,7 @@ async def ton_verify_boc(request: Request):
 
 @router.get("/api/ton-config")
 async def ton_config():
+    """Return configuration for the frontend."""
     return {
         "adminAddress": ADMIN_ADDRESS,
         "amount": PAYMENT_AMOUNT,
@@ -245,5 +216,6 @@ async def ton_config():
 
 @router.post("/api/verify-ton-payment")
 async def verify_ton_payment_deprecated(request: Request):
+    """Deprecated endpoint – kept for compatibility."""
     return {"success": False, "error": "Use /api/ton-check-tx or /api/ton-verify-boc"}
     
