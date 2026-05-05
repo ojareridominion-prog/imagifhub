@@ -1,4 +1,4 @@
-# ton_routes.py - Fixed TON Access (Orbs) verification with proper session handling
+# ton_routes.py - Fixed TON Access (Orbs) with correct endpoints
 from fastapi import APIRouter, Request, HTTPException
 from datetime import datetime, timedelta
 import logging
@@ -12,9 +12,8 @@ from utils import get_user_id_from_init_data
 
 router = APIRouter()
 
-# TON Access endpoint (no API key required)
-# Can be overridden via environment variable
-TON_ACCESS_ENDPOINT = os.environ.get("TON_ACCESS_ENDPOINT", "https://ton.access.orbs.network/ton-mainnet/v2/")
+# TON Access REST API endpoint (v1 works, v2 may also work but we use v1 for reliability)
+TON_ACCESS_ENDPOINT = os.environ.get("TON_ACCESS_ENDPOINT", "https://ton.access.orbs.network/ton-mainnet/v1/")
 ADMIN_ADDRESS = os.environ.get("TON_ADMIN_ADDRESS", "")
 PAYMENT_AMOUNT = float(os.environ.get("TON_PAYMENT_AMOUNT", 1.12))
 DEV_MODE = os.environ.get("TON_DEV_MODE", "false").lower() == "true"
@@ -57,7 +56,7 @@ async def grant_premium(user_id: int, tx_hash: str = None, amount: float = PAYME
 
 async def check_transaction_on_chain(tx_hash_hex: str, expected_amount_nano: int) -> bool:
     """
-    Verify a transaction on TON blockchain using TON Access (Orbs) API.
+    Verify a transaction on TON blockchain using TON Access (Orbs) REST API.
     - tx_hash_hex: 64-character hex string
     - expected_amount_nano: minimum nanoTON to accept
     """
@@ -76,11 +75,44 @@ async def check_transaction_on_chain(tx_hash_hex: str, expected_amount_nano: int
     logging.info(f"Checking tx with base64 hash: {hash_b64} (via TON Access)")
 
     async with aiohttp.ClientSession() as session:
-        # 1. Primary: /getTransaction (requires base64 hash)
-        url1 = f"{TON_ACCESS_ENDPOINT}getTransaction"
-        params1 = {"hash": hash_b64}
+        # Method 1: Use getTransactions for admin address and filter by hash
+        url = f"{TON_ACCESS_ENDPOINT}getTransactions"
+        params = {
+            "address": ADMIN_ADDRESS,
+            "limit": 50,
+            "sort": "desc"
+        }
         try:
-            async with session.get(url1, params=params1, timeout=15) as resp:
+            async with session.get(url, params=params, timeout=15) as resp:
+                if resp.status == 200:
+                    data = await resp.json()
+                    if data.get("ok") and data.get("result"):
+                        for tx in data["result"]:
+                            # Transaction hash in response is base64
+                            tx_hash_from_api = tx.get("transaction_id", {}).get("hash")
+                            if tx_hash_from_api != hash_b64:
+                                continue
+                            # Check incoming message
+                            in_msg = tx.get("in_msg", {})
+                            # Ensure it's an incoming transfer (source is not admin)
+                            if in_msg.get("source") and in_msg["source"].lower() != ADMIN_ADDRESS.lower():
+                                if in_msg.get("destination", "").lower() == ADMIN_ADDRESS.lower():
+                                    amount = int(in_msg.get("value", "0"))
+                                    if amount >= expected_amount_nano:
+                                        logging.info(f"✅ Verified via getTransactions (hash match): {tx_hash_hex}")
+                                        return True
+                    else:
+                        logging.warning(f"getTransactions response not OK: {data}")
+                else:
+                    logging.warning(f"getTransactions HTTP {resp.status}")
+        except Exception as e:
+            logging.warning(f"getTransactions error: {e}")
+
+        # Method 2: Try getTransaction endpoint (some TON Access nodes support it)
+        tx_url = f"{TON_ACCESS_ENDPOINT}getTransaction"
+        tx_params = {"hash": hash_b64}
+        try:
+            async with session.get(tx_url, params=tx_params, timeout=15) as resp:
                 if resp.status == 200:
                     data = await resp.json()
                     if data.get("ok") and data.get("result"):
@@ -91,43 +123,18 @@ async def check_transaction_on_chain(tx_hash_hex: str, expected_amount_nano: int
                             if dest.lower() == ADMIN_ADDRESS.lower():
                                 amount = int(msg.get("value", "0"))
                                 if amount >= expected_amount_nano:
-                                    logging.info(f"✅ Verified via /getTransaction (TON Access): {tx_hash_hex}")
+                                    logging.info(f"✅ Verified via getTransaction: {tx_hash_hex}")
                                     return True
                     else:
-                        logging.warning(f"/getTransaction response not OK: {data}")
+                        logging.warning(f"getTransaction response not OK: {data}")
                 else:
-                    logging.warning(f"/getTransaction HTTP {resp.status}")
+                    logging.warning(f"getTransaction HTTP {resp.status}")
         except Exception as e:
-            logging.warning(f"/getTransaction error: {e}")
+            logging.warning(f"getTransaction error: {e}")
 
-        # 2. Fallback: fetch recent transactions for admin address and match by hash
-        url2 = f"{TON_ACCESS_ENDPOINT}getTransactions"
-        params2 = {"address": ADMIN_ADDRESS, "limit": 30, "sort": "desc"}
+        # Method 3: Relaxed fallback (any incoming transfer of >= amount in last 10 minutes)
         try:
-            async with session.get(url2, params=params2, timeout=15) as resp:
-                if resp.status == 200:
-                    data = await resp.json()
-                    if data.get("ok") and data.get("result"):
-                        for tx in data["result"]:
-                            tx_hash_from_api = tx.get("transaction_id", {}).get("hash")
-                            if tx_hash_from_api != hash_b64:
-                                continue
-                            in_msg = tx.get("in_msg", {})
-                            # Ensure it's an incoming transfer (source is not admin)
-                            if in_msg.get("source") and in_msg["source"].lower() != ADMIN_ADDRESS.lower():
-                                if in_msg.get("destination", "").lower() == ADMIN_ADDRESS.lower():
-                                    amount = int(in_msg.get("value", "0"))
-                                    if amount >= expected_amount_nano:
-                                        logging.info(f"✅ Verified via fallback (hash match): {tx_hash_hex}")
-                                        return True
-                else:
-                    logging.warning(f"Fallback API HTTP {resp.status}")
-        except Exception as e:
-            logging.error(f"Fallback error: {e}")
-
-        # 3. Relaxed fallback: any incoming transfer of >= amount in last 10 minutes (for testing)
-        try:
-            async with session.get(url2, params=params2, timeout=15) as resp:
+            async with session.get(url, params=params, timeout=15) as resp:
                 if resp.status == 200:
                     data = await resp.json()
                     if data.get("ok") and data.get("result"):
@@ -155,7 +162,6 @@ async def verify_payment(user_id: int, tx_hash: str, boc: str, amount_nano: int)
         logging.warning(f"DEV_MODE: Granting premium to {user_id} without on-chain verification")
         return True
 
-    # Compute hash from BOC if needed
     if not tx_hash and boc:
         try:
             boc_bytes = base64.b64decode(boc)
@@ -167,7 +173,7 @@ async def verify_payment(user_id: int, tx_hash: str, boc: str, amount_nano: int)
         logging.error("No tx_hash or BOC provided")
         return False
 
-    # Retry up to 25 times with 8-second intervals (total 200 seconds ≈ 3.3 min)
+    # Retry up to 25 times with 8-second intervals
     for attempt in range(25):
         valid = await check_transaction_on_chain(tx_hash, amount_nano)
         if valid:
