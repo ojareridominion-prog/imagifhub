@@ -196,7 +196,7 @@ function formatExpiryDate(expiryStr) {
     } catch { return ''; }
 }
 
-export async function verifyPremiumStatus() {
+export async function verifyPremiumStatus(skipReset = false) {
     try {
         const tg = window.Telegram.WebApp;
         const initData = tg.initData;
@@ -246,7 +246,9 @@ export async function verifyPremiumStatus() {
             updatePremiumUI(false);
             updateWatchAdCard();
         }
-        if (wasPremium !== state.isPremiumUser) resetAndLoadFeed(state.currentCategory);
+        if (wasPremium !== state.isPremiumUser && !skipReset) {
+            resetAndLoadFeed(state.currentCategory);
+        }
         return state.isPremiumUser;
     } catch (error) {
         console.log("Error verifying premium:", error);
@@ -258,7 +260,9 @@ export async function verifyPremiumStatus() {
         state.isPremiumUser = newStatus;
         state.paidPremiumActive = paid;
         const isTemp = tempActive && !paid;
-        if (was !== newStatus) resetAndLoadFeed(state.currentCategory);
+        if (was !== newStatus && !skipReset) {
+            resetAndLoadFeed(state.currentCategory);
+        }
         updatePremiumUI(newStatus, null, null, isTemp);
         if (tempActive) {
             updateWatchAdCard();
@@ -291,4 +295,4 @@ function updateUserCard(user) {
         .then(response => response.ok ? response.blob() : Promise.reject())
         .then(blob => { avatarImg.src = URL.createObjectURL(blob); })
         .catch(() => { avatarImg.src = generateInitialsAvatar(user); });
-}
+            }
