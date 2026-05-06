@@ -22,7 +22,7 @@ TONCENTER_API_URL = "https://toncenter.com/api/v2"
 logger = logging.getLogger(__name__)
 
 
-# ========== ADDRESS NORMALIZATION (supports raw hex and user‑friendly EQ/UQ) ==========
+# ========== ADDRESS NORMALIZATION ==========
 def normalize_ton_address(addr: str) -> str:
     """
     Convert any TON address to its raw hex representation (without 0: prefix).
@@ -61,7 +61,7 @@ def normalize_ton_address(addr: str) -> str:
     return addr.lower()
 
 
-# ========== HELPER: VERIFY TRANSACTION VIA TONCENTER (legacy) ==========
+# ========== HELPER: VERIFY TRANSACTION BY HASH (legacy) ==========
 async def verify_transaction_by_hash(tx_hash: str, expected_amount_nano: int) -> bool:
     if TON_DEV_MODE:
         logger.info(f"[DEV MODE] Skipping real TON verification for hash {tx_hash}")
@@ -145,7 +145,7 @@ async def verify_transaction_by_hash(tx_hash: str, expected_amount_nano: int) ->
 # ========== MAIN VERIFICATION: CHECK WALLET OUTGOING TRANSACTIONS ==========
 async def check_wallet_payment(wallet_addr: str, expected_amount_nano: int) -> bool:
     """
-    Fetch last 20 outgoing transactions of the given wallet.
+    Fetch last few outgoing transactions of the given wallet.
     Returns True if a payment to TON_ADMIN_ADDRESS with amount >= expected_amount_nano is found.
     """
     if TON_DEV_MODE:
@@ -160,10 +160,11 @@ async def check_wallet_payment(wallet_addr: str, expected_amount_nano: int) -> b
     if TON_API_KEY:
         headers["X-API-Key"] = TON_API_KEY
 
+    # Get transactions for the wallet (limit 5 for speed)
     url = f"{TONCENTER_API_URL}/getTransactions"
     params = {
         "address": wallet_addr,
-        "limit": 20,
+        "limit": 5,                # reduced from 20 for faster polling
         "archival": True
     }
 
@@ -179,7 +180,6 @@ async def check_wallet_payment(wallet_addr: str, expected_amount_nano: int) -> b
                 return False
 
             data = resp.json()
-            logger.error(f"Toncenter full response (truncated): {str(data)[:1000]}")
             if not data.get("ok"):
                 logger.error(f"toncenter returned not ok: {data}")
                 return False
@@ -215,14 +215,7 @@ async def check_wallet_payment(wallet_addr: str, expected_amount_nano: int) -> b
                         logger.error(f"✅ MATCH found: {value_nano} nano to {dest}")
                         return True
 
-                # Also check in_msg? Not needed for outgoing payments, but we log for completeness
-                in_msg = tx.get("in_msg")
-                if in_msg:
-                    source = in_msg.get("source", "")
-                    value = in_msg.get("value")
-                    logger.error(f"  in_msg: source={source}, value={value}")
-
-            logger.error(f"No matching payment found for wallet {wallet_addr} in last 20 transactions")
+            logger.error(f"No matching payment found for wallet {wallet_addr} in last 5 transactions")
             return False
 
         except Exception as e:
@@ -310,7 +303,7 @@ async def debug_ton_wallet(wallet: str):
     url = f"{TONCENTER_API_URL}/getTransactions"
     params = {
         "address": wallet,
-        "limit": 20,
+        "limit": 5,
         "archival": True
     }
 
@@ -398,11 +391,13 @@ async def _grant_premium(user_id: int, tx_hash: str):
         "updated_at": now.isoformat()
     }).execute()
 
+    # Store amount as integer (nanoTON)
+    expected_nano = int(TON_AMOUNT * 1_000_000_000)
     supabase.table("payments").insert({
         "telegram_id": user_id,
         "provider": "ton",
-        "amount": TON_AMOUNT,
-        "currency": "TON",
+        "amount": expected_nano,           # integer (nanoTON)
+        "currency": "nanoTON",
         "payload": f"ton_{user_id}_{tx_hash[:8]}",
         "transaction_id": tx_hash,
         "status": "completed",
@@ -411,4 +406,3 @@ async def _grant_premium(user_id: int, tx_hash: str):
 
     logger.info(f"✅ TON payment verified for user {user_id}, tx_hash/ref {tx_hash}")
     return {"status": "completed", "message": "Premium activated"}
-    
