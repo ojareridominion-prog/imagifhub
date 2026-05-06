@@ -186,10 +186,6 @@ async function initializeApp() {
         await fetchNativeAds();
     } catch (e) { console.warn("fetchNativeAds error:", e); }
 
-    try {
-        await verifyPremiumStatus();
-    } catch (e) { console.warn("verifyPremiumStatus error:", e); }
-
     // Build category bar
     document.getElementById('catBar').innerHTML = categories.map(c => 
         `<button class="cat-btn" onclick="loadFeed('${c}')">${c}</button>`
@@ -217,6 +213,9 @@ async function initializeApp() {
         await initWalletUI();
     } catch (e) { console.warn("Wallet UI init error:", e); }
 
+    // Verify premium status WITHOUT triggering feed reload
+    await verifyPremiumStatus(true);
+
     // Finally load the feed
     await loadFeed("Discover", "", true);
 }
@@ -229,32 +228,25 @@ window.onload = () => {
     const continueBtn = document.getElementById('welcomeContinueBtn');
     
     if (welcomeOverlay && continueBtn) {
-        // Set the holiday background image (only this image loads now)
         welcomeOverlay.style.backgroundImage = `url('${getHolidayImage()}')`;
         
         continueBtn.addEventListener('click', async () => {
-            // Hide overlay
             welcomeOverlay.classList.add('hidden');
             
-            // Optional: trigger a banner ad (non‑blocking)
             const tg = window.Telegram.WebApp;
             fetch(`${API_URL}/api/trigger-ad`, {
                 method: 'POST',
                 headers: { 'X-Telegram-Init-Data': tg.initData }
             }).catch(() => {});
             
-            // Now start everything else
             await initializeApp();
         });
     } else {
-        // No welcome overlay? Then initialize immediately
         initializeApp();
     }
     
-    // Set festive title (lightweight – no network)
     document.querySelector('.top-bar h2').innerText = getFestiveTitle();
     
-    // Keyword expand/collapse listeners (only set once, safe)
     document.getElementById('feed').addEventListener('click', (e) => {
         const container = e.target.closest('.keyword-container');
         if (!container) return;
