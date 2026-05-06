@@ -175,8 +175,10 @@ function initPremiumPaymentToggle() {
     }
 }
 
-// Initialization
-window.onload = async () => {
+// -------------------------------
+// DEFERRED INITIALIZATION (runs after CONTINUE)
+// -------------------------------
+async function initializeApp() {
     const tg = window.Telegram.WebApp;
     if (tg && tg.expand) tg.expand();
 
@@ -215,26 +217,44 @@ window.onload = async () => {
         await initWalletUI();
     } catch (e) { console.warn("Wallet UI init error:", e); }
 
-    // Welcome overlay (must always work)
+    // Finally load the feed
+    await loadFeed("Discover", "", true);
+}
+
+// -------------------------------
+// WELCOME OVERLAY (only this runs immediately)
+// -------------------------------
+window.onload = () => {
     const welcomeOverlay = document.getElementById('welcomeOverlay');
     const continueBtn = document.getElementById('welcomeContinueBtn');
+    
     if (welcomeOverlay && continueBtn) {
+        // Set the holiday background image (only this image loads now)
         welcomeOverlay.style.backgroundImage = `url('${getHolidayImage()}')`;
-        continueBtn.addEventListener('click', () => {
+        
+        continueBtn.addEventListener('click', async () => {
+            // Hide overlay
             welcomeOverlay.classList.add('hidden');
+            
+            // Optional: trigger a banner ad (non‑blocking)
+            const tg = window.Telegram.WebApp;
             fetch(`${API_URL}/api/trigger-ad`, {
                 method: 'POST',
                 headers: { 'X-Telegram-Init-Data': tg.initData }
             }).catch(() => {});
-            loadFeed("Discover", "", true);
+            
+            // Now start everything else
+            await initializeApp();
         });
     } else {
-        loadFeed("Discover", "", true);
+        // No welcome overlay? Then initialize immediately
+        initializeApp();
     }
-
+    
+    // Set festive title (lightweight – no network)
     document.querySelector('.top-bar h2').innerText = getFestiveTitle();
-
-    // Keyword expand/collapse listeners
+    
+    // Keyword expand/collapse listeners (only set once, safe)
     document.getElementById('feed').addEventListener('click', (e) => {
         const container = e.target.closest('.keyword-container');
         if (!container) return;
@@ -271,6 +291,5 @@ document.addEventListener('click', (e) => {
 });
 
 document.addEventListener("DOMContentLoaded", () => {
-    // Initialize TonConnect UI
-    initWalletUI();
+    // No initialization here – everything waits for CONTINUE
 });
