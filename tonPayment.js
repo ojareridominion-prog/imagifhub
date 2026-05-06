@@ -1,4 +1,4 @@
-// tonPayment.js – Direct blockchain polling (no payload, dynamic amount)
+// tonPayment.js – Direct blockchain polling (no BOC, fast polling)
 import { verifyPremiumStatus } from './premiumManager.js';
 
 let tonConnectUI = null;
@@ -162,8 +162,8 @@ export async function initWalletUI() {
     }
 }
 
-// ========== NEW POLLING LOGIC (wallet‑based) ==========
-async function pollWalletPayment(walletAddr, expectedAmountTon, maxAttempts = 60, intervalMs = 2000) {
+// ========== FASTER POLLING (1 sec interval, 30 attempts = 30 sec max) ==========
+async function pollWalletPayment(walletAddr, expectedAmountTon, maxAttempts = 30, intervalMs = 1000) {
     const tg = window.Telegram.WebApp;
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
         try {
@@ -209,7 +209,6 @@ export async function sendTonPremiumPayment() {
         if (!walletConnected) throw new Error("Wallet not connected");
     }
 
-    // Ensure we have the user's wallet address
     const userWallet = walletAddress;
     if (!userWallet) throw new Error("Wallet address not available");
 
@@ -227,16 +226,15 @@ export async function sendTonPremiumPayment() {
         const ui = await initTonConnectUI();
         if (!ui) throw new Error("TON SDK unavailable");
         
-        // Send transaction – we don't wait for hash, we will poll the user's wallet history
         await ui.sendTransaction(transaction);
         
         if (statusEl) {
-            statusEl.textContent = "⏳ Payment sent. Waiting for blockchain confirmation...";
+            statusEl.textContent = "⏳ Payment sent. Waiting for confirmation...";
             statusEl.style.color = "#ffd700";
         }
         
-        // Poll the new endpoint using the user's wallet address
-        const confirmed = await pollWalletPayment(userWallet, amountTon, 60, 2000);
+        // Fast polling: 30 attempts, 1 second interval
+        const confirmed = await pollWalletPayment(userWallet, amountTon, 30, 1000);
         
         if (confirmed) {
             await verifyPremiumStatus();
@@ -248,10 +246,9 @@ export async function sendTonPremiumPayment() {
             return true;
         } else {
             if (statusEl) {
-                statusEl.textContent = "⏳ Payment may take a few moments. Checking again...";
+                statusEl.textContent = "⏳ Payment received. Final check...";
                 statusEl.style.color = "#ffd700";
             }
-            // One last check after extra delay
             await new Promise(r => setTimeout(r, 5000));
             const premiumActive = await verifyPremiumStatus();
             if (premiumActive) {
@@ -262,7 +259,7 @@ export async function sendTonPremiumPayment() {
                 setTimeout(() => { if (window.closePremium) window.closePremium(); }, 1500);
                 return true;
             } else {
-                throw new Error("Transaction not confirmed on blockchain after multiple attempts");
+                throw new Error("Transaction not confirmed after multiple attempts");
             }
         }
     } catch (err) {
