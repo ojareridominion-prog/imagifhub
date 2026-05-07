@@ -3,18 +3,92 @@ import { state } from './state.js';
 import { resetAndLoadFeed } from './feedManager.js';
 import { verifyPremiumStatus } from './premiumManager.js';
 
-const themesList = [
-    {id: "theme-black",  top: "#000", bottom: "#000"},
-    {id: "theme-white",  top: "#fff", bottom: "#eee"},
-    {id: "theme-blood",  top: "#4a0e0e", bottom: "#ff4d4d"},
-    {id: "theme-cyan",   top: "#001616", bottom: "#00ffff"},
-    {id: "theme-sky",    top: "#071824", bottom: "#7fd6ff"},
-    {id: "theme-orange", top: "#2a1400", bottom: "#ff9a3d"},
-    {id: "theme-green",  top: "#051f13", bottom: "#66ffb2"},
-    {id: "theme-violet", top: "#16001f", bottom: "#f0b3ff"}
+// ==================== CUSTOM THEME ENGINE ====================
+const CUSTOM_THEME_KEY = "imagifhub_custom_theme";
+let currentMode = "theme"; // 'theme', 'accent', 'text'
+
+// Color palette: black & white first, then 30+ modern colors
+const COLOR_PALETTE = [
+    "#000000", "#ffffff",           // black, white
+    "#ff0000", "#00ff00", "#0000ff", "#ffff00", "#ff00ff", "#00ffff",
+    "#ffa500", "#800080", "#ffc0cb", "#a52a2a", "#808080", "#008080",
+    "#ff4500", "#2e8b57", "#9400d3", "#ffd700", "#adff2f", "#dc143c",
+    "#00bfff", "#32cd32", "#ff1493", "#1e90ff", "#f4a460", "#8b4513",
+    "#7f8c8d", "#e74c3c", "#3498db", "#2ecc71", "#f1c40f", "#e67e22",
+    "#9c4dff", "#ff6b6b", "#4ecdc4", "#ffe66d"
 ];
 
-// Get menu overlay element
+function loadCustomSettings() {
+    const saved = localStorage.getItem(CUSTOM_THEME_KEY);
+    if (saved) {
+        try {
+            const settings = JSON.parse(saved);
+            if (settings.themeColor) document.body.style.setProperty('--bg', settings.themeColor);
+            if (settings.accentColor) document.body.style.setProperty('--accent', settings.accentColor);
+            if (settings.textColor) document.body.style.setProperty('--text', settings.textColor);
+            return;
+        } catch(e) { console.warn(e); }
+    }
+    // Default: black theme (--bg already black, accent #9c4dff, text white)
+    document.body.style.setProperty('--bg', '#000000');
+    document.body.style.setProperty('--accent', '#9c4dff');
+    document.body.style.setProperty('--text', '#ffffff');
+}
+
+function saveCustomSettings() {
+    const settings = {
+        themeColor: document.body.style.getPropertyValue('--bg') || '#000000',
+        accentColor: document.body.style.getPropertyValue('--accent') || '#9c4dff',
+        textColor: document.body.style.getPropertyValue('--text') || '#ffffff'
+    };
+    localStorage.setItem(CUSTOM_THEME_KEY, JSON.stringify(settings));
+}
+
+function applyColorToMode(color) {
+    switch (currentMode) {
+        case 'theme':
+            document.body.style.setProperty('--bg', color);
+            break;
+        case 'accent':
+            document.body.style.setProperty('--accent', color);
+            break;
+        case 'text':
+            document.body.style.setProperty('--text', color);
+            break;
+    }
+    saveCustomSettings();
+}
+
+function buildColorPalette() {
+    const container = document.getElementById('colorPalette');
+    if (!container) return;
+    container.innerHTML = COLOR_PALETTE.map(hex => `
+        <div class="color-swatch" style="background: ${hex};" data-color="${hex}"></div>
+    `).join('');
+    
+    // attach click events
+    container.querySelectorAll('.color-swatch').forEach(swatch => {
+        swatch.addEventListener('click', () => {
+            const color = swatch.dataset.color;
+            applyColorToMode(color);
+        });
+    });
+}
+
+function initSegmentedControl() {
+    const container = document.getElementById('themeSegmented');
+    if (!container) return;
+    const btns = container.querySelectorAll('.seg-btn');
+    btns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            btns.forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            currentMode = btn.dataset.mode;
+        });
+    });
+}
+
+// ==================== ORIGINAL UI FUNCTIONS (unchanged except removal of old theme grid) ====================
 function getMenuOverlay() {
     return document.getElementById('menuOverlay');
 }
@@ -37,7 +111,6 @@ export function toggleMenu() {
         document.body.style.overflow = '';
     }
 
-    // ✅ Safety: guarantee that overlay loses pointer events when closed
     if (!panel.classList.contains('open')) {
         overlay.style.pointerEvents = 'none';
         overlay.style.visibility = 'hidden';
@@ -47,7 +120,6 @@ export function toggleMenu() {
     }
 }
 
-// Close menu when clicking on overlay
 function initMenuOverlay() {
     const overlay = getMenuOverlay();
     if (overlay) {
@@ -59,13 +131,13 @@ function initMenuOverlay() {
     }
 }
 
-export function applyTheme(themeId) {
-    themesList.forEach(t => document.body.classList.remove(t.id));
-    if (themeId !== "theme-black") document.body.classList.add(themeId);
-    localStorage.setItem("imagifhub-theme", themeId);
-}
+// Old applyTheme is replaced – we no longer use predefined themes grid
+// but keep a no-op to avoid breaking old onclick calls (if any)
+window.applyTheme = function(themeId) {
+    console.warn("Predefined themes replaced by custom color engine. Use color palette instead.");
+};
 
-// ==================== SEARCH PANEL LOGIC ====================
+// ==================== SEARCH PANEL LOGIC (unchanged) ====================
 let searchPanelOpen = false;
 let globalClickHandler = null;
 
@@ -77,12 +149,10 @@ function closeSearchPanel() {
     if (searchBtn) searchBtn.innerHTML = '🔍';
     document.body.classList.remove('search-open');
     searchPanelOpen = false;
-    // Remove global click listener
     if (globalClickHandler) {
         document.removeEventListener('click', globalClickHandler);
         globalClickHandler = null;
     }
-    // Clear input value
     const input = document.getElementById('searchInput');
     if (input) input.value = '';
 }
@@ -95,23 +165,17 @@ function openSearchPanel() {
     if (searchBtn) searchBtn.innerHTML = '✕';
     document.body.classList.add('search-open');
     searchPanelOpen = true;
-    
-    // Focus input after panel opens
     setTimeout(() => {
         const input = document.getElementById('searchInput');
         if (input) input.focus();
     }, 100);
-    
-    // Set up global click listener to close when clicking outside
     if (globalClickHandler) document.removeEventListener('click', globalClickHandler);
     globalClickHandler = (e) => {
         if (!searchPanelOpen) return;
         const panel = document.getElementById('searchPanel');
         const searchBtn = document.getElementById('searchBtn');
-        // If click is inside panel or on search button, don't close
         if (panel && panel.contains(e.target)) return;
         if (searchBtn && searchBtn.contains(e.target)) return;
-        // Otherwise close
         closeSearchPanel();
     };
     document.addEventListener('click', globalClickHandler);
@@ -121,12 +185,7 @@ function performSearch() {
     const input = document.getElementById('searchInput');
     const query = input.value.trim();
     if (query === "") return;
-    
-    // Close search panel
     closeSearchPanel();
-    
-    // FIX: Search across ALL categories – force category to "Discover"
-    // The backend endpoint /media/random treats "Discover" as no category filter.
     if (window.loadFeed) {
         window.loadFeed("Discover", query, true);
     } else {
@@ -135,25 +194,19 @@ function performSearch() {
 }
 
 export function triggerSearch() {
-    if (searchPanelOpen) {
-        closeSearchPanel();
-    } else {
-        openSearchPanel();
-    }
+    if (searchPanelOpen) closeSearchPanel();
+    else openSearchPanel();
 }
 
-// Initialize search panel event listeners
 function initSearchPanel() {
     const submitBtn = document.getElementById('searchSubmitBtn');
     const searchInput = document.getElementById('searchInput');
-    
     if (submitBtn) {
         submitBtn.addEventListener('click', (e) => {
             e.stopPropagation();
             performSearch();
         });
     }
-    
     if (searchInput) {
         searchInput.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') {
@@ -162,7 +215,6 @@ function initSearchPanel() {
                 performSearch();
             }
         });
-        // Prevent click propagation to document when clicking inside input
         searchInput.addEventListener('click', (e) => e.stopPropagation());
     }
 }
@@ -258,19 +310,12 @@ function updateDarkTextIndicator() {
 export function initUI() {
     applyDarkText();
     updateDarkTextIndicator();
-    const savedTheme = localStorage.getItem("imagifhub-theme") || "theme-black";
-    applyTheme(savedTheme);
-    // Build theme grid
-    document.getElementById('themeGrid').innerHTML = themesList.map(t => `
-        <div class="theme-circle" onclick="applyTheme('${t.id}')">
-            <div style="background:${t.top}"></div>
-            <div style="background:${t.bottom}"></div>
-        </div>
-    `).join('');
     
-    // Initialize menu overlay click handler
+    // Initialize custom theme engine (replaces old theme grid)
+    loadCustomSettings();
+    buildColorPalette();
+    initSegmentedControl();
+    
     initMenuOverlay();
-    
-    // Initialize search panel
     initSearchPanel();
-}
+            }
