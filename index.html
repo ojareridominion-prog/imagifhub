@@ -135,17 +135,16 @@
         <a href="https://t.me/imagifhub" class="menu-link">📢 Join Official Channel</a>
         <a href="https://t.me/ojareridominion" class="menu-link">💬 Support</a>
         
-        <!-- ========== NEW CUSTOM THEME ENGINE ========== -->
+        <!-- CUSTOM THEME ENGINE (replaces old theme selector) -->
         <div style="padding:15px 25px 5px; font-size:12px; opacity:0.6;">CUSTOM THEME</div>
-        <div class="theme-customizer">
-            <div class="segmented-control" id="themeSegmented">
-                <button class="seg-btn active" data-mode="theme">Theme</button>
-                <button class="seg-btn" data-mode="accent">Accent</button>
-                <button class="seg-btn" data-mode="text">Text</button>
+        <div class="custom-theme-section">
+            <div class="theme-segmented" id="customThemeSegmented">
+                <button class="theme-seg-option active" data-mode="theme">Theme</button>
+                <button class="theme-seg-option" data-mode="accent">Accent</button>
+                <button class="theme-seg-option" data-mode="text">Text</button>
             </div>
             <div class="color-palette" id="colorPalette"></div>
         </div>
-        <!-- ========== END OF CUSTOM THEME ENGINE ========== -->
     </div>
 
     <div id="swiper" class="swiper"><div class="swiper-wrapper" id="feed"></div></div>
@@ -289,5 +288,4 @@
     <script type="module" src="giftManager.js"></script>
     
 </body>
-            </html>
-            
+</html>
