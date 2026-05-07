@@ -135,8 +135,17 @@
         <a href="https://t.me/imagifhub" class="menu-link">📢 Join Official Channel</a>
         <a href="https://t.me/ojareridominion" class="menu-link">💬 Support</a>
         
-        <div style="padding:15px 25px 5px; font-size:12px; opacity:0.6;">SELECT THEME</div>
-        <div class="theme-grid" id="themeGrid"></div>
+        <!-- ========== NEW CUSTOM THEME ENGINE ========== -->
+        <div style="padding:15px 25px 5px; font-size:12px; opacity:0.6;">CUSTOM THEME</div>
+        <div class="theme-customizer">
+            <div class="segmented-control" id="themeSegmented">
+                <button class="seg-btn active" data-mode="theme">Theme</button>
+                <button class="seg-btn" data-mode="accent">Accent</button>
+                <button class="seg-btn" data-mode="text">Text</button>
+            </div>
+            <div class="color-palette" id="colorPalette"></div>
+        </div>
+        <!-- ========== END OF CUSTOM THEME ENGINE ========== -->
     </div>
 
     <div id="swiper" class="swiper"><div class="swiper-wrapper" id="feed"></div></div>
@@ -257,8 +266,6 @@
     <!-- DRAWER OVERLAY (blur background for gift drawer) -->
     <div id="drawerOverlay" class="drawer-overlay"></div>
 
-    <!-- ... (everything above left as is) ... -->
-
     <!-- GIFT DRAWER (slide from bottom with drag handle) -->
 <div id="giftDrawer" class="gift-drawer">
     <div class="drawer-drag-handle" id="drawerDragHandle"></div>
@@ -272,8 +279,6 @@
     </div>
 </div>
 
-<!-- ... (rest of the file unchanged) ... -->
-
     <div id="welcomeOverlay" class="welcome-overlay">
         <div class="overlay-content">
             <button id="welcomeContinueBtn" class="welcome-button">CONTINUE 🚀</button>
@@ -284,4 +289,5 @@
     <script type="module" src="giftManager.js"></script>
     
 </body>
-</html>
+                    </html>
+                    
