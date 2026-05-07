@@ -1000,3 +1000,71 @@ body.search-open {
         background: rgba(255, 255, 255, 0.1);
     }
 }
+
+/* ----------------------------------------------
+   SKELETON LOADING (replaces "Loading..." text)
+   ---------------------------------------------- */
+.skeleton-wrapper {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+}
+
+.skeleton-slide {
+    width: 100%;
+    height: 100vh;
+    background: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(4px);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    animation: pulse 1.5s infinite ease-in-out;
+}
+
+.skeleton-image {
+    width: 80%;
+    height: 60%;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 20px;
+    margin-bottom: 20px;
+}
+
+.skeleton-text {
+    width: 60%;
+    height: 24px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    margin-bottom: 12px;
+}
+
+.skeleton-text-small {
+    width: 40%;
+    height: 16px;
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 8px;
+}
+
+@keyframes pulse {
+    0% {
+        opacity: 0.6;
+    }
+    50% {
+        opacity: 1;
+    }
+    100% {
+        opacity: 0.6;
+    }
+}
+
+/* Optional: improve visibility on dark themes */
+.theme-white .skeleton-slide {
+    background: rgba(0, 0, 0, 0.05);
+}
+.theme-white .skeleton-image,
+.theme-white .skeleton-text,
+.theme-white .skeleton-text-small {
+    background: rgba(0, 0, 0, 0.1);
+    }
