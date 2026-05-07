@@ -19,7 +19,6 @@ let currentThemeMode = "theme"; // 'theme', 'accent', 'text'
 
 // Helper: darken a hex color by percent (0-100)
 function darkenColor(hex, percent) {
-    // Remove # if present
     hex = hex.replace('#', '');
     let r = parseInt(hex.substring(0,2), 16);
     let g = parseInt(hex.substring(2,4), 16);
@@ -53,7 +52,6 @@ export function toggleMenu() {
         document.body.style.overflow = '';
     }
 
-    // Safety: guarantee that overlay loses pointer events when closed
     if (!panel.classList.contains('open')) {
         overlay.style.pointerEvents = 'none';
         overlay.style.visibility = 'hidden';
@@ -63,7 +61,6 @@ export function toggleMenu() {
     }
 }
 
-// Close menu when clicking on overlay
 function initMenuOverlay() {
     const overlay = getMenuOverlay();
     if (overlay) {
@@ -83,25 +80,22 @@ function applyCustomTheme(baseColor) {
         'theme-orange', 'theme-green', 'theme-violet'
     );
     document.body.style.setProperty('--bg', baseColor);
-    const barColor = darkenColor(baseColor, 30); // 30% darker
+    const barColor = darkenColor(baseColor, 30);
     document.body.style.setProperty('--bar', barColor);
     localStorage.setItem('imagifhub_custom_bg', baseColor);
-    localStorage.removeItem('imagifhub-theme'); // clear old theme preset
+    localStorage.removeItem('imagifhub-theme');
 }
 
-// Apply custom accent color
 function setCustomAccent(color) {
     document.body.style.setProperty('--accent', color);
     localStorage.setItem('imagifhub_custom_accent', color);
 }
 
-// Apply custom text color
 function setCustomText(color) {
     document.body.style.setProperty('--text', color);
     localStorage.setItem('imagifhub_custom_text', color);
 }
 
-// Load saved custom settings on startup
 function loadCustomThemeSettings() {
     const savedBg = localStorage.getItem('imagifhub_custom_bg');
     if (savedBg) {
@@ -115,19 +109,47 @@ function loadCustomThemeSettings() {
     if (savedText) document.body.style.setProperty('--text', savedText);
 }
 
-// Populate color swatches based on current mode
+// Legacy applyTheme for compatibility with script.js
+// Converts old theme names to custom background colors
+export function applyTheme(themeId) {
+    // Remove old theme classes
+    document.body.classList.remove(
+        'theme-white', 'theme-blood', 'theme-cyan', 'theme-sky',
+        'theme-orange', 'theme-green', 'theme-violet'
+    );
+    
+    // Map old theme IDs to background colors
+    const themeMap = {
+        'theme-white': '#ffffff',
+        'theme-blood': '#4a0e0e',
+        'theme-cyan': '#001616',
+        'theme-sky': '#071824',
+        'theme-orange': '#2a1400',
+        'theme-green': '#051f13',
+        'theme-violet': '#16001f',
+        'theme-black': '#000000'
+    };
+    
+    const bgColor = themeMap[themeId] || '#000000';
+    applyCustomTheme(bgColor);
+    
+    // Also save the theme ID for potential future use
+    if (themeId !== 'theme-black') {
+        localStorage.setItem('imagifhub-theme', themeId);
+    } else {
+        localStorage.removeItem('imagifhub-theme');
+    }
+}
+
 function populateColorPalette(mode) {
     const container = document.getElementById('colorPalette');
     if (!container) return;
 
-    // For all modes, use the same COLOR_PALETTE
     const colors = COLOR_PALETTE.map(c => ({ color: c }));
-
     container.innerHTML = colors.map(item => `
         <div class="color-swatch" style="background-color: ${item.color};" data-color="${item.color}"></div>
     `).join('');
 
-    // Attach click handlers
     container.querySelectorAll('.color-swatch').forEach(swatch => {
         swatch.addEventListener('click', () => {
             const color = swatch.dataset.color;
@@ -142,20 +164,16 @@ function populateColorPalette(mode) {
     });
 }
 
-// Initialize custom theme engine UI
 function initCustomThemeEngine() {
     const segmentedContainer = document.getElementById('customThemeSegmented');
     if (!segmentedContainer) return;
 
-    // Load saved settings
     loadCustomThemeSettings();
 
-    // Set up segmented control
     segmentedContainer.querySelectorAll('.theme-seg-option').forEach(btn => {
         btn.addEventListener('click', () => {
             const mode = btn.dataset.mode;
             if (!mode) return;
-            // Update active class
             segmentedContainer.querySelectorAll('.theme-seg-option').forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
             currentThemeMode = mode;
@@ -163,7 +181,6 @@ function initCustomThemeEngine() {
         });
     });
 
-    // Initial population for default mode (theme)
     populateColorPalette("theme");
 }
 
@@ -179,12 +196,10 @@ function closeSearchPanel() {
     if (searchBtn) searchBtn.innerHTML = '🔍';
     document.body.classList.remove('search-open');
     searchPanelOpen = false;
-    // Remove global click listener
     if (globalClickHandler) {
         document.removeEventListener('click', globalClickHandler);
         globalClickHandler = null;
     }
-    // Clear input value
     const input = document.getElementById('searchInput');
     if (input) input.value = '';
 }
@@ -197,23 +212,19 @@ function openSearchPanel() {
     if (searchBtn) searchBtn.innerHTML = '✕';
     document.body.classList.add('search-open');
     searchPanelOpen = true;
-
-    // Focus input after panel opens
+    
     setTimeout(() => {
         const input = document.getElementById('searchInput');
         if (input) input.focus();
     }, 100);
-
-    // Set up global click listener to close when clicking outside
+    
     if (globalClickHandler) document.removeEventListener('click', globalClickHandler);
     globalClickHandler = (e) => {
         if (!searchPanelOpen) return;
         const panel = document.getElementById('searchPanel');
         const searchBtn = document.getElementById('searchBtn');
-        // If click is inside panel or on search button, don't close
         if (panel && panel.contains(e.target)) return;
         if (searchBtn && searchBtn.contains(e.target)) return;
-        // Otherwise close
         closeSearchPanel();
     };
     document.addEventListener('click', globalClickHandler);
@@ -223,11 +234,7 @@ function performSearch() {
     const input = document.getElementById('searchInput');
     const query = input.value.trim();
     if (query === "") return;
-
-    // Close search panel
     closeSearchPanel();
-
-    // FIX: Search across ALL categories – force category to "Discover"
     if (window.loadFeed) {
         window.loadFeed("Discover", query, true);
     } else {
@@ -243,18 +250,17 @@ export function triggerSearch() {
     }
 }
 
-// Initialize search panel event listeners
 function initSearchPanel() {
     const submitBtn = document.getElementById('searchSubmitBtn');
     const searchInput = document.getElementById('searchInput');
-
+    
     if (submitBtn) {
         submitBtn.addEventListener('click', (e) => {
             e.stopPropagation();
             performSearch();
         });
     }
-
+    
     if (searchInput) {
         searchInput.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') {
@@ -263,7 +269,6 @@ function initSearchPanel() {
                 performSearch();
             }
         });
-        // Prevent click propagation to document when clicking inside input
         searchInput.addEventListener('click', (e) => e.stopPropagation());
     }
 }
@@ -359,16 +364,8 @@ function updateDarkTextIndicator() {
 export function initUI() {
     applyDarkText();
     updateDarkTextIndicator();
-
-    // Load custom theme settings (background, accent, text)
     loadCustomThemeSettings();
-
-    // Initialize custom theme engine (replaces old theme grid)
     initCustomThemeEngine();
-
-    // Initialize menu overlay click handler
     initMenuOverlay();
-
-    // Initialize search panel
     initSearchPanel();
-                }
+        }
