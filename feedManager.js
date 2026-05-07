@@ -225,7 +225,21 @@ export async function resetAndLoadFeed(cat, search = "", skipAd = false) {
     const audio = document.getElementById('bgMusic');
     if (audio.paused || state.currentCategory !== cat) playRandomMusic(cat);
     const feed = document.getElementById('feed');
-    feed.innerHTML = '<div class="swiper-slide" style="display:flex; align-items:center; justify-content:center;"><h3>Loading...</h3></div>';
+    // --- SKELETON LOADING (replaces "Loading...") ---
+    feed.innerHTML = `
+        <div class="skeleton-wrapper">
+            <div class="skeleton-slide">
+                <div class="skeleton-image"></div>
+                <div class="skeleton-text"></div>
+                <div class="skeleton-text-small"></div>
+            </div>
+            <div class="skeleton-slide">
+                <div class="skeleton-image"></div>
+                <div class="skeleton-text"></div>
+                <div class="skeleton-text-small"></div>
+            </div>
+        </div>
+    `;
     try {
         const newImages = await fetchRandomImages(cat, state.activeSearchQuery);
         if (newImages.length === 0) {
@@ -244,4 +258,4 @@ export async function resetAndLoadFeed(cat, search = "", skipAd = false) {
 
 export async function loadFeed(cat, search = "", skipAd = false) {
     await resetAndLoadFeed(cat, search, skipAd);
-                                       }
+        }
