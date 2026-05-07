@@ -179,6 +179,7 @@ function initPremiumPaymentToggle() {
 // DEFERRED INITIALIZATION (runs after CONTINUE)
 // -------------------------------
 async function initializeApp() {
+    console.log("[IMAGIFHUB] Initializing app...");
     const tg = window.Telegram.WebApp;
     if (tg && tg.expand) tg.expand();
 
@@ -187,16 +188,23 @@ async function initializeApp() {
     } catch (e) { console.warn("fetchNativeAds error:", e); }
 
     // Build category bar
-    document.getElementById('catBar').innerHTML = categories.map(c => 
-        `<button class="cat-btn" onclick="loadFeed('${c}')">${c}</button>`
-    ).join('');
+    const catBar = document.getElementById('catBar');
+    if (catBar) {
+        catBar.innerHTML = categories.map(c => 
+            `<button class="cat-btn" onclick="loadFeed('${c}')">${c}</button>`
+        ).join('');
+    } else {
+        console.error("catBar element not found");
+    }
 
     initUI();
 
     const audioElem = document.getElementById('bgMusic');
-    audioElem.addEventListener('ended', () => {
-        if (state.currentCategory) playRandomMusic(state.currentCategory);
-    });
+    if (audioElem) {
+        audioElem.addEventListener('ended', () => {
+            if (state.currentCategory) playRandomMusic(state.currentCategory);
+        });
+    }
 
     initWatchAdButton();
     setupAdButtonListeners();
@@ -218,55 +226,99 @@ async function initializeApp() {
 
     // Finally load the feed
     await loadFeed("Discover", "", true);
+    console.log("[IMAGIFHUB] App initialized successfully");
 }
 
 // -------------------------------
-// WELCOME OVERLAY (only this runs immediately)
+// WELCOME OVERLAY (fixed robust version)
 // -------------------------------
 window.onload = () => {
     const welcomeOverlay = document.getElementById('welcomeOverlay');
     const continueBtn = document.getElementById('welcomeContinueBtn');
     
     if (welcomeOverlay && continueBtn) {
-        welcomeOverlay.style.backgroundImage = `url('${getHolidayImage()}')`;
-        
-        continueBtn.addEventListener('click', async () => {
+        // Set holiday background
+        const holidayImage = getHolidayImage();
+        welcomeOverlay.style.backgroundImage = `url('${holidayImage}')`;
+        console.log("[Welcome] Holiday image set:", holidayImage);
+
+        // Remove any existing listeners to avoid duplicates
+        const newContinueBtn = continueBtn.cloneNode(true);
+        continueBtn.parentNode.replaceChild(newContinueBtn, continueBtn);
+        const finalBtn = document.getElementById('welcomeContinueBtn');
+
+        finalBtn.addEventListener('click', async (e) => {
+            e.preventDefault();
+            console.log("[Welcome] Continue clicked");
+            
+            // Force hide overlay immediately (synchronous)
             welcomeOverlay.classList.add('hidden');
+            console.log("[Welcome] Overlay hidden");
             
+            // Optional: trigger ad in background (don't wait)
             const tg = window.Telegram.WebApp;
-            fetch(`${API_URL}/api/trigger-ad`, {
-                method: 'POST',
-                headers: { 'X-Telegram-Init-Data': tg.initData }
-            }).catch(() => {});
+            if (tg && tg.initData) {
+                fetch(`${API_URL}/api/trigger-ad`, {
+                    method: 'POST',
+                    headers: { 'X-Telegram-Init-Data': tg.initData }
+                }).catch(err => console.warn("Ad trigger failed:", err));
+            }
             
-            await initializeApp();
+            // Initialize the app with error handling
+            try {
+                await initializeApp();
+            } catch (err) {
+                console.error("[Welcome] Initialization error:", err);
+                // Show a fallback message but app might be broken
+                const feed = document.getElementById('feed');
+                if (feed) {
+                    feed.innerHTML = '<div class="swiper-slide" style="display:flex; align-items:center; justify-content:center;"><h3>Error loading content. Please refresh.</h3></div>';
+                }
+            }
         });
     } else {
+        console.warn("[Welcome] Overlay or button not found, skipping welcome screen");
         initializeApp();
     }
     
-    document.querySelector('.top-bar h2').innerText = getFestiveTitle();
+    // Set festive title in top bar
+    const titleEl = document.querySelector('.top-bar h2');
+    if (titleEl) {
+        titleEl.innerText = getFestiveTitle();
+    }
     
-    document.getElementById('feed').addEventListener('click', (e) => {
-        const container = e.target.closest('.keyword-container');
-        if (!container) return;
-        if (e.target.classList.contains('more-btn')) {
-            container.querySelector('.keyword-short').style.display = 'none';
-            container.querySelector('.more-btn').style.display = 'none';
-            container.querySelector('.keyword-full').style.display = 'inline';
-            container.querySelector('.less-btn').style.display = 'inline';
-            e.stopPropagation();
-        } else if (e.target.classList.contains('less-btn')) {
-            container.querySelector('.keyword-full').style.display = 'none';
-            container.querySelector('.less-btn').style.display = 'none';
-            container.querySelector('.keyword-short').style.display = 'inline';
-            container.querySelector('.more-btn').style.display = 'inline';
-            e.stopPropagation();
-        }
-    });
+    // Expand/collapse keywords (more/less)
+    const feed = document.getElementById('feed');
+    if (feed) {
+        feed.addEventListener('click', (e) => {
+            const container = e.target.closest('.keyword-container');
+            if (!container) return;
+            if (e.target.classList.contains('more-btn')) {
+                const shortSpan = container.querySelector('.keyword-short');
+                const fullSpan = container.querySelector('.keyword-full');
+                const moreBtn = container.querySelector('.more-btn');
+                const lessBtn = container.querySelector('.less-btn');
+                if (shortSpan) shortSpan.style.display = 'none';
+                if (moreBtn) moreBtn.style.display = 'none';
+                if (fullSpan) fullSpan.style.display = 'inline';
+                if (lessBtn) lessBtn.style.display = 'inline';
+                e.stopPropagation();
+            } else if (e.target.classList.contains('less-btn')) {
+                const fullSpan = container.querySelector('.keyword-full');
+                const lessBtn = container.querySelector('.less-btn');
+                const shortSpan = container.querySelector('.keyword-short');
+                const moreBtn = container.querySelector('.more-btn');
+                if (fullSpan) fullSpan.style.display = 'none';
+                if (lessBtn) lessBtn.style.display = 'none';
+                if (shortSpan) shortSpan.style.display = 'inline';
+                if (moreBtn) moreBtn.style.display = 'inline';
+                e.stopPropagation();
+            }
+        });
+    }
 };
 
-// Global guard – blocks clicks on hidden Join elements
+// Global guard – blocks clicks on hidden Join elements (unchanged)
 document.addEventListener('click', (e) => {
     const target = e.target.closest('a, button, [role="button"]');
     if (!target) return;
@@ -283,5 +335,5 @@ document.addEventListener('click', (e) => {
 });
 
 document.addEventListener("DOMContentLoaded", () => {
-    // No initialization here – everything waits for CONTINUE
+    // No initialization here – everything waits for welcome overlay CONTINUE
 });
