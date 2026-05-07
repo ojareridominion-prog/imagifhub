@@ -61,7 +61,7 @@ function applyColorToMode(color) {
 
 function buildColorPalette() {
     const container = document.getElementById('colorPalette');
-    if (!container) return;
+    if (!container) return; // silently skip if element missing
     container.innerHTML = COLOR_PALETTE.map(hex => `
         <div class="color-swatch" style="background: ${hex};" data-color="${hex}"></div>
     `).join('');
@@ -76,7 +76,7 @@ function buildColorPalette() {
 
 function initSegmentedControl() {
     const container = document.getElementById('themeSegmented');
-    if (!container) return;
+    if (!container) return; // silently skip if element missing
     const btns = container.querySelectorAll('.seg-btn');
     btns.forEach(btn => {
         btn.addEventListener('click', () => {
@@ -309,11 +309,11 @@ export function initUI() {
     applyDarkText();
     updateDarkTextIndicator();
     
-    // Initialize custom theme engine
+    // Initialize custom theme engine (safe – elements may be missing)
     loadCustomSettings();
-    buildColorPalette();
-    initSegmentedControl();
+    buildColorPalette();      // does nothing if #colorPalette missing
+    initSegmentedControl();   // does nothing if #themeSegmented missing
     
     initMenuOverlay();
     initSearchPanel();
-        }
+}
