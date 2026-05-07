@@ -66,7 +66,6 @@ function buildColorPalette() {
         <div class="color-swatch" style="background: ${hex};" data-color="${hex}"></div>
     `).join('');
     
-    // attach click events
     container.querySelectorAll('.color-swatch').forEach(swatch => {
         swatch.addEventListener('click', () => {
             const color = swatch.dataset.color;
@@ -88,7 +87,7 @@ function initSegmentedControl() {
     });
 }
 
-// ==================== ORIGINAL UI FUNCTIONS (unchanged except removal of old theme grid) ====================
+// ==================== ORIGINAL UI FUNCTIONS ====================
 function getMenuOverlay() {
     return document.getElementById('menuOverlay');
 }
@@ -131,13 +130,12 @@ function initMenuOverlay() {
     }
 }
 
-// Old applyTheme is replaced – we no longer use predefined themes grid
-// but keep a no-op to avoid breaking old onclick calls (if any)
+// No-op for old theme grid (kept to avoid breaking any lingering calls)
 window.applyTheme = function(themeId) {
     console.warn("Predefined themes replaced by custom color engine. Use color palette instead.");
 };
 
-// ==================== SEARCH PANEL LOGIC (unchanged) ====================
+// ==================== SEARCH PANEL LOGIC ====================
 let searchPanelOpen = false;
 let globalClickHandler = null;
 
@@ -311,11 +309,11 @@ export function initUI() {
     applyDarkText();
     updateDarkTextIndicator();
     
-    // Initialize custom theme engine (replaces old theme grid)
+    // Initialize custom theme engine
     loadCustomSettings();
     buildColorPalette();
     initSegmentedControl();
     
     initMenuOverlay();
     initSearchPanel();
-            }
+        }
