@@ -408,7 +408,7 @@ async def _grant_premium(user_id: int, tx_hash: str):
     return {"status": "completed", "message": "Premium activated"}
 
 
-# Helper functions for legacy endpoints (unchanged)
+# Helper functions for legacy endpoints (unchanged, but with fixed indentation)
 async def verify_transaction_by_hash(tx_hash: str, expected_amount_nano: int) -> bool:
     if TON_DEV_MODE:
         logger.info(f"[DEV MODE] Skipping real TON verification for hash {tx_hash}")
@@ -536,7 +536,7 @@ async def check_wallet_payment(wallet_addr: str, expected_amount_nano: int) -> b
                 logger.info(f"Transaction {idx}: hash={tx_hash}")
 
                 out_msgs = tx.get("out_msgs", [])
-         logger.info(f"  out_msgs count: {len(out_msgs)}")
+                logger.info(f"  out_msgs count: {len(out_msgs)}")
                 for msg_idx, msg in enumerate(out_msgs):
                     dest = msg.get("destination", "")
                     value = msg.get("value")
@@ -562,4 +562,4 @@ async def check_wallet_payment(wallet_addr: str, expected_amount_nano: int) -> b
         except Exception as e:
             logger.error(f"Exception checking wallet transactions: {e}", exc_info=True)
             return False
-        
+            
