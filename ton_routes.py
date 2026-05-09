@@ -58,6 +58,16 @@ def normalize_ton_address(addr: str) -> str:
     return addr.lower()
 
 
+# ========== HELPER: HEX TO BASE64 ==========
+def hex_to_base64(hex_str: str) -> str:
+    """Convert hex string to base64 (for message hash comparison)."""
+    try:
+        raw = bytes.fromhex(hex_str)
+        return base64.b64encode(raw).decode('utf-8')
+    except Exception:
+        return hex_str
+
+
 # ========== CORE: SCAN ADMIN WALLET FOR PAYMENT (used as primary polling) ==========
 async def scan_admin_wallet_for_payment(user_id: int, expected_amount_nano: int) -> dict | None:
     """
@@ -68,13 +78,15 @@ async def scan_admin_wallet_for_payment(user_id: int, expected_amount_nano: int)
     if TON_DEV_MODE:
         logger.info(f"[DEV MODE] Simulating transaction for user {user_id}")
         # Return a dummy transaction structure that will pass verification
+        # Use a base64 dummy hash (converted from hex "dev_msg_hash")
+        dummy_hash = hex_to_base64("6465765f6d73675f68617368")  # "dev_msg_hash" in hex
         return {
             "transaction_id": {"hash": "dev_tx_hash"},
             "in_msg": {
                 "destination": TON_ADMIN_ADDRESS,
                 "value": str(expected_amount_nano),
                 "message": f"user:{user_id}",
-                "hash": "dev_msg_hash"
+                "hash": dummy_hash
             }
         }
 
@@ -210,6 +222,11 @@ async def confirm_payment(request: Request):
     if not msg_hash:
         raise HTTPException(status_code=400, detail="Missing msg_hash")
 
+    # Convert frontend hex to base64 for comparison
+    frontend_msg_hash_b64 = hex_to_base64(msg_hash)
+    logger.info(f"Frontend msg_hash (hex): {msg_hash}")
+    logger.info(f"Frontend msg_hash (base64): {frontend_msg_hash_b64}")
+
     expected_nano = int(TON_AMOUNT * 1_000_000_000)
 
     # Poll admin wallet every 1 second for up to 20 seconds (20 attempts)
@@ -218,19 +235,19 @@ async def confirm_payment(request: Request):
     for attempt in range(max_polls):
         tx_data = await scan_admin_wallet_for_payment(user_id, expected_nano)
         if tx_data:
-            # Extract the incoming message hash from the transaction
+            # Extract the incoming message hash from the transaction (base64 format)
             in_msg = tx_data.get("in_msg", {})
             tx_msg_hash = in_msg.get("hash", "")
             if not tx_msg_hash:
                 logger.warning("Transaction found but missing in_msg.hash – skipping")
                 continue
 
-            # Verify that the message hash matches the one from frontend
-            if tx_msg_hash != msg_hash:
-                logger.warning(f"Message hash mismatch: frontend={msg_hash}, tx={tx_msg_hash} – skipping this transaction")
+            # Compare base64 with base64
+            if frontend_msg_hash_b64 != tx_msg_hash:
+                logger.warning(f"Message hash mismatch (base64): frontend={frontend_msg_hash_b64}, tx={tx_msg_hash} – skipping this transaction")
                 continue
 
-            # All checks passed: destination, amount, comment, and now msg_hash
+            # All checks passed: destination, amount, comment, and now msg_hash matches
             tx_hash = tx_data.get("transaction_id", {}).get("hash", "unknown")
             success = await verify_and_grant_premium(user_id, tx_hash, msg_hash)
             if success:
