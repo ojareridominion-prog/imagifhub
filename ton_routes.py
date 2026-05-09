@@ -73,7 +73,8 @@ async def scan_admin_wallet_for_payment(user_id: int, expected_amount_nano: int)
             "in_msg": {
                 "destination": TON_ADMIN_ADDRESS,
                 "value": str(expected_amount_nano),
-                "message": f"user:{user_id}"
+                "message": f"user:{user_id}",
+                "hash": "dev_msg_hash"
             }
         }
 
@@ -127,7 +128,8 @@ async def scan_admin_wallet_for_payment(user_id: int, expected_amount_nano: int)
                     continue
 
                 tx_hash = tx.get("transaction_id", {}).get("hash", "unknown")
-                logger.info(f"✅ Found matching tx: {tx_hash} for user {user_id}")
+                msg_hash = in_msg.get("hash", "")
+                logger.info(f"✅ Found matching tx: tx_hash={tx_hash}, msg_hash={msg_hash} for user {user_id}")
                 return tx
             return None
         except Exception as e:
@@ -188,7 +190,7 @@ async def verify_and_grant_premium(user_id: int, tx_hash: str, msg_hash: str | N
 
     supabase.table("payments").insert(insert_data).execute()
 
-    logger.info(f"✅ Premium granted to user {user_id} via tx {tx_hash}")
+    logger.info(f"✅ Premium granted to user {user_id} via tx {tx_hash} (msg_hash {msg_hash})")
     return True
 
 
@@ -216,6 +218,19 @@ async def confirm_payment(request: Request):
     for attempt in range(max_polls):
         tx_data = await scan_admin_wallet_for_payment(user_id, expected_nano)
         if tx_data:
+            # Extract the incoming message hash from the transaction
+            in_msg = tx_data.get("in_msg", {})
+            tx_msg_hash = in_msg.get("hash", "")
+            if not tx_msg_hash:
+                logger.warning("Transaction found but missing in_msg.hash – skipping")
+                continue
+
+            # Verify that the message hash matches the one from frontend
+            if tx_msg_hash != msg_hash:
+                logger.warning(f"Message hash mismatch: frontend={msg_hash}, tx={tx_msg_hash} – skipping this transaction")
+                continue
+
+            # All checks passed: destination, amount, comment, and now msg_hash
             tx_hash = tx_data.get("transaction_id", {}).get("hash", "unknown")
             success = await verify_and_grant_premium(user_id, tx_hash, msg_hash)
             if success:
@@ -408,7 +423,7 @@ async def _grant_premium(user_id: int, tx_hash: str):
     return {"status": "completed", "message": "Premium activated"}
 
 
-# Helper functions for legacy endpoints (unchanged, but with fixed indentation)
+# Helper functions for legacy endpoints (unchanged)
 async def verify_transaction_by_hash(tx_hash: str, expected_amount_nano: int) -> bool:
     if TON_DEV_MODE:
         logger.info(f"[DEV MODE] Skipping real TON verification for hash {tx_hash}")
