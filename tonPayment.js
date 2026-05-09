@@ -1,4 +1,4 @@
-// tonPayment.js – Direct blockchain polling (no BOC, fast polling)
+// tonPayment.js – Message hash based verification flow
 import { verifyPremiumStatus } from './premiumManager.js';
 
 let tonConnectUI = null;
@@ -8,6 +8,26 @@ let initializationPromise = null;
 
 const API_URL = "https://imagifhub.onrender.com";
 const MANIFEST_URL = `${API_URL}/ton-manifest.json`;
+
+// Helper to load TonWeb dynamically
+async function loadTonWeb() {
+    if (window.TonWeb) return window.TonWeb;
+    return new Promise((resolve, reject) => {
+        const script = document.createElement('script');
+        script.src = 'https://unpkg.com/tonweb@0.0.57/dist/tonweb.js';
+        script.onload = () => resolve(window.TonWeb);
+        script.onerror = () => reject(new Error('Failed to load TonWeb'));
+        document.head.appendChild(script);
+    });
+}
+
+// Compute message hash from BOC (TonWeb method)
+async function computeMessageHash(bocBase64) {
+    const TonWeb = await loadTonWeb();
+    const cell = TonWeb.boc.Cell.oneFromBoc(TonWeb.utils.base64ToBytes(bocBase64));
+    const hashBytes = await cell.hash();
+    return TonWeb.utils.bytesToHex(hashBytes);
+}
 
 function updateWalletUI() {
     const walletRow = document.getElementById('walletConnectRow');
@@ -162,27 +182,9 @@ export async function initWalletUI() {
     }
 }
 
-// ========== FASTER POLLING (1 sec interval, 30 attempts = 30 sec max) ==========
-async function pollWalletPayment(walletAddr, expectedAmountTon, maxAttempts = 30, intervalMs = 1000) {
-    const tg = window.Telegram.WebApp;
-    for (let attempt = 0; attempt < maxAttempts; attempt++) {
-        try {
-            const url = `${API_URL}/api/ton-check-payment?wallet=${encodeURIComponent(walletAddr)}&amount=${expectedAmountTon}`;
-            const response = await fetch(url, {
-                headers: { 'X-Telegram-Init-Data': tg.initData }
-            });
-            const result = await response.json();
-            if (result.status === 'completed') {
-                return true;
-            }
-        } catch (err) {
-            console.warn("Polling error:", err);
-        }
-        await new Promise(r => setTimeout(r, intervalMs));
-    }
-    return false;
-}
-
+// ---------------------------------------------
+// NEW: send premium payment using msg_hash flow
+// ---------------------------------------------
 export async function sendTonPremiumPayment() {
     const tg = window.Telegram.WebApp;
     const statusEl = document.getElementById('paymentStatus');
@@ -212,13 +214,15 @@ export async function sendTonPremiumPayment() {
     const userWallet = walletAddress;
     if (!userWallet) throw new Error("Wallet address not available");
 
+    const comment = `user:${tg.initDataUnsafe?.user?.id}`;
     const amountNano = Math.floor(amountTon * 1e9);
     
     const transaction = {
         validUntil: Math.floor(Date.now() / 1000) + 600,
         messages: [{
             address: adminAddr,
-            amount: amountNano.toString()
+            amount: amountNano.toString(),
+            payload: comment   // TON transfer with comment
         }]
     };
 
@@ -226,15 +230,23 @@ export async function sendTonPremiumPayment() {
         const ui = await initTonConnectUI();
         if (!ui) throw new Error("TON SDK unavailable");
         
-        await ui.sendTransaction(transaction);
+        // Step 1: Send transaction and get BOC
+        const result = await ui.sendTransaction(transaction);
+        const bocBase64 = result.boc;
+        if (!bocBase64) throw new Error("No BOC returned from wallet");
         
+        // Step 2: Compute message hash from BOC
         if (statusEl) {
-            statusEl.textContent = "⏳ Payment sent. Waiting for confirmation...";
-            statusEl.style.color = "#ffd700";
+            statusEl.textContent = "⏳ Computing message hash...";
         }
+        const msgHash = await computeMessageHash(bocBase64);
+        console.log("Computed message hash:", msgHash);
         
-        // Fast polling: 30 attempts, 1 second interval
-        const confirmed = await pollWalletPayment(userWallet, amountTon, 30, 1000);
+        // Step 3: Poll backend with msg_hash
+        if (statusEl) {
+            statusEl.textContent = "⏳ Waiting for confirmation...";
+        }
+        const confirmed = await pollConfirmPayment(msgHash);
         
         if (confirmed) {
             await verifyPremiumStatus();
@@ -245,28 +257,42 @@ export async function sendTonPremiumPayment() {
             setTimeout(() => { if (window.closePremium) window.closePremium(); }, 1500);
             return true;
         } else {
-            if (statusEl) {
-                statusEl.textContent = "⏳ Payment received. Final check...";
-                statusEl.style.color = "#ffd700";
-            }
-            await new Promise(r => setTimeout(r, 5000));
-            const premiumActive = await verifyPremiumStatus();
-            if (premiumActive) {
-                if (statusEl) {
-                    statusEl.textContent = "✅ Premium activated!";
-                    statusEl.style.color = "#4CAF50";
-                }
-                setTimeout(() => { if (window.closePremium) window.closePremium(); }, 1500);
-                return true;
-            } else {
-                throw new Error("Transaction not confirmed after multiple attempts");
-            }
+            throw new Error("Transaction confirmation failed");
         }
     } catch (err) {
         console.error("TON payment error:", err);
         if (tg.showAlert) tg.showAlert("TON payment failed: " + err.message);
         throw err;
     }
+}
+
+async function pollConfirmPayment(msgHash, maxAttempts = 30, intervalMs = 2000) {
+    const tg = window.Telegram.WebApp;
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+        try {
+            const response = await fetch(`${API_URL}/api/ton-confirm-payment`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Telegram-Init-Data': tg.initData
+                },
+                body: JSON.stringify({ msg_hash: msgHash })
+            });
+            const data = await response.json();
+            if (data.status === 'completed') {
+                return true;
+            }
+            if (data.status === 'pending') {
+                // continue polling
+            } else {
+                console.warn("Unexpected response:", data);
+            }
+        } catch (err) {
+            console.warn("Polling error:", err);
+        }
+        await new Promise(r => setTimeout(r, intervalMs));
+    }
+    return false;
 }
 
 async function fetchTonAdminAddress() {
