@@ -1,4 +1,4 @@
-// tonPayment.js – Message hash based verification flow
+// tonPayment.js – Message hash based verification flow (fixed payload)
 import { verifyPremiumStatus } from './premiumManager.js';
 
 let tonConnectUI = null;
@@ -27,6 +27,15 @@ async function computeMessageHash(bocBase64) {
     const cell = TonWeb.boc.Cell.oneFromBoc(TonWeb.utils.base64ToBytes(bocBase64));
     const hashBytes = await cell.hash();
     return TonWeb.utils.bytesToHex(hashBytes);
+}
+
+// Create a valid payload cell for a text comment
+async function createTextPayload(text) {
+    const TonWeb = await loadTonWeb();
+    const cell = new TonWeb.boc.Cell();
+    cell.bits.writeUint(0, 32); // op code for simple transfer (0)
+    cell.bits.writeString(text);
+    return TonWeb.utils.bytesToBase64(await cell.toBoc());
 }
 
 function updateWalletUI() {
@@ -183,7 +192,7 @@ export async function initWalletUI() {
 }
 
 // ---------------------------------------------
-// NEW: send premium payment using msg_hash flow
+// FIXED: send premium payment using msg_hash flow with valid payload
 // ---------------------------------------------
 export async function sendTonPremiumPayment() {
     const tg = window.Telegram.WebApp;
@@ -217,12 +226,21 @@ export async function sendTonPremiumPayment() {
     const comment = `user:${tg.initDataUnsafe?.user?.id}`;
     const amountNano = Math.floor(amountTon * 1e9);
     
+    // Build a valid payload cell for the comment
+    let payloadBase64;
+    try {
+        payloadBase64 = await createTextPayload(comment);
+    } catch (err) {
+        console.error("Failed to create payload cell:", err);
+        throw new Error("Cannot create payment comment");
+    }
+    
     const transaction = {
         validUntil: Math.floor(Date.now() / 1000) + 600,
         messages: [{
             address: adminAddr,
             amount: amountNano.toString(),
-            payload: comment   // TON transfer with comment
+            payload: payloadBase64   // now a valid base64-encoded cell
         }]
     };
 
