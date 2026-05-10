@@ -4,14 +4,10 @@ import asyncio
 import logging
 import httpx
 import base64
-import hashlib
 from fastapi import APIRouter, Request, HTTPException
 from utils import get_user_id_from_init_data
 from config import supabase
 from datetime import datetime, timedelta
-
-# Use the 'ton' library (install with: pip install ton)
-from ton import Cell, Address
 
 router = APIRouter()
 
@@ -48,47 +44,54 @@ def normalize_ton_address(addr: str) -> str:
     return addr.lower()
 
 
-# ========== DECODE BOC AND EXTRACT INTERNAL MESSAGE HASH ==========
-def internal_msg_hash_from_boc(boc_base64: str) -> str | None:
+# ========== GET INTERNAL MESSAGE HASH FROM BOC USING TONAPI ==========
+async def get_internal_msg_hash_from_boc(boc_base64: str) -> str | None:
     """
-    Decode the BOC (base64) of the signed external message,
-    extract the internal message cell, compute its SHA256 hash.
+    Send the BOC to TonAPI's /v2/blockchain/message endpoint.
+    Returns the internal message hash (msg_hash) that can be used to find the transaction.
     """
-    try:
-        boc_bytes = base64.b64decode(boc_base64)
-        # Deserialize the root cell (external message)
-        root_cell = Cell.deserialize(boc_bytes)
-        
-        # The external message has a reference to the internal message cell
-        if not root_cell.refs:
-            logger.error("No references in external message cell")
+    url = "https://tonapi.io/v2/blockchain/message"
+    headers = {
+        "Content-Type": "application/json"
+    }
+    if TONAPI_KEY:
+        headers["Authorization"] = f"Bearer {TONAPI_KEY}"
+
+    payload = {"boc": boc_base64}
+
+    async with httpx.AsyncClient(timeout=15.0) as client:
+        try:
+            resp = await client.post(url, json=payload, headers=headers)
+            if resp.status_code != 200:
+                logger.error(f"TonAPI message decode error {resp.status_code}: {resp.text[:200]}")
+                return None
+            data = resp.json()
+            # The response contains the message hash (internal)
+            msg_hash = data.get("hash")
+            if not msg_hash:
+                logger.error("No hash in TonAPI message response")
+                return None
+            logger.info(f"Decoded internal message hash: {msg_hash}")
+            return msg_hash
+        except Exception as e:
+            logger.error(f"Failed to decode BOC via TonAPI: {e}", exc_info=True)
             return None
-        
-        internal_cell = root_cell.refs[0]
-        # Compute hash: serialize the internal message cell to bytes
-        internal_bytes = internal_cell.serialize()
-        msg_hash = hashlib.sha256(internal_bytes).hexdigest()
-        logger.info(f"Computed internal message hash: {msg_hash}")
-        return msg_hash
-    except Exception as e:
-        logger.error(f"Failed to decode BOC: {e}", exc_info=True)
-        return None
 
 
-# ========== VERIFY TRANSACTION VIA INTERNAL MESSAGE HASH ==========
-async def verify_by_internal_msg_hash(
-    internal_msg_hash: str,
+# ========== VERIFY TRANSACTION USING INTERNAL MESSAGE HASH ==========
+async def verify_by_msg_hash(
+    msg_hash: str,
     expected_amount_nano: int,
     expected_user_id: int
 ) -> dict | None:
-    """Call TonAPI /by_message_hash with the correct internal message hash."""
+    """Call TonAPI /v2/blockchain/transactions/by_message_hash/{hash}"""
     if TON_DEV_MODE:
-        logger.info(f"[DEV MODE] Simulating verification for hash {internal_msg_hash}")
+        logger.info(f"[DEV MODE] Simulating verification for hash {msg_hash}")
         return {"hash": "dev_tx_hash"}
 
     await asyncio.sleep(3)  # allow time for indexing
 
-    clean_hash = internal_msg_hash.lower().replace('0x', '')
+    clean_hash = msg_hash.lower().replace('0x', '')
     url = f"https://tonapi.io/v2/blockchain/transactions/by_message_hash/{clean_hash}"
     headers = {"Authorization": f"Bearer {TONAPI_KEY}"} if TONAPI_KEY else {}
 
@@ -105,7 +108,7 @@ async def verify_by_internal_msg_hash(
                 logger.error("No transaction hash in response")
                 return None
 
-            # Verify details
+            # Verify transaction details
             in_msgs = tx.get("in_msgs", [])
             if not in_msgs:
                 logger.error("No in_msgs in transaction")
@@ -193,7 +196,7 @@ async def verify_and_grant_premium(user_id: int, tx_hash: str) -> bool:
 # ========== ENDPOINT: CONFIRM TON PAYMENT ==========
 @router.post("/api/ton-confirm-payment")
 async def confirm_payment(request: Request):
-    """Receive BOC, extract internal message hash, verify via TonAPI."""
+    """Receive BOC, decode via TonAPI, verify, grant premium."""
     init_data = request.headers.get("X-Telegram-Init-Data", "")
     if not init_data:
         raise HTTPException(status_code=401, detail="Missing init data")
@@ -207,17 +210,17 @@ async def confirm_payment(request: Request):
     if not boc_base64:
         raise HTTPException(status_code=400, detail="Missing boc field")
 
-    # 1. Compute internal message hash from BOC
-    internal_msg_hash = internal_msg_hash_from_boc(boc_base64)
-    if not internal_msg_hash:
-        raise HTTPException(status_code=400, detail="Failed to decode BOC or extract internal message")
+    # 1. Get internal message hash using TonAPI's /message endpoint
+    msg_hash = await get_internal_msg_hash_from_boc(boc_base64)
+    if not msg_hash:
+        raise HTTPException(status_code=400, detail="Failed to decode BOC: could not extract internal message hash")
 
-    logger.info(f"Computed internal message hash: {internal_msg_hash}")
+    logger.info(f"Internal message hash from TonAPI: {msg_hash}")
 
     expected_nano = int(TON_AMOUNT * 1_000_000_000)
 
-    # 2. Verify via TonAPI
-    tx_info = await verify_by_internal_msg_hash(internal_msg_hash, expected_nano, user_id)
+    # 2. Verify transaction using that hash
+    tx_info = await verify_by_msg_hash(msg_hash, expected_nano, user_id)
     if not tx_info:
         raise HTTPException(status_code=400, detail="Transaction verification failed")
 
@@ -235,5 +238,5 @@ async def ton_config():
     return {
         "adminAddress": TON_ADMIN_ADDRESS,
         "amount": TON_AMOUNT
-            }
+    }
     
