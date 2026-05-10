@@ -6,4 +6,4 @@ supabase
 python-multipart
 gunicorn
 httpx
-tonsdk
+ton
