@@ -1,9 +1,8 @@
-# ton_routes.py – Message‑hash based verification (corrected)
+# ton_routes.py – Fixed address comparison + increased retries
 import os
 import asyncio
 import logging
 import httpx
-import base64
 from fastapi import APIRouter, Request, HTTPException
 from utils import get_user_id_from_init_data
 from config import supabase
@@ -12,7 +11,7 @@ from datetime import datetime, timedelta
 router = APIRouter()
 
 # ========== ENVIRONMENT VARIABLES ==========
-TON_ADMIN_ADDRESS = os.environ.get("TON_ADMIN_ADDRESS", "")
+TON_ADMIN_ADDRESS = os.environ.get("TON_ADMIN_ADDRESS", "").strip()
 TON_AMOUNT = float(os.environ.get("TON_AMOUNT", "1.12"))          # in TON
 TON_DEV_MODE = os.environ.get("TON_DEV_MODE", "false").lower() == "true"
 TONAPI_KEY = os.environ.get("TONAPI_KEY", "")
@@ -20,64 +19,26 @@ TONAPI_KEY = os.environ.get("TONAPI_KEY", "")
 logger = logging.getLogger(__name__)
 
 
-# ========== ADDRESS NORMALIZATION (FIXED) ==========
-def normalize_ton_address(addr: str) -> str:
-    """
-    Convert any TON address to raw hex (without 0: prefix).
-    Handles raw hex (0:...), raw hex without prefix, and user‑friendly (EQ/UQ...).
-    """
-    addr = addr.strip()
-    if not addr:
-        return ""
-
-    # Already a raw hex value (64 chars) without workchain prefix
-    if len(addr) == 64 and all(c in "0123456789abcdefABCDEF" for c in addr):
-        return addr.lower()
-
-    # Raw hex with workchain prefix (e.g., "0:...")
-    if ":" in addr:
-        return addr.split(":")[-1].lower()
-
-    # User‑friendly format (EQ... or UQ...)
-    if addr.startswith("EQ") or addr.startswith("UQ"):
-        b64 = addr[2:].replace('-', '+').replace('_', '/')
-        missing = len(b64) % 4
-        if missing:
-            b64 += '=' * (4 - missing)
-        try:
-            decoded = base64.b64decode(b64)
-            # decoded structure: [tag(1), workchain(1), address(32), checksum(2)]
-            # The actual raw address is bytes 2..34 (32 bytes)
-            if len(decoded) >= 34:
-                hex_part = decoded[2:34].hex()
-                return hex_part.lower()
-            else:
-                logger.error(f"Unexpected decoded address length: {len(decoded)}")
-        except Exception as e:
-            logger.error(f"Failed to decode Base64 address: {e}")
-
-    # Fallback: return as is lowercase
-    return addr.lower()
-
-
-# ========== VERIFY MESSAGE BY MESSAGE HASH (CORRECT ENDPOINT) ==========
+# ========== VERIFY MESSAGE BY MESSAGE HASH (DIRECT ADDRESS COMPARE) ==========
 async def verify_message_by_hash(
     msg_hash: str,
     expected_amount_nano: int,
     expected_comment: str,
-    expected_admin_raw: str,
-    max_retries: int = 2,
-    delay_seconds: int = 3
+    expected_admin_address: str,
+    max_retries: int = 5,
+    delay_seconds: int = 4
 ) -> dict | None:
     """
-    Query TonAPI /v2/blockchain/messages/{msg_hash} and verify destination, amount, comment.
-    This is the correct endpoint for a message hash (cell hash).
+    Query TonAPI /v2/blockchain/messages/{msg_hash} and verify:
+    - Destination matches the admin address (string comparison, no hex conversion)
+    - Amount >= expected
+    - Comment contains expected user ID
     """
     if TON_DEV_MODE:
         logger.info(f"[DEV MODE] Simulating verification for msg_hash {msg_hash}")
         return {"hash": msg_hash, "transaction_hash": "dev_tx"}
 
-    if not TON_ADMIN_ADDRESS:
+    if not expected_admin_address:
         logger.error("TON_ADMIN_ADDRESS not set")
         return None
 
@@ -88,11 +49,11 @@ async def verify_message_by_hash(
     for attempt in range(1, max_retries + 1):
         async with httpx.AsyncClient(timeout=15.0) as client:
             try:
-                logger.info(f"Attempt {attempt}: Calling TonAPI message endpoint {url}")
+                logger.info(f"Attempt {attempt}/{max_retries}: calling {url}")
                 resp = await client.get(url, headers=headers)
 
                 if resp.status_code == 404:
-                    logger.warning(f"Message {msg_hash} not found yet (attempt {attempt}/{max_retries})")
+                    logger.warning(f"Message {msg_hash} not found yet")
                     if attempt < max_retries:
                         await asyncio.sleep(delay_seconds)
                         continue
@@ -106,32 +67,27 @@ async def verify_message_by_hash(
 
                 msg_data = resp.json()
 
-                # Extract destination
+                # Destination – as a user‑friendly string (no conversion needed)
                 destination = msg_data.get("destination")
                 if isinstance(destination, dict):
                     dest_addr = destination.get("address", "")
                 else:
                     dest_addr = str(destination) if destination else ""
 
-                # Extract value (amount in nanoTON)
+                # Amount (in nanoTON)
                 value = msg_data.get("value")
-                # Extract comment (from decoded_body.text or raw message)
+                # Comment (from decoded_body or raw message)
                 decoded_body = msg_data.get("decoded_body", {})
                 comment = decoded_body.get("text", "") or msg_data.get("message", "")
 
-                # Normalize addresses for comparison
-                dest_norm = normalize_ton_address(dest_addr)
-                admin_norm = expected_admin_raw  # already normalized
+                logger.info(f"Admin address (env): {expected_admin_address}")
+                logger.info(f"Destination from API: {dest_addr}")
 
-                logger.info(f"Admin normalized: {admin_norm}")
-                logger.info(f"Destination normalized: {dest_norm}")
-
-                # Verify destination
-                if dest_norm != admin_norm:
-                    logger.error(f"Destination mismatch: {dest_norm} != {admin_norm}")
+                # Direct string comparison (both are user‑friendly)
+                if dest_addr != expected_admin_address:
+                    logger.error(f"Destination mismatch: '{dest_addr}' != '{expected_admin_address}'")
                     return None
 
-                # Verify amount
                 if value is None:
                     logger.error("Amount missing")
                     return None
@@ -145,12 +101,10 @@ async def verify_message_by_hash(
                     logger.error(f"Amount too low: {value_nano} < {expected_amount_nano}")
                     return None
 
-                # Verify comment contains expected user ID
                 if expected_comment not in comment:
                     logger.error(f"Comment mismatch: expected '{expected_comment}', got '{comment}'")
                     return None
 
-                # All checks passed
                 tx_hash = msg_data.get("transaction", {}).get("hash")
                 logger.info(f"✅ Message verified: {msg_hash} (tx: {tx_hash})")
                 return {"hash": msg_hash, "transaction_hash": tx_hash}
@@ -168,7 +122,6 @@ async def verify_message_by_hash(
 # ========== IDEMPOTENT PREMIUM GRANT ==========
 async def verify_and_grant_premium(user_id: int, msg_hash: str) -> bool:
     """Grant premium using message hash as unique idempotency key."""
-    # Check if this message hash has already been processed
     existing = supabase.table("payments").select("id").eq("transaction_id", msg_hash).execute()
     if existing.data and len(existing.data) > 0:
         logger.info(f"Message {msg_hash} already processed – skipping.")
@@ -189,8 +142,8 @@ async def verify_and_grant_premium(user_id: int, msg_hash: str) -> bool:
                 current_expiry = current_expiry.replace(tzinfo=None)
             if current_expiry > now and current_expiry > new_expiry:
                 new_expiry = current_expiry + timedelta(days=30)
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning(f"Could not parse expiry: {e}")
 
     # Upsert premium user
     supabase.table("users").upsert({
@@ -220,10 +173,6 @@ async def verify_and_grant_premium(user_id: int, msg_hash: str) -> bool:
 # ========== ENDPOINT: CONFIRM TON PAYMENT ==========
 @router.post("/api/ton-confirm-payment")
 async def confirm_payment(request: Request):
-    """
-    Receive message hash (cell hash) from frontend, verify via TonAPI message endpoint,
-    then grant premium.
-    """
     init_data = request.headers.get("X-Telegram-Init-Data", "")
     if not init_data:
         raise HTTPException(status_code=401, detail="Missing init data")
@@ -233,22 +182,21 @@ async def confirm_payment(request: Request):
         raise HTTPException(status_code=401, detail="Invalid user")
 
     body = await request.json()
-    msg_hash = body.get("tx_hash")   # Note: frontend sends this as 'tx_hash' but it's the message hash
+    msg_hash = body.get("tx_hash")   # This is the message hash (cell hash)
     if not msg_hash:
         raise HTTPException(status_code=400, detail="Missing message hash")
 
     expected_comment = f"user:{user_id}"
     expected_nano = int(TON_AMOUNT * 1_000_000_000)
-    admin_raw = normalize_ton_address(TON_ADMIN_ADDRESS)
 
-    if not admin_raw:
-        raise HTTPException(status_code=500, detail="Admin address not configured correctly")
+    if not TON_ADMIN_ADDRESS:
+        raise HTTPException(status_code=500, detail="Admin address not configured")
 
     verification = await verify_message_by_hash(
         msg_hash=msg_hash,
         expected_amount_nano=expected_nano,
         expected_comment=expected_comment,
-        expected_admin_raw=admin_raw
+        expected_admin_address=TON_ADMIN_ADDRESS
     )
 
     if not verification:
@@ -272,9 +220,9 @@ async def ton_config():
 
 @router.get("/debug/admin-raw")
 async def debug_admin_raw():
-    """Debug endpoint to see normalized admin address."""
+    """Debug endpoint – shows the exact admin address as used."""
     return {
         "env_raw": TON_ADMIN_ADDRESS,
-        "normalized": normalize_ton_address(TON_ADMIN_ADDRESS)
-                }
+        "note": "Address is used as‑is for string comparison (no hex conversion)."
+                         }
     
