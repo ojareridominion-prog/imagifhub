@@ -1,4 +1,4 @@
-// tonPayment.js – Simple SHA‑256 of the raw BOC bytes
+// tonPayment.js – send BOC to backend for verification
 import { verifyPremiumStatus } from './premiumManager.js';
 
 let tonConnectUI = null;
@@ -9,21 +9,25 @@ let initializationPromise = null;
 const API_URL = "https://imagifhub.onrender.com";
 const MANIFEST_URL = `${API_URL}/ton-manifest.json`;
 
-// ========== SIMPLE HASH: SHA‑256 of the whole BOC ==========
-async function computeMessageHash(bocBase64) {
-    // Convert base64 to binary
-    const binaryString = atob(bocBase64);
+// Helper: base64 to Uint8Array
+function base64ToBytes(base64) {
+    const binaryString = atob(base64);
     const bytes = new Uint8Array(binaryString.length);
     for (let i = 0; i < binaryString.length; i++) {
         bytes[i] = binaryString.charCodeAt(i);
     }
-    // Hash the raw bytes
-    const hashBuffer = await crypto.subtle.digest('SHA-256', bytes);
-    const hashArray = Array.from(new Uint8Array(hashBuffer));
-    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+    return bytes;
 }
 
-// ========== LOAD TONWEB (only for creating the payload cell) ==========
+// Create a valid payload cell for a text comment
+async function createTextPayload(text) {
+    const TonWeb = await loadTonWeb();
+    const cell = new TonWeb.boc.Cell();
+    cell.bits.writeUint(0, 32);
+    cell.bits.writeString(text);
+    return TonWeb.utils.bytesToBase64(await cell.toBoc());
+}
+
 async function loadTonWeb() {
     if (window.TonWeb) return window.TonWeb;
     return new Promise((resolve, reject) => {
@@ -35,15 +39,7 @@ async function loadTonWeb() {
     });
 }
 
-async function createTextPayload(text) {
-    const TonWeb = await loadTonWeb();
-    const cell = new TonWeb.boc.Cell();
-    cell.bits.writeUint(0, 32); // simple transfer op
-    cell.bits.writeString(text);
-    return TonWeb.utils.bytesToBase64(await cell.toBoc());
-}
-
-// ========== WALLET UI ==========
+// ========== WALLET UI (unchanged) ==========
 function updateWalletUI() {
     const walletRow = document.getElementById('walletConnectRow');
     if (!walletRow) return;
@@ -197,7 +193,7 @@ export async function initWalletUI() {
     }
 }
 
-// ========== SEND TON PREMIUM (NO POLLING, PURE HASH) ==========
+// ========== SEND TON PREMIUM – send BOC to backend ==========
 export async function sendTonPremiumPayment() {
     const tg = window.Telegram.WebApp;
     const statusEl = document.getElementById('paymentStatus');
@@ -224,6 +220,9 @@ export async function sendTonPremiumPayment() {
         if (!walletConnected) throw new Error("Wallet not connected");
     }
 
+    const userWallet = walletAddress;
+    if (!userWallet) throw new Error("Wallet address not available");
+
     const comment = `user:${tg.initDataUnsafe?.user?.id}`;
     const amountNano = Math.floor(amountTon * 1e9);
     
@@ -248,22 +247,22 @@ export async function sendTonPremiumPayment() {
         const ui = await initTonConnectUI();
         if (!ui) throw new Error("TON SDK unavailable");
         
+        // 1. Send transaction and get BOC
         const result = await ui.sendTransaction(transaction);
         const bocBase64 = result.boc;
         if (!bocBase64) throw new Error("No BOC returned from wallet");
         
-        if (statusEl) statusEl.textContent = "⏳ Computing message hash...";
-        const msgHash = await computeMessageHash(bocBase64);
-        console.log("Message hash (SHA-256 of BOC):", msgHash);
-        
-        if (statusEl) statusEl.textContent = "⏳ Verifying payment...";
+        // 2. Send the BOC to backend for verification (no local hash computation)
+        if (statusEl) {
+            statusEl.textContent = "⏳ Verifying payment...";
+        }
         const response = await fetch(`${API_URL}/api/ton-confirm-payment`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
                 'X-Telegram-Init-Data': tg.initData
             },
-            body: JSON.stringify({ msg_hash: msgHash })
+            body: JSON.stringify({ boc: bocBase64 })
         });
         
         if (!response.ok) {
@@ -301,6 +300,7 @@ async function fetchTonAdminAddress() {
     }
 }
 
+// Expose for global usage
 window.initWalletUI = initWalletUI;
 window.sendTonPremiumPayment = sendTonPremiumPayment;
 window.disconnectTonWallet = disconnectTonWallet;
