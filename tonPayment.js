@@ -1,4 +1,4 @@
-// tonPayment.js – Use transaction hash from wallet
+// tonPayment.js – Compute message hash (cell hash) from BOC
 import { verifyPremiumStatus } from './premiumManager.js';
 
 let tonConnectUI = null;
@@ -9,7 +9,6 @@ let initializationPromise = null;
 const API_URL = "https://imagifhub.onrender.com";
 const MANIFEST_URL = `${API_URL}/ton-manifest.json`;
 
-// Helper: base64 to Uint8Array
 function base64ToBytes(base64) {
     const binaryString = atob(base64);
     const bytes = new Uint8Array(binaryString.length);
@@ -19,7 +18,6 @@ function base64ToBytes(base64) {
     return bytes;
 }
 
-// Load TonWeb dynamically
 async function loadTonWeb() {
     if (window.TonWeb) return window.TonWeb;
     return new Promise((resolve, reject) => {
@@ -31,7 +29,6 @@ async function loadTonWeb() {
     });
 }
 
-// Create a valid payload cell for a text comment
 async function createTextPayload(text) {
     const TonWeb = await loadTonWeb();
     const cell = new TonWeb.boc.Cell();
@@ -40,7 +37,16 @@ async function createTextPayload(text) {
     return TonWeb.utils.bytesToBase64(await cell.toBoc());
 }
 
-// ========== WALLET UI (unchanged) ==========
+// Compute message hash (cell hash) from BOC
+async function computeMsgHash(bocBase64) {
+    const TonWeb = await loadTonWeb();
+    const bocBytes = base64ToBytes(bocBase64);
+    const cell = TonWeb.boc.Cell.oneFromBoc(bocBytes);
+    const hashBytes = await cell.hash();
+    return TonWeb.utils.bytesToHex(hashBytes);
+}
+
+// ========== WALLET UI ==========
 function updateWalletUI() {
     const walletRow = document.getElementById('walletConnectRow');
     if (!walletRow) return;
@@ -60,9 +66,7 @@ export async function initTonConnectUI() {
     
     initializationPromise = (async () => {
         if (document.readyState === 'loading') {
-            await new Promise(resolve => {
-                document.addEventListener('DOMContentLoaded', resolve, { once: true });
-            });
+            await new Promise(resolve => document.addEventListener('DOMContentLoaded', resolve, { once: true }));
         }
         
         const startTime = Date.now();
@@ -70,21 +74,13 @@ export async function initTonConnectUI() {
         while (!window.TON_CONNECT_UI && (Date.now() - startTime) < maxWaitTime) {
             await new Promise(r => setTimeout(r, 100));
         }
-        if (!window.TON_CONNECT_UI) {
-            console.error("TonConnectUI SDK failed to load");
-            return null;
-        }
+        if (!window.TON_CONNECT_UI) return null;
         const TonConnectUIConstructor = window.TON_CONNECT_UI.TonConnectUI || window.TON_CONNECT_UI.default?.TonConnectUI;
-        if (!TonConnectUIConstructor) {
-            console.error("TonConnectUI constructor not found");
-            return null;
-        }
+        if (!TonConnectUIConstructor) return null;
         
         tonConnectUI = new TonConnectUIConstructor({
             manifestUrl: MANIFEST_URL,
-            actionsConfiguration: {
-                twaReturnUrl: 'https://t.me/IMAGIFHUB_bot/imagifhub'
-            }
+            actionsConfiguration: { twaReturnUrl: 'https://t.me/IMAGIFHUB_bot/imagifhub' }
         });
         
         try {
@@ -100,12 +96,12 @@ export async function initTonConnectUI() {
             if (wallet) {
                 walletConnected = true;
                 walletAddress = wallet.account.address;
-                try { localStorage.setItem("ton_wallet_address", wallet.account.address); } catch(e) {}
+                localStorage.setItem("ton_wallet_address", wallet.account.address);
                 updateWalletUI();
             } else {
                 walletConnected = false;
                 walletAddress = null;
-                try { localStorage.removeItem("ton_wallet_address"); } catch(e) {}
+                localStorage.removeItem("ton_wallet_address");
                 updateWalletUI();
             }
         });
@@ -134,9 +130,7 @@ export async function connectWallet() {
         await ui.openModal();
     } catch (e) {
         console.error("Connection error:", e);
-        if (window.Telegram?.WebApp?.showAlert) {
-            window.Telegram.WebApp.showAlert("Wallet connection failed. Please try again.");
-        }
+        window.Telegram?.WebApp?.showAlert("Wallet connection failed. Please try again.");
     }
 }
 
@@ -146,7 +140,7 @@ export async function disconnectTonWallet() {
     }
     walletConnected = false;
     walletAddress = null;
-    try { localStorage.removeItem("ton_wallet_address"); } catch(e) {}
+    localStorage.removeItem("ton_wallet_address");
     updateWalletUI();
 }
 
@@ -166,10 +160,7 @@ function showDisconnectConfirm() {
     document.body.appendChild(overlay);
     const confirmBtn = box.querySelector('#confirmDisconnect');
     const cancelBtn = box.querySelector('#cancelDisconnect');
-    confirmBtn.onclick = async () => {
-        await disconnectTonWallet();
-        overlay.remove();
-    };
+    confirmBtn.onclick = async () => { await disconnectTonWallet(); overlay.remove(); };
     cancelBtn.onclick = () => overlay.remove();
     overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
 }
@@ -177,10 +168,7 @@ function showDisconnectConfirm() {
 export async function initWalletUI() {
     try {
         const userCard = document.querySelector('.user-info-card');
-        if (!userCard) {
-            setTimeout(initWalletUI, 500);
-            return;
-        }
+        if (!userCard) { setTimeout(initWalletUI, 500); return; }
         const oldRow = document.getElementById('walletConnectRow');
         if (oldRow) oldRow.remove();
         const walletRow = document.createElement('div');
@@ -189,12 +177,10 @@ export async function initWalletUI() {
         userCard.appendChild(walletRow);
         await initTonConnectUI();
         updateWalletUI();
-    } catch (err) {
-        console.error("initWalletUI error:", err);
-    }
+    } catch (err) { console.error("initWalletUI error:", err); }
 }
 
-// ========== SEND TON PREMIUM (UPDATED: use transaction hash from wallet) ==========
+// ========== SEND TON PREMIUM (uses computed message hash) ==========
 export async function sendTonPremiumPayment() {
     const tg = window.Telegram.WebApp;
     const statusEl = document.getElementById('paymentStatus');
@@ -204,9 +190,7 @@ export async function sendTonPremiumPayment() {
         const configRes = await fetch(`${API_URL}/api/ton-config`);
         const config = await configRes.json();
         if (config.amount) amountTon = config.amount;
-    } catch (e) {
-        console.warn("Could not fetch TON amount, using default 1.12", e);
-    }
+    } catch (e) { console.warn(e); }
     
     const adminAddr = await fetchTonAdminAddress();
     if (!adminAddr) throw new Error("Admin address missing");
@@ -214,34 +198,20 @@ export async function sendTonPremiumPayment() {
     if (!walletConnected) {
         await connectWallet();
         let attempts = 0;
-        while (!walletConnected && attempts < 15) {
-            await new Promise(r => setTimeout(r, 500));
-            attempts++;
-        }
+        while (!walletConnected && attempts < 15) { await new Promise(r => setTimeout(r, 500)); attempts++; }
         if (!walletConnected) throw new Error("Wallet not connected");
     }
-
-    const userWallet = walletAddress;
-    if (!userWallet) throw new Error("Wallet address not available");
 
     const comment = `user:${tg.initDataUnsafe?.user?.id}`;
     const amountNano = Math.floor(amountTon * 1e9);
     
     let payloadBase64;
-    try {
-        payloadBase64 = await createTextPayload(comment);
-    } catch (err) {
-        console.error("Failed to create payload cell:", err);
-        throw new Error("Cannot create payment comment");
-    }
+    try { payloadBase64 = await createTextPayload(comment); }
+    catch (err) { throw new Error("Cannot create payment comment"); }
     
     const transaction = {
         validUntil: Math.floor(Date.now() / 1000) + 600,
-        messages: [{
-            address: adminAddr,
-            amount: amountNano.toString(),
-            payload: payloadBase64
-        }]
+        messages: [{ address: adminAddr, amount: amountNano.toString(), payload: payloadBase64 }]
     };
 
     try {
@@ -249,20 +219,18 @@ export async function sendTonPremiumPayment() {
         if (!ui) throw new Error("TON SDK unavailable");
         
         const result = await ui.sendTransaction(transaction);
-        // Use the transaction hash directly from the wallet response
-        const txHash = result.hash;
-        if (!txHash) throw new Error("No transaction hash returned from wallet");
+        const bocBase64 = result.boc;
+        if (!bocBase64) throw new Error("No BOC returned from wallet");
         
-        console.log("Transaction hash:", txHash);
+        if (statusEl) statusEl.textContent = "⏳ Computing message hash...";
+        const msgHash = await computeMsgHash(bocBase64);
+        console.log("Message hash:", msgHash);
         
-        if (statusEl) statusEl.textContent = "⏳ Verifying payment...";
+        if (statusEl) statusEl.textContent = "⏳ Verifying payment (may take up to 30s)...";
         const response = await fetch(`${API_URL}/api/ton-confirm-payment`, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-Telegram-Init-Data': tg.initData
-            },
-            body: JSON.stringify({ tx_hash: txHash })
+            headers: { 'Content-Type': 'application/json', 'X-Telegram-Init-Data': tg.initData },
+            body: JSON.stringify({ tx_hash: msgHash })
         });
         
         if (!response.ok) {
@@ -279,9 +247,7 @@ export async function sendTonPremiumPayment() {
             }
             setTimeout(() => { if (window.closePremium) window.closePremium(); }, 1500);
             return true;
-        } else {
-            throw new Error("Unexpected response from server");
-        }
+        } else throw new Error("Unexpected response");
     } catch (err) {
         console.error("TON payment error:", err);
         if (tg.showAlert) tg.showAlert("TON payment failed: " + err.message);
@@ -294,13 +260,9 @@ async function fetchTonAdminAddress() {
         const res = await fetch(`${API_URL}/api/ton-config`);
         const data = await res.json();
         return data.adminAddress;
-    } catch (e) {
-        console.error("Failed to fetch admin address", e);
-        return null;
-    }
+    } catch (e) { return null; }
 }
 
-// Expose for global usage
 window.initWalletUI = initWalletUI;
 window.sendTonPremiumPayment = sendTonPremiumPayment;
 window.disconnectTonWallet = disconnectTonWallet;
