@@ -16,8 +16,8 @@ TON_AMOUNT = float(os.environ.get("TON_AMOUNT", "1.12"))          # in TON
 TON_DEV_MODE = os.environ.get("TON_DEV_MODE", "false").lower() == "true"
 TONAPI_KEY = os.environ.get("TONAPI_KEY", "")                     # optional for TonAPI
 
-# TonAPI endpoint (mainnet)
-TONAPI_URL = "https://tonapi.io"
+# TonAPI endpoint (mainnet) – corrected path
+TONAPI_URL = "https://tonapi.io/v2/blockchain/transactions/by_message_hash"
 
 logger = logging.getLogger(__name__)
 
@@ -60,7 +60,7 @@ def normalize_ton_address(addr: str) -> str:
 # ========== CORE: VERIFY TRANSACTION BY MESSAGE HASH (TonAPI) ==========
 async def verify_by_msg_hash(msg_hash: str, expected_amount_nano: int, expected_user_id: int) -> dict | None:
     """
-    Call TonAPI /v2/transactions/by_message_hash/{msg_hash}
+    Call TonAPI /v2/blockchain/transactions/by_message_hash/{msg_hash}
     Returns dict with at least {"hash": tx_hash} if valid, else None.
     """
     if TON_DEV_MODE:
@@ -75,7 +75,7 @@ async def verify_by_msg_hash(msg_hash: str, expected_amount_nano: int, expected_
     if TONAPI_KEY:
         headers["Authorization"] = f"Bearer {TONAPI_KEY}"
 
-    url = f"{TONAPI_URL}/v2/transactions/by_message_hash/{msg_hash}"
+    url = f"{TONAPI_URL}/{msg_hash}"
     async with httpx.AsyncClient(timeout=15.0) as client:
         try:
             resp = await client.get(url, headers=headers)
@@ -83,13 +83,7 @@ async def verify_by_msg_hash(msg_hash: str, expected_amount_nano: int, expected_
                 logger.error(f"TonAPI error {resp.status_code}: {resp.text}")
                 return None
 
-            data = resp.json()
-            transactions = data.get("transactions", [])
-            if not transactions:
-                logger.warning(f"No transaction found for msg_hash {msg_hash}")
-                return None
-
-            tx = transactions[0]  # first matching transaction
+            tx = resp.json()
             tx_hash = tx.get("hash")
             if not tx_hash:
                 logger.error("Transaction hash missing in TonAPI response")
@@ -190,7 +184,7 @@ async def verify_and_grant_premium(user_id: int, tx_hash: str) -> bool:
     return True
 
 
-# ========== ENDPOINT: CONFIRM TON PAYMENT (NEW) ==========
+# ========== ENDPOINT: CONFIRM TON PAYMENT ==========
 @router.post("/api/ton-confirm-payment")
 async def confirm_payment(request: Request):
     """Receive msg_hash, verify via TonAPI, grant premium."""
@@ -227,5 +221,5 @@ async def ton_config():
     return {
         "adminAddress": TON_ADMIN_ADDRESS,
         "amount": TON_AMOUNT
-            }
+                }
     
