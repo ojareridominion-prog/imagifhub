@@ -1,5 +1,6 @@
-# ton_routes.py – Transaction hash verification (no polling, no retry loops)
+# ton_routes.py – Poll user wallet for outgoing transaction
 import os
+import asyncio
 import logging
 import httpx
 import base64
@@ -7,6 +8,7 @@ from fastapi import APIRouter, Request, HTTPException
 from utils import get_user_id_from_init_data
 from config import supabase
 from datetime import datetime, timedelta
+import hashlib
 
 router = APIRouter()
 
@@ -14,92 +16,85 @@ TON_ADMIN_ADDRESS = os.environ.get("TON_ADMIN_ADDRESS", "").strip()
 TON_AMOUNT = float(os.environ.get("TON_AMOUNT", "1.12"))
 TON_DEV_MODE = os.environ.get("TON_DEV_MODE", "false").lower() == "true"
 TONAPI_KEY = os.environ.get("TONAPI_KEY", "")
+POLL_MAX_SECONDS = 45
+POLL_INTERVAL = 3
 
 logger = logging.getLogger(__name__)
 
-def normalize_ton_address(address: str) -> str:
-    """Convert user-friendly EQ/UQ address to raw hex format (0:...) for TonAPI."""
-    if address.startswith("0:"):
-        return address
-    # Very simple raw extraction – assumes the address is already in raw form
-    # For production, use a proper library (ton, tonsdk) to decode base64 user-friendly.
-    # Here we just check if it's already raw. If not, log a warning.
-    if address.startswith("EQ") or address.startswith("UQ"):
-        logger.warning(f"Address {address} is user-friendly, but TonAPI expects raw. Please set TON_ADMIN_ADDRESS to raw format (0:...).")
-    return address  # fallback
-
-async def verify_transaction_by_hash(
-    tx_hash: str,
-    expected_admin: str,
-    expected_user_id: int,
-    expected_amount_nano: int
-) -> dict | None:
-    """
-    Verify a single transaction by its hash using TonAPI.
-    Returns transaction details if matches, None otherwise.
-    """
-    if TON_DEV_MODE:
-        logger.info(f"[DEV MODE] Simulating verification for tx_hash {tx_hash}")
-        return {"status": "simulated"}
-
-    if not expected_admin:
-        logger.error("TON_ADMIN_ADDRESS not set")
-        return None
-
-    # Remove 0x prefix and ensure lowercase
-    clean_hash = tx_hash.lower().replace('0x', '')
-    url = f"https://tonapi.io/v2/blockchain/transactions/{clean_hash}"
+async def fetch_recent_transactions(wallet_address: str, limit: int = 20):
+    """Fetch recent transactions for a given wallet using TonAPI."""
+    url = f"https://tonapi.io/v2/accounts/{wallet_address}/transactions"
     headers = {"Authorization": f"Bearer {TONAPI_KEY}"} if TONAPI_KEY else {}
+    params = {"limit": limit}
 
     async with httpx.AsyncClient(timeout=15.0) as client:
         try:
-            logger.info(f"Checking transaction {clean_hash[:16]}...")
-            resp = await client.get(url, headers=headers)
-
+            resp = await client.get(url, headers=headers, params=params)
             if resp.status_code != 200:
                 logger.error(f"TonAPI error {resp.status_code}: {resp.text[:200]}")
-                return None
-
-            tx_data = resp.json()
-            logger.info(f"Transaction found! Hash: {tx_data.get('hash')}")
-
-            # Normalize admin address for comparison
-            raw_admin = normalize_ton_address(expected_admin)
-
-            out_msgs = tx_data.get("out_msgs", [])
-            expected_comment = f"user:{expected_user_id}"
-
-            for msg in out_msgs:
-                destination = msg.get("destination", {}).get("address", "")
-                if destination != raw_admin and destination != expected_admin:
-                    continue
-
-                value = int(msg.get("value", 0))
-                if value < expected_amount_nano:
-                    continue
-
-                decoded_body = msg.get("decoded_body", {})
-                comment = decoded_body.get("text", "")
-                if expected_comment in comment:
-                    logger.info(f"✅ Transaction {clean_hash} verified for user {expected_user_id}")
-                    return {"status": "found", "tx_hash": clean_hash, "msg_data": msg}
-
-            logger.warning(f"Transaction {clean_hash} does not match expected recipient/amount/comment")
-            return None
-
+                return []
+            data = resp.json()
+            return data.get("transactions", [])
         except Exception as e:
-            logger.error(f"Transaction lookup failed: {e}", exc_info=True)
-            return None
+            logger.error(f"Failed to fetch transactions: {e}")
+            return []
 
-async def verify_and_grant_premium(user_id: int, tx_hash: str) -> bool:
-    existing = supabase.table("payments").select("id").eq("transaction_id", tx_hash).execute()
-    if existing.data:
-        logger.info(f"Transaction {tx_hash} already processed – skipping.")
-        return True
+def extract_outgoing_messages(transactions, admin_address: str):
+    """
+    From a list of transactions, yield (tx_hash, amount_nano, comment, timestamp)
+    for outgoing messages where destination == admin_address.
+    """
+    for tx in transactions:
+        tx_hash = tx.get("hash")
+        out_msgs = tx.get("out_msgs", [])
+        for msg in out_msgs:
+            dest = msg.get("destination", {})
+            dest_addr = dest.get("address", "") if isinstance(dest, dict) else str(dest) if dest else ""
+            if dest_addr != admin_address:
+                continue
+            value = msg.get("value")
+            if value is None:
+                continue
+            comment = ""
+            decoded = msg.get("decoded_body", {})
+            if decoded and isinstance(decoded, dict):
+                comment = decoded.get("text", "")
+            elif "body" in msg and msg["body"]:
+                # fallback: try to parse text from raw body
+                pass
+            utime = tx.get("utime", 0)
+            yield tx_hash, int(value), comment, int(utime)
 
+async def poll_for_payment(user_id: int, user_wallet: str, admin_addr: str,
+                           expected_comment_prefix: str, expected_nano: int,
+                           max_wait: int = POLL_MAX_SECONDS, interval: int = POLL_INTERVAL):
+    """
+    Poll the user's wallet for up to max_wait seconds.
+    Returns (tx_hash, amount, comment) if found, else None.
+    """
+    start_time = asyncio.get_event_loop().time()
+    while (asyncio.get_event_loop().time() - start_time) < max_wait:
+        transactions = await fetch_recent_transactions(user_wallet, limit=20)
+        for tx_hash, amount, comment, utime in extract_outgoing_messages(transactions, admin_addr):
+            # Check comment matches expected pattern
+            if comment.startswith(expected_comment_prefix):
+                if amount >= expected_nano:
+                    # Check idempotency
+                    existing = supabase.table("payments").select("id").eq("transaction_id", tx_hash).execute()
+                    if not existing.data:
+                        return tx_hash, amount, comment
+                    else:
+                        logger.info(f"Tx {tx_hash} already processed – ignoring duplicate")
+                        continue
+        await asyncio.sleep(interval)
+    return None
+
+async def grant_premium(user_id: int, tx_hash: str, amount_nano: int, comment: str):
+    """Idempotent premium activation and payment record insertion."""
     now = datetime.utcnow()
     new_expiry = now + timedelta(days=30)
 
+    # Extend existing premium if still valid
     user_result = supabase.table("users").select("premium_expires_at").eq("telegram_id", user_id).execute()
     if user_result.data and user_result.data[0].get("premium_expires_at"):
         current_expiry_str = user_result.data[0]["premium_expires_at"]
@@ -121,23 +116,26 @@ async def verify_and_grant_premium(user_id: int, tx_hash: str) -> bool:
         "updated_at": now.isoformat()
     }).execute()
 
-    expected_nano = int(TON_AMOUNT * 1_000_000_000)
     supabase.table("payments").insert({
         "telegram_id": user_id,
         "provider": "ton",
-        "amount": expected_nano,
+        "amount": amount_nano,
         "currency": "nanoTON",
-        "payload": f"ton_{user_id}_{tx_hash[:8]}",
+        "payload": comment[:100],           # store comment as payload
         "transaction_id": tx_hash,
         "status": "completed",
         "created_at": now.isoformat()
     }).execute()
 
-    logger.info(f"✅ Premium granted to user {user_id} via transaction {tx_hash}")
+    logger.info(f"✅ Premium granted to user {user_id} via tx {tx_hash}")
     return True
 
 @router.post("/api/ton-confirm-payment")
 async def confirm_payment(request: Request):
+    """
+    Receive user's wallet address (sender) and expected comment.
+    Poll user's wallet for the outgoing transaction to the admin address.
+    """
     init_data = request.headers.get("X-Telegram-Init-Data", "")
     if not init_data:
         raise HTTPException(status_code=401, detail="Missing init data")
@@ -147,33 +145,40 @@ async def confirm_payment(request: Request):
         raise HTTPException(status_code=401, detail="Invalid user")
 
     body = await request.json()
-    tx_hash = body.get("transaction_hash")
-    boc_b64 = body.get("boc_b64")
+    user_wallet = body.get("user_wallet")
+    expected_comment = body.get("comment")     # e.g. "user:123456"
 
-    if not tx_hash:
-        raise HTTPException(status_code=400, detail="Missing transaction hash")
+    if not user_wallet:
+        raise HTTPException(status_code=400, detail="Missing user_wallet address")
+    if not expected_comment:
+        raise HTTPException(status_code=400, detail="Missing expected comment")
 
-    expected_amount_nano = int(TON_AMOUNT * 1_000_000_000)
+    expected_nano = int(TON_AMOUNT * 1_000_000_000)
+    logger.info(f"Polling for user {user_id}, wallet {user_wallet}, comment {expected_comment}")
 
-    # Optional: log BOC length for debugging
-    if boc_b64:
-        logger.info(f"Received BOC length: {len(boc_b64)} chars (not used in verification)")
+    if TON_DEV_MODE:
+        logger.info(f"[DEV MODE] Simulating successful payment")
+        await grant_premium(user_id, "simulated_tx_hash", expected_nano, expected_comment)
+        return {"status": "completed", "message": "Premium activated (dev mode)"}
 
-    # Single verification attempt – no retries
-    verification = await verify_transaction_by_hash(
-        tx_hash=tx_hash,
-        expected_admin=TON_ADMIN_ADDRESS,
-        expected_user_id=user_id,
-        expected_amount_nano=expected_amount_nano
+    if not TON_ADMIN_ADDRESS:
+        raise HTTPException(status_code=500, detail="Admin address not configured")
+
+    result = await poll_for_payment(
+        user_id=user_id,
+        user_wallet=user_wallet,
+        admin_addr=TON_ADMIN_ADDRESS,
+        expected_comment_prefix=expected_comment,
+        expected_nano=expected_nano,
+        max_wait=POLL_MAX_SECONDS,
+        interval=POLL_INTERVAL
     )
 
-    if not verification or verification.get("status") != "found":
-        raise HTTPException(status_code=400, detail="Payment verification failed – transaction not found or invalid")
+    if not result:
+        raise HTTPException(status_code=400, detail="Transaction not found or insufficient amount after polling")
 
-    success = await verify_and_grant_premium(user_id, tx_hash)
-    if not success:
-        raise HTTPException(status_code=500, detail="Failed to grant premium")
-
+    tx_hash, amount, comment = result
+    await grant_premium(user_id, tx_hash, amount, comment)
     return {"status": "completed", "message": "Premium activated"}
 
 @router.get("/api/ton-config")
@@ -184,26 +189,16 @@ async def ton_config():
 async def debug_ton_payment():
     return {
         "admin_address_env": TON_ADMIN_ADDRESS,
-        "admin_address_raw_suggestion": "Convert your admin address to raw format (0:...) for reliable comparison",
         "ton_amount": TON_AMOUNT,
         "tonapi_key_configured": bool(TONAPI_KEY),
         "dev_mode": TON_DEV_MODE,
-        "api_base_url": "https://tonapi.io/v2",
-        "test_endpoints": {
-            "transaction_lookup": "https://tonapi.io/v2/blockchain/transactions/{hash}",
-        },
+        "poll_max_seconds": POLL_MAX_SECONDS,
+        "poll_interval": POLL_INTERVAL,
         "troubleshooting_tips": [
-            "Set TON_ADMIN_ADDRESS to RAW format (starts with 0:) – you can convert using https://ton.org/address",
-            "Ensure TONAPI_KEY is valid",
-            "Transaction hash must be lowercase hex without 0x",
-            "Wait 5-10 seconds after payment before verifying"
+            "Ensure TON_ADMIN_ADDRESS is correct (e.g. EQ... or UQ...)",
+            "Check that TonAPI key is valid",
+            "The user's wallet must be connected and the transaction sent to the admin address",
+            "The comment must start exactly with 'user:{telegram_id}'"
         ]
     }
-
-@router.get("/debug/admin-raw")
-async def debug_admin_raw():
-    return {
-        "env_raw": TON_ADMIN_ADDRESS,
-        "note": "Address used as-is for string comparison."
-        }
     
