@@ -1,4 +1,4 @@
-// tonPayment.js – Complete file using transaction hash from TonConnect (with fallback BOC extraction)
+// tonPayment.js – Polling-based payment verification (no hash calculation)
 import { verifyPremiumStatus } from './premiumManager.js';
 
 let tonConnectUI = null;
@@ -9,15 +9,7 @@ let initializationPromise = null;
 const API_URL = "https://imagifhub.onrender.com";
 const MANIFEST_URL = `${API_URL}/ton-manifest.json`;
 
-function base64ToBytes(base64) {
-    const binaryString = atob(base64);
-    const bytes = new Uint8Array(binaryString.length);
-    for (let i = 0; i < binaryString.length; i++) {
-        bytes[i] = binaryString.charCodeAt(i);
-    }
-    return bytes;
-}
-
+// Load TonWeb only if needed (now only for payload creation)
 async function loadTonWeb() {
     if (window.TonWeb) return window.TonWeb;
     return new Promise((resolve, reject) => {
@@ -29,15 +21,16 @@ async function loadTonWeb() {
     });
 }
 
+// Create a valid payload cell for a text comment
 async function createTextPayload(text) {
     const TonWeb = await loadTonWeb();
     const cell = new TonWeb.boc.Cell();
-    cell.bits.writeUint(0, 32);
+    cell.bits.writeUint(0, 32);   // simple text comment op
     cell.bits.writeString(text);
     return TonWeb.utils.bytesToBase64(await cell.toBoc());
 }
 
-// ========== WALLET UI FUNCTIONS (unchanged) ==========
+// ========== WALLET UI FUNCTIONS ==========
 function updateWalletUI() {
     const walletRow = document.getElementById('walletConnectRow');
     if (!walletRow) return;
@@ -189,15 +182,7 @@ export async function initWalletUI() {
     }
 }
 
-// Helper: convert BOC to transaction hash (fallback if SDK doesn't give it)
-async function getTxHashFromBoc(bocBase64) {
-    const TonWeb = await loadTonWeb();
-    const cell = TonWeb.boc.Cell.oneFromBoc(base64ToBytes(bocBase64));
-    const hashBytes = await cell.hash();
-    return TonWeb.utils.bytesToHex(hashBytes);
-}
-
-// ========== SEND TON PREMIUM (robust hash extraction) ==========
+// ========== SEND TON PREMIUM (Polling version) ==========
 export async function sendTonPremiumPayment() {
     const tg = window.Telegram.WebApp;
     const statusEl = document.getElementById('paymentStatus');
@@ -224,6 +209,7 @@ export async function sendTonPremiumPayment() {
         if (!walletConnected) throw new Error("Wallet not connected");
     }
 
+    const userWalletAddr = walletAddress; // sender address
     const comment = `user:${tg.initDataUnsafe?.user?.id}`;
     const amountNano = Math.floor(amountTon * 1e9);
     
@@ -248,31 +234,22 @@ export async function sendTonPremiumPayment() {
         const ui = await initTonConnectUI();
         if (!ui) throw new Error("TON SDK unavailable");
         
-        const result = await ui.sendTransaction(transaction);
-        const bocBase64 = result.boc;
-        if (!bocBase64) throw new Error("No BOC returned from wallet");
+        // Send transaction – we ignore the returned BOC
+        await ui.sendTransaction(transaction);
         
-        // Extract transaction hash – try three methods
-        let transactionHash = null;
-        if (result.transaction && result.transaction.hash) {
-            transactionHash = result.transaction.hash;
-        } else if (result.transactionHash) {
-            transactionHash = result.transactionHash;
-        } else {
-            // Fallback: compute hash from BOC
-            console.warn("No transaction hash in result, computing from BOC...");
-            transactionHash = await getTxHashFromBoc(bocBase64);
-        }
+        if (statusEl) statusEl.textContent = "⏳ Verifying payment (may take up to 45 seconds)...";
         
-        // Normalize to lowercase hex without 0x
-        transactionHash = transactionHash.toLowerCase().replace(/^0x/, '');
-        console.log("Final transaction hash:", transactionHash);
-        
-        if (statusEl) statusEl.textContent = "⏳ Verifying payment...";
+        // Call backend polling endpoint with user wallet address
         const response = await fetch(`${API_URL}/api/ton-confirm-payment`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'X-Telegram-Init-Data': tg.initData },
-            body: JSON.stringify({ transaction_hash: transactionHash, boc_b64: bocBase64 })
+            headers: { 
+                'Content-Type': 'application/json',
+                'X-Telegram-Init-Data': tg.initData 
+            },
+            body: JSON.stringify({
+                user_wallet: userWalletAddr,
+                comment: comment
+            })
         });
         
         if (!response.ok) {
@@ -310,6 +287,7 @@ async function fetchTonAdminAddress() {
     }
 }
 
+// Expose for global usage
 window.initWalletUI = initWalletUI;
 window.sendTonPremiumPayment = sendTonPremiumPayment;
 window.disconnectTonWallet = disconnectTonWallet;
