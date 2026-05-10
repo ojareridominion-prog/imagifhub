@@ -61,7 +61,7 @@ def normalize_ton_address(addr: str) -> str:
 # ========== CORE: SCAN ADMIN WALLET FOR PAYMENT (used as primary polling) ==========
 async def scan_admin_wallet_for_payment(user_id: int, expected_amount_nano: int) -> dict | None:
     """
-    Scan last 50 incoming transactions of admin wallet.
+    Scan last 100 incoming transactions of admin wallet (increased limit).
     Looks for a payment with comment containing "user:{user_id}" and amount >= expected.
     Returns the full transaction dict if found, else None.
     """
@@ -85,7 +85,7 @@ async def scan_admin_wallet_for_payment(user_id: int, expected_amount_nano: int)
     url = f"{TONCENTER_API_URL}/getTransactions"
     params = {
         "address": TON_ADMIN_ADDRESS,
-        "limit": 50,
+        "limit": 100,                     # increased from 50 to 100
         "archival": True
     }
 
@@ -135,10 +135,11 @@ async def scan_admin_wallet_for_payment(user_id: int, expected_amount_nano: int)
             return None
 
 
-async def verify_and_grant_premium(user_id: int, tx_hash: str, msg_hash: str | None = None) -> bool:
+async def verify_and_grant_premium(user_id: int, tx_hash: str) -> bool:
     """
     Idempotent premium grant. Checks if tx_hash already used.
     Returns True if premium granted (or already active with this tx), False on error.
+    msg_hash has been removed – no longer stored or used.
     """
     # Check if this transaction hash already processed
     existing = supabase.table("payments").select("id").eq("transaction_id", tx_hash).execute()
@@ -171,7 +172,7 @@ async def verify_and_grant_premium(user_id: int, tx_hash: str, msg_hash: str | N
         "updated_at": now.isoformat()
     }).execute()
 
-    # Insert payment record (msg_hash may be None if not provided)
+    # Insert payment record – msg_hash no longer stored
     expected_nano = int(TON_AMOUNT * 1_000_000_000)
     insert_data = {
         "telegram_id": user_id,
@@ -183,8 +184,6 @@ async def verify_and_grant_premium(user_id: int, tx_hash: str, msg_hash: str | N
         "status": "completed",
         "created_at": now.isoformat()
     }
-    if msg_hash:
-        insert_data["msg_hash"] = msg_hash
 
     supabase.table("payments").insert(insert_data).execute()
 
@@ -192,7 +191,7 @@ async def verify_and_grant_premium(user_id: int, tx_hash: str, msg_hash: str | N
     return True
 
 
-# ========== NEW ENDPOINT: CONFIRM PAYMENT BY POLLING ADMIN WALLET ==========
+# ========== UPDATED ENDPOINT: CONFIRM PAYMENT BY POLLING ADMIN WALLET ==========
 @router.post("/api/ton-confirm-payment")
 async def confirm_payment(request: Request):
     init_data = request.headers.get("X-Telegram-Init-Data", "")
@@ -203,21 +202,17 @@ async def confirm_payment(request: Request):
     if not user_id:
         raise HTTPException(status_code=401, detail="Invalid user")
 
-    body = await request.json()
-    msg_hash = body.get("msg_hash")
-    if not msg_hash:
-        raise HTTPException(status_code=400, detail="Missing msg_hash")
-
+    # No longer expect a msg_hash in the body
     expected_nano = int(TON_AMOUNT * 1_000_000_000)
 
-    # Poll admin wallet every 1 second for up to 20 seconds (20 attempts)
-    max_polls = 20
+    # Poll admin wallet every 1 second for up to 120 seconds (120 attempts)
+    max_polls = 120
     poll_interval = 1
     for attempt in range(max_polls):
         tx_data = await scan_admin_wallet_for_payment(user_id, expected_nano)
         if tx_data:
             tx_hash = tx_data.get("transaction_id", {}).get("hash", "unknown")
-            success = await verify_and_grant_premium(user_id, tx_hash, msg_hash)
+            success = await verify_and_grant_premium(user_id, tx_hash)
             if success:
                 return {"status": "completed", "message": "Premium activated"}
             else:
@@ -537,7 +532,7 @@ async def check_wallet_payment(wallet_addr: str, expected_amount_nano: int) -> b
 
                 out_msgs = tx.get("out_msgs", [])
                 logger.info(f"  out_msgs count: {len(out_msgs)}")
-                for msg_idx, msg in enumerate(out_msgs):
+         for msg_idx, msg in enumerate(out_msgs):
                     dest = msg.get("destination", "")
                     value = msg.get("value")
                     logger.info(f"    msg {msg_idx}: dest={dest}, value={value}")
@@ -562,4 +557,4 @@ async def check_wallet_payment(wallet_addr: str, expected_amount_nano: int) -> b
         except Exception as e:
             logger.error(f"Exception checking wallet transactions: {e}", exc_info=True)
             return False
-            
+        
