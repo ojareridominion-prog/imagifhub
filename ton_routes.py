@@ -58,16 +58,15 @@ def normalize_ton_address(addr: str) -> str:
     return addr.lower()
 
 
-# ========== CORE: SCAN ADMIN WALLET FOR PAYMENT (used as primary polling) ==========
+# ========== CORE: SCAN ADMIN WALLET FOR PAYMENT ==========
 async def scan_admin_wallet_for_payment(user_id: int, expected_amount_nano: int) -> dict | None:
     """
-    Scan last 100 incoming transactions of admin wallet (increased limit).
+    Scan last 100 incoming transactions of admin wallet.
     Looks for a payment with comment containing "user:{user_id}" and amount >= expected.
     Returns the full transaction dict if found, else None.
     """
     if TON_DEV_MODE:
         logger.info(f"[DEV MODE] Simulating transaction for user {user_id}")
-        # Return a dummy transaction structure that will pass verification
         return {
             "transaction_id": {"hash": "dev_tx_hash"},
             "in_msg": {
@@ -85,7 +84,7 @@ async def scan_admin_wallet_for_payment(user_id: int, expected_amount_nano: int)
     url = f"{TONCENTER_API_URL}/getTransactions"
     params = {
         "address": TON_ADMIN_ADDRESS,
-        "limit": 100,                     # increased from 50 to 100
+        "limit": 100,
         "archival": True
     }
 
@@ -106,12 +105,10 @@ async def scan_admin_wallet_for_payment(user_id: int, expected_amount_nano: int)
                 in_msg = tx.get("in_msg")
                 if not in_msg:
                     continue
-                # Check that destination (recipient) is admin address
                 dest = in_msg.get("destination", "")
                 dest_norm = normalize_ton_address(dest)
                 if dest_norm != admin_norm:
                     continue
-                # Check amount
                 value = in_msg.get("value")
                 if value is None:
                     continue
@@ -121,7 +118,6 @@ async def scan_admin_wallet_for_payment(user_id: int, expected_amount_nano: int)
                     continue
                 if value_nano < expected_amount_nano:
                     continue
-                # Check comment (message)
                 comment = in_msg.get("message", "")
                 if target_comment not in comment:
                     continue
@@ -139,9 +135,7 @@ async def verify_and_grant_premium(user_id: int, tx_hash: str) -> bool:
     """
     Idempotent premium grant. Checks if tx_hash already used.
     Returns True if premium granted (or already active with this tx), False on error.
-    msg_hash has been removed – no longer stored or used.
     """
-    # Check if this transaction hash already processed
     existing = supabase.table("payments").select("id").eq("transaction_id", tx_hash).execute()
     if existing.data and len(existing.data) > 0:
         logger.info(f"Transaction {tx_hash} already processed – skipping.")
@@ -150,7 +144,6 @@ async def verify_and_grant_premium(user_id: int, tx_hash: str) -> bool:
     now = datetime.utcnow()
     new_expiry = now + timedelta(days=30)
 
-    # Extend existing premium if any
     user_result = supabase.table("users").select("premium_expires_at").eq("telegram_id", user_id).execute()
     if user_result.data and user_result.data[0].get("premium_expires_at"):
         current_expiry_str = user_result.data[0]["premium_expires_at"]
@@ -172,7 +165,6 @@ async def verify_and_grant_premium(user_id: int, tx_hash: str) -> bool:
         "updated_at": now.isoformat()
     }).execute()
 
-    # Insert payment record – msg_hash no longer stored
     expected_nano = int(TON_AMOUNT * 1_000_000_000)
     insert_data = {
         "telegram_id": user_id,
@@ -184,14 +176,12 @@ async def verify_and_grant_premium(user_id: int, tx_hash: str) -> bool:
         "status": "completed",
         "created_at": now.isoformat()
     }
-
     supabase.table("payments").insert(insert_data).execute()
 
     logger.info(f"✅ Premium granted to user {user_id} via tx {tx_hash}")
     return True
 
 
-# ========== UPDATED ENDPOINT: CONFIRM PAYMENT BY POLLING ADMIN WALLET ==========
 @router.post("/api/ton-confirm-payment")
 async def confirm_payment(request: Request):
     init_data = request.headers.get("X-Telegram-Init-Data", "")
@@ -202,10 +192,8 @@ async def confirm_payment(request: Request):
     if not user_id:
         raise HTTPException(status_code=401, detail="Invalid user")
 
-    # No longer expect a msg_hash in the body
     expected_nano = int(TON_AMOUNT * 1_000_000_000)
 
-    # Poll admin wallet every 1 second for up to 120 seconds (120 attempts)
     max_polls = 120
     poll_interval = 1
     for attempt in range(max_polls):
@@ -220,12 +208,10 @@ async def confirm_payment(request: Request):
         logger.info(f"Poll attempt {attempt+1}/{max_polls}: no matching transaction found for user {user_id}")
         await asyncio.sleep(poll_interval)
 
-    # Not found
     logger.warning(f"Payment not confirmed for user {user_id} after {max_polls} polls")
     return {"status": "pending", "message": "Transaction not yet confirmed. Please wait and retry."}
 
 
-# ========== LEGACY ENDPOINTS (kept for compatibility) ==========
 @router.get("/api/ton-config")
 async def ton_config():
     return {
@@ -236,7 +222,6 @@ async def ton_config():
 
 @router.get("/api/ton-check-tx")
 async def check_transaction(request: Request):
-    # Legacy – kept but not recommended
     init_data = request.headers.get("X-Telegram-Init-Data", "")
     if not init_data:
         raise HTTPException(status_code=401, detail="Missing init data")
@@ -260,7 +245,6 @@ async def check_transaction(request: Request):
 
 @router.get("/api/ton-check-payment")
 async def check_payment(request: Request):
-    # Legacy wallet‑scanning endpoint (kept for fallback usage by old clients)
     init_data = request.headers.get("X-Telegram-Init-Data", "")
     if not init_data:
         raise HTTPException(status_code=401, detail="Missing init data")
@@ -295,7 +279,6 @@ async def check_payment(request: Request):
 
 @router.get("/api/debug-ton-wallet")
 async def debug_ton_wallet(wallet: str):
-    """DEBUG: returns raw toncenter response for the given wallet."""
     headers = {}
     if TON_API_KEY:
         headers["X-API-Key"] = TON_API_KEY
@@ -312,7 +295,6 @@ async def debug_ton_wallet(wallet: str):
 
 @router.post("/api/ton-verify-boc")
 async def verify_boc(request: Request):
-    # Kept exactly as original
     init_data = request.headers.get("X-Telegram-Init-Data", "")
     if not init_data:
         raise HTTPException(status_code=401, detail="Missing init data")
@@ -362,7 +344,6 @@ async def verify_boc(request: Request):
 
 
 async def _grant_premium(user_id: int, tx_hash: str):
-    # Kept original – used by legacy endpoints
     now = datetime.utcnow()
     new_expiry = now + timedelta(days=30)
 
@@ -403,7 +384,6 @@ async def _grant_premium(user_id: int, tx_hash: str):
     return {"status": "completed", "message": "Premium activated"}
 
 
-# Helper functions for legacy endpoints (unchanged, but with fixed indentation)
 async def verify_transaction_by_hash(tx_hash: str, expected_amount_nano: int) -> bool:
     if TON_DEV_MODE:
         logger.info(f"[DEV MODE] Skipping real TON verification for hash {tx_hash}")
@@ -532,7 +512,7 @@ async def check_wallet_payment(wallet_addr: str, expected_amount_nano: int) -> b
 
                 out_msgs = tx.get("out_msgs", [])
                 logger.info(f"  out_msgs count: {len(out_msgs)}")
-         for msg_idx, msg in enumerate(out_msgs):
+                for msg_idx, msg in enumerate(out_msgs):
                     dest = msg.get("destination", "")
                     value = msg.get("value")
                     logger.info(f"    msg {msg_idx}: dest={dest}, value={value}")
@@ -557,4 +537,4 @@ async def check_wallet_payment(wallet_addr: str, expected_amount_nano: int) -> b
         except Exception as e:
             logger.error(f"Exception checking wallet transactions: {e}", exc_info=True)
             return False
-        
+            
