@@ -1,5 +1,6 @@
 # ton_routes.py
 import os
+import asyncio
 import logging
 import httpx
 import base64
@@ -12,18 +13,14 @@ router = APIRouter()
 
 # ========== ENVIRONMENT VARIABLES ==========
 TON_ADMIN_ADDRESS = os.environ.get("TON_ADMIN_ADDRESS", "")
-TON_AMOUNT = float(os.environ.get("TON_AMOUNT", "1.12"))          # in TON
+TON_AMOUNT = float(os.environ.get("TON_AMOUNT", "1.12"))
 TON_DEV_MODE = os.environ.get("TON_DEV_MODE", "false").lower() == "true"
-TONAPI_KEY = os.environ.get("TONAPI_KEY", "")                     # optional
+TONAPI_KEY = os.environ.get("TONAPI_KEY", "")
 
 logger = logging.getLogger(__name__)
 
 
-# ========== ADDRESS NORMALIZATION ==========
 def normalize_ton_address(addr: str) -> str:
-    """
-    Convert any TON address to its raw hex representation (without 0: prefix).
-    """
     addr = addr.strip()
     if not addr:
         return ""
@@ -44,23 +41,22 @@ def normalize_ton_address(addr: str) -> str:
     return addr.lower()
 
 
-# ========== VERIFY USING TonAPI (with endpoint candidates) ==========
 async def verify_by_msg_hash(msg_hash: str, expected_amount_nano: int, expected_user_id: int) -> dict | None:
     if TON_DEV_MODE:
         logger.info(f"[DEV MODE] Simulating verification for msg_hash {msg_hash}")
         return {"hash": "dev_tx_hash"}
 
+    # Give the blockchain time to index
+    await asyncio.sleep(2)
+
     if not TON_ADMIN_ADDRESS:
         logger.error("TON_ADMIN_ADDRESS not set")
         return None
 
-    # Clean hash (remove 0x prefix)
     clean_hash = msg_hash.lower().replace('0x', '')
-    # Possible endpoint patterns (TonAPI v2)
     endpoints = [
         f"https://tonapi.io/v2/blockchain/transactions/by_message_hash/{clean_hash}",
         f"https://tonapi.io/v2/transactions/byMessageHash?hash={clean_hash}",
-        f"https://tonapi.io/v2/transactions/by_message_hash/{clean_hash}",
     ]
 
     headers = {}
@@ -72,19 +68,18 @@ async def verify_by_msg_hash(msg_hash: str, expected_amount_nano: int, expected_
             try:
                 logger.info(f"Trying TonAPI: {url}")
                 resp = await client.get(url, headers=headers)
-                logger.info(f"Response status: {resp.status_code}")
+                logger.info(f"Status: {resp.status_code}")
 
                 if resp.status_code == 200:
                     data = resp.json()
-                    # The response structure may vary – we extract what we need
-                    # Some endpoints return a list with 'transactions', others a single object
+                    # Handle both response formats
                     if isinstance(data, dict) and "transactions" in data:
                         tx_list = data["transactions"]
                         if not tx_list:
                             continue
                         tx = tx_list[0]
                     else:
-                        tx = data  # assume single transaction object
+                        tx = data
 
                     tx_hash = tx.get("hash")
                     if not tx_hash:
@@ -115,7 +110,7 @@ async def verify_by_msg_hash(msg_hash: str, expected_amount_nano: int, expected_
                     try:
                         value_nano = int(value)
                     except (ValueError, TypeError):
-                        logger.error(f"Invalid amount format: {value}")
+                        logger.error(f"Invalid amount: {value}")
                         continue
 
                     if value_nano < expected_amount_nano:
@@ -130,23 +125,15 @@ async def verify_by_msg_hash(msg_hash: str, expected_amount_nano: int, expected_
                     logger.info(f"✅ Verified via {url} – tx_hash={tx_hash}")
                     return {"hash": tx_hash}
 
-                elif resp.status_code == 404:
-                    # hash not found, try next endpoint
-                    continue
-                else:
-                    logger.warning(f"Unexpected status {resp.status_code} from {url}: {resp.text[:200]}")
-                    continue
-
             except Exception as e:
                 logger.error(f"Exception for {url}: {e}")
                 continue
 
-        logger.error("All TonAPI endpoints failed to verify the transaction")
+        logger.error("All TonAPI endpoints failed")
         return None
 
 
 async def verify_and_grant_premium(user_id: int, tx_hash: str) -> bool:
-    # Idempotent check
     existing = supabase.table("payments").select("id").eq("transaction_id", tx_hash).execute()
     if existing.data:
         logger.info(f"Transaction {tx_hash} already processed – skipping.")
@@ -192,7 +179,6 @@ async def verify_and_grant_premium(user_id: int, tx_hash: str) -> bool:
     return True
 
 
-# ========== ENDPOINT ==========
 @router.post("/api/ton-confirm-payment")
 async def confirm_payment(request: Request):
     init_data = request.headers.get("X-Telegram-Init-Data", "")
@@ -227,5 +213,31 @@ async def ton_config():
     return {
         "adminAddress": TON_ADMIN_ADDRESS,
         "amount": TON_AMOUNT
-                    }
+    }
+
+
+# ========== DEBUG ENDPOINT (remove after testing) ==========
+@router.get("/api/ton-debug-msg-hash/{msg_hash}")
+async def debug_ton_api(msg_hash: str):
+    """Returns raw TonAPI response for a given message hash"""
+    clean_hash = msg_hash.lower().replace('0x', '')
+    endpoints = [
+        f"https://tonapi.io/v2/blockchain/transactions/by_message_hash/{clean_hash}",
+        f"https://tonapi.io/v2/transactions/byMessageHash?hash={clean_hash}",
+    ]
+    results = {}
+    headers = {}
+    if TONAPI_KEY:
+        headers["Authorization"] = f"Bearer {TONAPI_KEY}"
     
+    async with httpx.AsyncClient(timeout=15.0) as client:
+        for url in endpoints:
+            try:
+                resp = await client.get(url, headers=headers)
+                results[url] = {
+                    "status": resp.status_code,
+                    "body": resp.json() if resp.status_code == 200 else resp.text[:500]
+                }
+            except Exception as e:
+                results[url] = {"error": str(e)}
+    return results
