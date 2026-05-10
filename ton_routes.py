@@ -9,36 +9,32 @@ from utils import get_user_id_from_init_data
 from config import supabase
 from datetime import datetime, timedelta
 
+# TON SDK for BOC parsing
+from tonsdk.utils import Address
+from tonsdk.boc import Cell
+import hashlib
+
 router = APIRouter()
 
 # ========== ENVIRONMENT VARIABLES ==========
 TON_ADMIN_ADDRESS = os.environ.get("TON_ADMIN_ADDRESS", "")
 TON_AMOUNT = float(os.environ.get("TON_AMOUNT", "1.12"))          # in TON
 TON_DEV_MODE = os.environ.get("TON_DEV_MODE", "false").lower() == "true"
-TONAPI_KEY = os.environ.get("TONAPI_KEY", "")                     # optional for TonAPI
+TONAPI_KEY = os.environ.get("TONAPI_KEY", "")
 
 logger = logging.getLogger(__name__)
 
 
 # ========== ADDRESS NORMALIZATION ==========
 def normalize_ton_address(addr: str) -> str:
-    """
-    Convert any TON address to its raw hex representation (without 0: prefix).
-    Handles raw hex (0:...), raw hex without prefix, and user‑friendly (EQ/UQ...).
-    """
+    """Convert any TON address to raw hex (without 0: prefix)."""
     addr = addr.strip()
     if not addr:
         return ""
-
-    # Already raw hex without prefix?
     if len(addr) == 64 and all(c in "0123456789abcdefABCDEF" for c in addr):
         return addr.lower()
-
-    # Raw hex with 0: prefix
     if addr.startswith("0:"):
         return addr[2:].lower()
-
-    # User‑friendly format (EQ... or UQ...)
     if addr.startswith("EQ") or addr.startswith("UQ"):
         b64 = addr[2:].replace('-', '+').replace('_', '/')
         missing = len(b64) % 4
@@ -50,38 +46,54 @@ def normalize_ton_address(addr: str) -> str:
             return hex_part
         except Exception:
             pass
-
-    # Fallback: return as is (lowercase)
     return addr.lower()
 
 
-# ========== VERIFY TRANSACTION BY MESSAGE HASH (TonAPI) ==========
-async def verify_by_msg_hash(msg_hash: str, expected_amount_nano: int, expected_user_id: int) -> dict | None:
+# ========== DECODE BOC AND EXTRACT INTERNAL MESSAGE HASH ==========
+def internal_msg_hash_from_boc(boc_base64: str) -> str | None:
     """
-    Call TonAPI /v2/blockchain/transactions/by_message_hash/{msg_hash}
-    Returns dict with at least {"hash": tx_hash} if valid, else None.
+    Decode the BOC (base64) of the signed external message,
+    extract the internal message cell, compute its SHA256 hash.
     """
-    if TON_DEV_MODE:
-        logger.info(f"[DEV MODE] Simulating verification for msg_hash {msg_hash}")
-        return {"hash": "dev_tx_hash"}
-
-    # Give the blockchain a moment to index the transaction
-    await asyncio.sleep(2)
-
-    if not TON_ADMIN_ADDRESS:
-        logger.error("TON_ADMIN_ADDRESS not set")
+    try:
+        boc_bytes = base64.b64decode(boc_base64)
+        cell = Cell.deserialize(boc_bytes)
+        
+        # External message: the first reference is the internal message
+        if not cell.refs:
+            logger.error("No references in external message cell")
+            return None
+        
+        internal_cell = cell.refs[0]
+        # Serialize the internal cell (without restoring to BOC, just its representation)
+        # Hash of the internal message is SHA256 of its binary representation (including type bits)
+        internal_bytes = internal_cell.serialize()
+        msg_hash = hashlib.sha256(internal_bytes).hexdigest()
+        return msg_hash
+    except Exception as e:
+        logger.error(f"Failed to decode BOC: {e}")
         return None
 
-    clean_hash = msg_hash.lower().replace('0x', '')
-    url = f"https://tonapi.io/v2/blockchain/transactions/by_message_hash/{clean_hash}"
 
-    headers = {}
-    if TONAPI_KEY:
-        headers["Authorization"] = f"Bearer {TONAPI_KEY}"
+# ========== VERIFY TRANSACTION VIA INTERNAL MESSAGE HASH ==========
+async def verify_by_internal_msg_hash(
+    internal_msg_hash: str,
+    expected_amount_nano: int,
+    expected_user_id: int
+) -> dict | None:
+    """Call TonAPI /by_message_hash with the correct internal message hash."""
+    if TON_DEV_MODE:
+        logger.info(f"[DEV MODE] Simulating verification for hash {internal_msg_hash}")
+        return {"hash": "dev_tx_hash"}
+
+    await asyncio.sleep(3)  # allow time for indexing
+
+    clean_hash = internal_msg_hash.lower().replace('0x', '')
+    url = f"https://tonapi.io/v2/blockchain/transactions/by_message_hash/{clean_hash}"
+    headers = {"Authorization": f"Bearer {TONAPI_KEY}"} if TONAPI_KEY else {}
 
     async with httpx.AsyncClient(timeout=15.0) as client:
         try:
-            logger.info(f"Calling TonAPI: {url}")
             resp = await client.get(url, headers=headers)
             if resp.status_code != 200:
                 logger.error(f"TonAPI error {resp.status_code}: {resp.text[:200]}")
@@ -90,15 +102,14 @@ async def verify_by_msg_hash(msg_hash: str, expected_amount_nano: int, expected_
             tx = resp.json()
             tx_hash = tx.get("hash")
             if not tx_hash:
-                logger.error("Transaction hash missing in TonAPI response")
+                logger.error("No transaction hash in response")
                 return None
 
-            # The incoming message (to the admin wallet) is in 'in_msgs'
+            # Verify details
             in_msgs = tx.get("in_msgs", [])
             if not in_msgs:
-                logger.error("No in_msgs in transaction – cannot verify destination")
+                logger.error("No in_msgs in transaction")
                 return None
-
             in_msg = in_msgs[0]
             destination = in_msg.get("destination", "")
             value = in_msg.get("value")
@@ -106,46 +117,37 @@ async def verify_by_msg_hash(msg_hash: str, expected_amount_nano: int, expected_
 
             admin_norm = normalize_ton_address(TON_ADMIN_ADDRESS)
             dest_norm = normalize_ton_address(destination)
-
             if admin_norm != dest_norm:
                 logger.error(f"Destination mismatch: {dest_norm} != {admin_norm}")
                 return None
 
-            if value is None:
-                logger.error("Amount missing in transaction")
-                return None
             try:
                 value_nano = int(value)
             except (ValueError, TypeError):
-                logger.error(f"Invalid amount format: {value}")
+                logger.error(f"Invalid amount: {value}")
                 return None
 
             if value_nano < expected_amount_nano:
                 logger.error(f"Amount too low: {value_nano} < {expected_amount_nano}")
                 return None
 
-            target_comment = f"user:{expected_user_id}"
-            if target_comment not in comment:
-                logger.error(f"Comment mismatch: expected '{target_comment}', got '{comment}'")
+            if f"user:{expected_user_id}" not in comment:
+                logger.error(f"Comment mismatch: expected 'user:{expected_user_id}', got '{comment}'")
                 return None
 
-            logger.info(f"✅ Transaction verified via TonAPI: {tx_hash} for user {expected_user_id}")
+            logger.info(f"✅ Transaction verified: {tx_hash}")
             return {"hash": tx_hash}
 
         except Exception as e:
-            logger.error(f"TonAPI verification exception: {e}", exc_info=True)
+            logger.error(f"TonAPI verification error: {e}", exc_info=True)
             return None
 
 
 # ========== IDEMPOTENT PREMIUM GRANT ==========
 async def verify_and_grant_premium(user_id: int, tx_hash: str) -> bool:
-    """
-    Idempotent premium grant. Checks if tx_hash already used.
-    Returns True if premium granted (or already active with this tx), False on error.
-    """
     existing = supabase.table("payments").select("id").eq("transaction_id", tx_hash).execute()
     if existing.data and len(existing.data) > 0:
-        logger.info(f"Transaction {tx_hash} already processed – skipping.")
+        logger.info(f"Transaction {tx_hash} already processed.")
         return True
 
     now = datetime.utcnow()
@@ -173,7 +175,7 @@ async def verify_and_grant_premium(user_id: int, tx_hash: str) -> bool:
     }).execute()
 
     expected_nano = int(TON_AMOUNT * 1_000_000_000)
-    insert_data = {
+    supabase.table("payments").insert({
         "telegram_id": user_id,
         "provider": "ton",
         "amount": expected_nano,
@@ -182,17 +184,16 @@ async def verify_and_grant_premium(user_id: int, tx_hash: str) -> bool:
         "transaction_id": tx_hash,
         "status": "completed",
         "created_at": now.isoformat()
-    }
-    supabase.table("payments").insert(insert_data).execute()
+    }).execute()
 
-    logger.info(f"✅ Premium granted to user {user_id} via tx {tx_hash}")
+    logger.info(f"✅ Premium granted to user {user_id}")
     return True
 
 
 # ========== ENDPOINT: CONFIRM TON PAYMENT ==========
 @router.post("/api/ton-confirm-payment")
 async def confirm_payment(request: Request):
-    """Receive msg_hash, verify via TonAPI, grant premium."""
+    """Receive BOC, extract internal message hash, verify via TonAPI."""
     init_data = request.headers.get("X-Telegram-Init-Data", "")
     if not init_data:
         raise HTTPException(status_code=401, detail="Missing init data")
@@ -202,13 +203,21 @@ async def confirm_payment(request: Request):
         raise HTTPException(status_code=401, detail="Invalid user")
 
     body = await request.json()
-    msg_hash = body.get("msg_hash")
-    if not msg_hash:
-        raise HTTPException(status_code=400, detail="Missing msg_hash")
+    boc_base64 = body.get("boc")
+    if not boc_base64:
+        raise HTTPException(status_code=400, detail="Missing boc field")
+
+    # 1. Compute internal message hash from BOC
+    internal_msg_hash = internal_msg_hash_from_boc(boc_base64)
+    if not internal_msg_hash:
+        raise HTTPException(status_code=400, detail="Failed to decode BOC or extract internal message")
+
+    logger.info(f"Computed internal message hash: {internal_msg_hash}")
 
     expected_nano = int(TON_AMOUNT * 1_000_000_000)
-    tx_info = await verify_by_msg_hash(msg_hash, expected_nano, user_id)
 
+    # 2. Verify via TonAPI
+    tx_info = await verify_by_internal_msg_hash(internal_msg_hash, expected_nano, user_id)
     if not tx_info:
         raise HTTPException(status_code=400, detail="Transaction verification failed")
 
@@ -226,5 +235,5 @@ async def ton_config():
     return {
         "adminAddress": TON_ADMIN_ADDRESS,
         "amount": TON_AMOUNT
-                }
+        }
     
