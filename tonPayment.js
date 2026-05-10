@@ -1,4 +1,4 @@
-// tonPayment.js – Message hash based verification flow (fixed payload)
+// tonPayment.js – Message hash based verification (no polling)
 import { verifyPremiumStatus } from './premiumManager.js';
 
 let tonConnectUI = null;
@@ -191,9 +191,7 @@ export async function initWalletUI() {
     }
 }
 
-// ---------------------------------------------
-// FIXED: send premium payment using msg_hash flow with valid payload
-// ---------------------------------------------
+// -------------------- SEND TON PREMIUM (NEW – NO POLLING) --------------------
 export async function sendTonPremiumPayment() {
     const tg = window.Telegram.WebApp;
     const statusEl = document.getElementById('paymentStatus');
@@ -240,7 +238,7 @@ export async function sendTonPremiumPayment() {
         messages: [{
             address: adminAddr,
             amount: amountNano.toString(),
-            payload: payloadBase64   // now a valid base64-encoded cell
+            payload: payloadBase64
         }]
     };
 
@@ -260,13 +258,26 @@ export async function sendTonPremiumPayment() {
         const msgHash = await computeMessageHash(bocBase64);
         console.log("Computed message hash:", msgHash);
         
-        // Step 3: Poll backend with msg_hash
+        // Step 3: Single API call to confirm payment
         if (statusEl) {
-            statusEl.textContent = "⏳ Waiting for confirmation...";
+            statusEl.textContent = "⏳ Verifying payment...";
         }
-        const confirmed = await pollConfirmPayment(msgHash);
+        const response = await fetch(`${API_URL}/api/ton-confirm-payment`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Telegram-Init-Data': tg.initData
+            },
+            body: JSON.stringify({ msg_hash: msgHash })
+        });
         
-        if (confirmed) {
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(errorData.detail || "Verification failed");
+        }
+        
+        const data = await response.json();
+        if (data.status === 'completed') {
             await verifyPremiumStatus();
             if (statusEl) {
                 statusEl.textContent = "✅ Premium activated!";
@@ -275,42 +286,13 @@ export async function sendTonPremiumPayment() {
             setTimeout(() => { if (window.closePremium) window.closePremium(); }, 1500);
             return true;
         } else {
-            throw new Error("Transaction confirmation failed");
+            throw new Error("Unexpected response from server");
         }
     } catch (err) {
         console.error("TON payment error:", err);
         if (tg.showAlert) tg.showAlert("TON payment failed: " + err.message);
         throw err;
     }
-}
-
-async function pollConfirmPayment(msgHash, maxAttempts = 30, intervalMs = 2000) {
-    const tg = window.Telegram.WebApp;
-    for (let attempt = 0; attempt < maxAttempts; attempt++) {
-        try {
-            const response = await fetch(`${API_URL}/api/ton-confirm-payment`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-Telegram-Init-Data': tg.initData
-                },
-                body: JSON.stringify({ msg_hash: msgHash })
-            });
-            const data = await response.json();
-            if (data.status === 'completed') {
-                return true;
-            }
-            if (data.status === 'pending') {
-                // continue polling
-            } else {
-                console.warn("Unexpected response:", data);
-            }
-        } catch (err) {
-            console.warn("Polling error:", err);
-        }
-        await new Promise(r => setTimeout(r, intervalMs));
-    }
-    return false;
 }
 
 async function fetchTonAdminAddress() {
@@ -324,6 +306,7 @@ async function fetchTonAdminAddress() {
     }
 }
 
+// Expose for global usage
 window.initWalletUI = initWalletUI;
 window.sendTonPremiumPayment = sendTonPremiumPayment;
 window.disconnectTonWallet = disconnectTonWallet;
