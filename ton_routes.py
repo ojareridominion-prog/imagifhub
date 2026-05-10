@@ -9,8 +9,6 @@ from utils import get_user_id_from_init_data
 from config import supabase
 from datetime import datetime, timedelta
 
-# TON SDK for BOC parsing
-from tonsdk.utils import Address
 from tonsdk.boc import Cell
 import hashlib
 
@@ -57,21 +55,29 @@ def internal_msg_hash_from_boc(boc_base64: str) -> str | None:
     """
     try:
         boc_bytes = base64.b64decode(boc_base64)
-        cell = Cell.deserialize(boc_bytes)
+        # Deserialize the root cell (external message)
+        root_cell = Cell.one_from_boc(boc_bytes)
         
-        # External message: the first reference is the internal message
-        if not cell.refs:
+        # The external message has a reference to the internal message cell
+        if not root_cell.refs:
             logger.error("No references in external message cell")
             return None
         
-        internal_cell = cell.refs[0]
-        # Serialize the internal cell (without restoring to BOC, just its representation)
-        # Hash of the internal message is SHA256 of its binary representation (including type bits)
-        internal_bytes = internal_cell.serialize()
-        msg_hash = hashlib.sha256(internal_bytes).hexdigest()
+        internal_cell = root_cell.refs[0]
+        # Compute hash of the internal message cell
+        # The hash is SHA256 of the cell's representation (including its data and references)
+        # Using cell.hash property (most reliable)
+        if hasattr(internal_cell, 'hash'):
+            msg_hash = internal_cell.hash.hex()
+        else:
+            # Fallback: serialize and hash
+            internal_bytes = internal_cell.serialize()
+            msg_hash = hashlib.sha256(internal_bytes).hexdigest()
+        
+        logger.info(f"Computed internal message hash: {msg_hash}")
         return msg_hash
     except Exception as e:
-        logger.error(f"Failed to decode BOC: {e}")
+        logger.error(f"Failed to decode BOC: {e}", exc_info=True)
         return None
 
 
@@ -235,5 +241,5 @@ async def ton_config():
     return {
         "adminAddress": TON_ADMIN_ADDRESS,
         "amount": TON_AMOUNT
-        }
+    }
     
