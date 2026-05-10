@@ -1,4 +1,4 @@
-// tonPayment.js – Complete with correct internal message hash
+// tonPayment.js – Compute transaction hash (cell hash) from BOC
 import { verifyPremiumStatus } from './premiumManager.js';
 
 let tonConnectUI = null;
@@ -40,26 +40,16 @@ async function createTextPayload(text) {
     return TonWeb.utils.bytesToBase64(await cell.toBoc());
 }
 
-// ========== CORRECT INTERNAL MESSAGE HASH ==========
-async function computeInternalMessageHash(bocBase64) {
+// ========== CORRECT TRANSACTION HASH (CELL HASH) ==========
+async function computeTxHash(bocBase64) {
     const TonWeb = await loadTonWeb();
     const bocBytes = base64ToBytes(bocBase64);
     const cell = TonWeb.boc.Cell.oneFromBoc(bocBytes);
-    
-    // The external message has a reference to the internal message cell
-    if (!cell.refs || cell.refs.length === 0) {
-        throw new Error("No internal message reference in BOC");
-    }
-    const internalCell = cell.refs[0];
-    // Serialize the internal cell to bytes WITHOUT index (pure cell data)
-    const internalBytes = await internalCell.toBoc(false);
-    const hashBytes = await crypto.subtle.digest('SHA-256', internalBytes);
-    return Array.from(new Uint8Array(hashBytes))
-        .map(b => b.toString(16).padStart(2, '0'))
-        .join('');
+    const hashBytes = await cell.hash();
+    return TonWeb.utils.bytesToHex(hashBytes);
 }
 
-// ========== WALLET UI ==========
+// ========== WALLET UI (fully preserved) ==========
 function updateWalletUI() {
     const walletRow = document.getElementById('walletConnectRow');
     if (!walletRow) return;
@@ -213,7 +203,7 @@ export async function initWalletUI() {
     }
 }
 
-// ========== SEND TON PREMIUM (uses internal message hash) ==========
+// ========== SEND TON PREMIUM (uses transaction hash) ==========
 export async function sendTonPremiumPayment() {
     const tg = window.Telegram.WebApp;
     const statusEl = document.getElementById('paymentStatus');
@@ -271,9 +261,9 @@ export async function sendTonPremiumPayment() {
         const bocBase64 = result.boc;
         if (!bocBase64) throw new Error("No BOC returned from wallet");
         
-        if (statusEl) statusEl.textContent = "⏳ Computing internal message hash...";
-        const internalMsgHash = await computeInternalMessageHash(bocBase64);
-        console.log("Internal message hash:", internalMsgHash);
+        if (statusEl) statusEl.textContent = "⏳ Computing transaction hash...";
+        const txHash = await computeTxHash(bocBase64);
+        console.log("Transaction hash:", txHash);
         
         if (statusEl) statusEl.textContent = "⏳ Verifying payment...";
         const response = await fetch(`${API_URL}/api/ton-confirm-payment`, {
@@ -282,7 +272,7 @@ export async function sendTonPremiumPayment() {
                 'Content-Type': 'application/json',
                 'X-Telegram-Init-Data': tg.initData
             },
-            body: JSON.stringify({ msg_hash: internalMsgHash })
+            body: JSON.stringify({ tx_hash: txHash })
         });
         
         if (!response.ok) {
