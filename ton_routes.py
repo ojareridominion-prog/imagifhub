@@ -1,4 +1,4 @@
-# ton_routes.py – Corrected hash-based verification with full debug endpoint
+# ton_routes.py – User-wallet polling (no admin wallet)
 import os
 import asyncio
 import logging
@@ -8,7 +8,6 @@ from fastapi import APIRouter, Request, HTTPException
 from utils import get_user_id_from_init_data
 from config import supabase
 from datetime import datetime, timedelta
-import hashlib
 
 router = APIRouter()
 
@@ -21,98 +20,109 @@ POLL_INTERVAL = 3
 
 logger = logging.getLogger(__name__)
 
-def compute_sha256(data: bytes) -> str:
-    """Compute SHA256 hash of raw bytes for debugging."""
-    return hashlib.sha256(data).hexdigest()
+def get_raw_address(address: str) -> str:
+    """
+    Convert a user‑friendly TON address (EQ/UQ) to raw format (workchain:hex).
+    Used to compare addresses returned by TonAPI.
+    """
+    if ":" in address:
+        return address
+    try:
+        # Base64 decode the user‑friendly address
+        b64_padded = address.replace('-', '+').replace('_', '/')
+        b64_padded += "=" * ((4 - len(b64_padded) % 4) % 4)
+        decoded = base64.b64decode(b64_padded)
+        workchain = int.from_bytes(decoded[1:2], byteorder="big", signed=True)
+        hash_part = decoded[2:34].hex()
+        return f"{workchain}:{hash_part}"
+    except Exception as e:
+        logger.error(f"Failed to parse address {address}: {e}")
+        return address  # fallback to original
 
-async def verify_transaction_by_norm_hash(
-    norm_hash: str,
-    boc_b64: str = None,
-    expected_amount_nano: int = None,
-    expected_comment: str = None,
+async def verify_transaction_via_sender(
+    sender_address: str,
+    expected_amount_nano: int,
+    expected_comment: str,
     max_retries: int = 20,
     delay_seconds: int = 3
 ) -> dict | None:
     """
-    Query TonAPI for a transaction by its normalized message hash.
-    Uses the /v2/blockchain/messages/{norm_hash} endpoint.
+    Poll the sender's wallet for recent outgoing transactions.
+    Returns the transaction hash if a matching payment is found.
     """
     if TON_DEV_MODE:
-        logger.info(f"[DEV MODE] Simulating verification for norm_hash {norm_hash}")
-        return {"status": "simulated", "hash": norm_hash}
+        logger.info(f"[DEV MODE] Simulating verification for sender {sender_address}")
+        return {"status": "found", "hash": "dev_simulated_hash"}
 
     if not TON_ADMIN_ADDRESS:
         logger.error("TON_ADMIN_ADDRESS not set")
         return None
 
-    # Remove 0x prefix if present
-    clean_hash = norm_hash.lower().replace('0x', '')
-    url = f"https://tonapi.io/v2/blockchain/messages/{clean_hash}"
+    # Convert admin address to raw format for reliable comparison
+    raw_admin = get_raw_address(TON_ADMIN_ADDRESS)
+    # Also keep the user‑friendly version (some endpoints return one or the other)
+    friendly_admin = TON_ADMIN_ADDRESS
+
+    # Use the sender address as‑is (already in raw format from TonConnect)
+    url = f"https://tonapi.io/v2/accounts/{sender_address}/transactions?limit=10"
     headers = {"Authorization": f"Bearer {TONAPI_KEY}"} if TONAPI_KEY else {}
 
     for attempt in range(1, max_retries + 1):
         async with httpx.AsyncClient(timeout=15.0) as client:
             try:
-                logger.info(f"Attempt {attempt}/{max_retries}: checking message {clean_hash[:16]}...")
+                logger.info(f"Attempt {attempt}/{max_retries}: checking sender wallet {sender_address[:8]}...")
                 resp = await client.get(url, headers=headers)
 
-                if resp.status_code == 404:
-                    logger.warning(f"Message not found yet (attempt {attempt}/{max_retries})")
+                if resp.status_code != 200:
+                    logger.warning(f"TonAPI error {resp.status_code}: {resp.text[:200]}")
                     if attempt < max_retries:
                         await asyncio.sleep(delay_seconds)
                         continue
                     else:
-                        logger.error("Message not found after all retries")
                         return None
 
-                if resp.status_code != 200:
-                    logger.error(f"TonAPI error {resp.status_code}: {resp.text[:200]}")
-                    return None
+                data = resp.json()
+                transactions = data.get("transactions", [])
 
-                # If we got a 200, the message exists
-                msg_data = resp.json()
-                logger.info(f"Message found! Data keys: {list(msg_data.keys())}")
-                
-                # Extract transaction info
-                tx_hash = msg_data.get("transaction", {}).get("hash")
-                logger.info(f"✅ Message found! Associated transaction: {tx_hash}")
-                
-                # We can optionally verify destination and comment here
-                destination = msg_data.get("destination")
-                dest_addr = destination.get("address", "") if isinstance(destination, dict) else str(destination) if destination else ""
-                
-                # Extract comment
-                decoded_body = msg_data.get("decoded_body", {})
-                comment = decoded_body.get("text", "") or msg_data.get("message", "")
-                
-                # Extract amount
-                value = msg_data.get("value")
-                
-                logger.info(f"Destination: {dest_addr}")
-                logger.info(f"Comment: {comment}")
-                logger.info(f"Amount: {value}")
-                
-                # Basic checks (non-blocking for now - just log)
-                if expected_comment and expected_comment not in comment:
-                    logger.warning(f"Comment mismatch: expected '{expected_comment}', got '{comment}'")
-                if expected_amount_nano and value and int(value) < expected_amount_nano:
-                    logger.warning(f"Amount too low: {value} < {expected_amount_nano}")
-                    
-                return {"status": "found", "hash": norm_hash, "tx_hash": tx_hash, "msg_data": msg_data}
+                for tx in transactions:
+                    out_msgs = tx.get("out_msgs", [])
+                    for msg in out_msgs:
+                        dest_obj = msg.get("destination", {})
+                        dest_addr = dest_obj.get("address", "") if isinstance(dest_obj, dict) else str(dest_obj)
+
+                        # Compare destination (both raw and friendly)
+                        if dest_addr not in (raw_admin, friendly_admin):
+                            continue
+
+                        value = int(msg.get("value", 0))
+                        if value < expected_amount_nano:
+                            continue
+
+                        decoded_body = msg.get("decoded_body", {})
+                        comment = decoded_body.get("text", "") or msg.get("message", "")
+
+                        if expected_comment in comment:
+                            tx_hash = tx.get("hash")
+                            logger.info(f"✅ Matching transaction found: {tx_hash}")
+                            return {"status": "found", "hash": tx_hash}
+
+                logger.info(f"No matching transaction yet (attempt {attempt}/{max_retries})")
+                if attempt < max_retries:
+                    await asyncio.sleep(delay_seconds)
 
             except Exception as e:
-                logger.error(f"TonAPI exception on attempt {attempt}: {e}", exc_info=True)
+                logger.error(f"Polling attempt {attempt} failed: {e}", exc_info=True)
                 if attempt < max_retries:
                     await asyncio.sleep(delay_seconds)
                 else:
                     return None
     return None
 
-async def verify_and_grant_premium(user_id: int, msg_hash: str) -> bool:
-    """Grant premium using message hash as unique idempotency key."""
-    existing = supabase.table("payments").select("id").eq("transaction_id", msg_hash).execute()
+async def verify_and_grant_premium(user_id: int, tx_hash: str) -> bool:
+    """Grant premium using transaction hash as unique idempotency key."""
+    existing = supabase.table("payments").select("id").eq("transaction_id", tx_hash).execute()
     if existing.data:
-        logger.info(f"Message {msg_hash} already processed – skipping.")
+        logger.info(f"Transaction {tx_hash} already processed – skipping.")
         return True
 
     now = datetime.utcnow()
@@ -145,19 +155,20 @@ async def verify_and_grant_premium(user_id: int, msg_hash: str) -> bool:
         "provider": "ton",
         "amount": expected_nano,
         "currency": "nanoTON",
-        "payload": f"ton_{user_id}_{msg_hash[:8]}",
-        "transaction_id": msg_hash,
+        "payload": f"ton_{user_id}_{tx_hash[:8]}",
+        "transaction_id": tx_hash,
         "status": "completed",
         "created_at": now.isoformat()
     }).execute()
 
-    logger.info(f"✅ Premium granted to user {user_id} via normalized message {msg_hash}")
+    logger.info(f"✅ Premium granted to user {user_id} via transaction {tx_hash}")
     return True
 
 @router.post("/api/ton-confirm-payment")
 async def confirm_payment(request: Request):
     """
-    Receive normalized message hash from frontend and verify.
+    Receive sender wallet address from frontend, poll user's transactions,
+    and grant premium if the expected payment is found.
     """
     init_data = request.headers.get("X-Telegram-Init-Data", "")
     if not init_data:
@@ -168,36 +179,30 @@ async def confirm_payment(request: Request):
         raise HTTPException(status_code=401, detail="Invalid user")
 
     body = await request.json()
-    norm_hash = body.get("norm_hash")
-    boc_b64 = body.get("boc_b64")
-    
-    if not norm_hash:
-        raise HTTPException(status_code=400, detail="Missing normalized message hash")
+    sender_address = body.get("sender_address")
+    boc_b64 = body.get("boc_b64")   # kept for logging, not used in verification
+
+    if not sender_address:
+        raise HTTPException(status_code=400, detail="Missing sender wallet address")
 
     expected_comment = f"user:{user_id}"
     expected_nano = int(TON_AMOUNT * 1_000_000_000)
 
-    # Log the BOC for debugging if provided
     if boc_b64:
-        logger.info(f"Received BOC length: {len(boc_b64)} chars, first 100 chars: {boc_b64[:100]}...")
-        try:
-            boc_bytes = base64.b64decode(boc_b64)
-            logger.info(f"BOC byte length: {len(boc_bytes)} bytes")
-            logger.info(f"SHA256 of BOC: {compute_sha256(boc_bytes)}")
-        except Exception as e:
-            logger.error(f"Failed to decode BOC: {e}")
+        logger.info(f"Received BOC (length {len(boc_b64)} chars) – not used for verification")
 
-    verification = await verify_transaction_by_norm_hash(
-        norm_hash=norm_hash,
-        boc_b64=boc_b64,
+    # Poll the sender's wallet
+    verification = await verify_transaction_via_sender(
+        sender_address=sender_address,
         expected_amount_nano=expected_nano,
         expected_comment=expected_comment
     )
 
     if not verification or verification.get("status") != "found":
-        raise HTTPException(status_code=400, detail=f"Message verification failed. Hash: {norm_hash[:32]}...")
+        raise HTTPException(status_code=400, detail="Payment verification failed – transaction not found in sender's wallet")
 
-    success = await verify_and_grant_premium(user_id, norm_hash)
+    actual_tx_hash = verification.get("hash")
+    success = await verify_and_grant_premium(user_id, actual_tx_hash)
     if not success:
         raise HTTPException(status_code=500, detail="Failed to grant premium")
 
@@ -211,7 +216,7 @@ async def ton_config():
 async def debug_ton_payment():
     """
     Comprehensive debug endpoint for TON payment issues.
-    Shows environment config, test hash generation, etc.
+    Shows environment config.
     """
     debug_info = {
         "admin_address_env": TON_ADMIN_ADDRESS,
@@ -220,33 +225,23 @@ async def debug_ton_payment():
         "dev_mode": TON_DEV_MODE,
         "api_base_url": "https://tonapi.io/v2",
         "test_endpoints": {
-            "message_lookup": "https://tonapi.io/v2/blockchain/messages/{hash}",
-            "account_transactions": f"https://tonapi.io/v2/accounts/{TON_ADMIN_ADDRESS}/transactions" if TON_ADMIN_ADDRESS else "Not configured"
+            "user_transactions": "https://tonapi.io/v2/accounts/{user_address}/transactions",
         },
         "troubleshooting_tips": [
             "Ensure TON_ADMIN_ADDRESS is set exactly as user-friendly format (EQ... or UQ...)",
             "Check that TONAPI_KEY is valid and has rate limits available",
-            "Messages can take up to 30 seconds to be indexed after transaction",
-            "Normalized hash must follow TEP-467 standard",
-            "Verify the comment format is exactly 'user:{telegram_id}'"
+            "Transactions appear on TonAPI within a few seconds after being mined",
+            "The frontend now sends the user's wallet address; we poll that wallet's recent transactions",
+            "Comment format must be exactly 'user:{telegram_id}'"
         ]
     }
-    
-    # If admin address is set, test normalization
-    if TON_ADMIN_ADDRESS:
-        try:
-            from ton_utils import normalize_ton_address
-            debug_info["admin_address_normalized"] = normalize_ton_address(TON_ADMIN_ADDRESS)
-        except ImportError:
-            debug_info["admin_address_normalized"] = "normalization function not available"
-    
     return debug_info
 
-# Also keep the old debug endpoint for backward compatibility
 @router.get("/debug/admin-raw")
 async def debug_admin_raw():
     return {
         "env_raw": TON_ADMIN_ADDRESS,
+        "raw_format": get_raw_address(TON_ADMIN_ADDRESS) if TON_ADMIN_ADDRESS else None,
         "note": "Address used as-is for string comparison."
-    }
+        }
     
