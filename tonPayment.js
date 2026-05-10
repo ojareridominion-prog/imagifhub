@@ -1,4 +1,4 @@
-// tonPayment.js – Complete file implementing correct TEP-467 normalized hash
+// tonPayment.js – Complete file implementing user-wallet polling
 import { verifyPremiumStatus } from './premiumManager.js';
 
 let tonConnectUI = null;
@@ -38,54 +38,6 @@ async function createTextPayload(text) {
     cell.bits.writeUint(0, 32);
     cell.bits.writeString(text);
     return TonWeb.utils.bytesToBase64(await cell.toBoc());
-}
-
-// ========== TEP-467 NORMALIZED HASH CALCULATION ==========
-async function computeNormalizedMsgHash(bocBase64) {
-    const TonWeb = await loadTonWeb();
-    const bocBytes = base64ToBytes(bocBase64);
-    const originalCell = TonWeb.boc.Cell.oneFromBoc(bocBytes);
-    
-    // Attempt to parse the message
-    let msg;
-    try {
-        msg = TonWeb.boc.Cell.oneFromBoc(bocBytes);
-    } catch (e) {
-        console.error("Failed to parse message from BOC:", e);
-        // Fallback: use the raw cell hash if parsing fails
-        const rawHash = await originalCell.hash();
-        return TonWeb.utils.bytesToHex(rawHash);
-    }
-    
-    try {
-        // Try the library's built-in method if available
-        if (TonWeb.utils.getNormalizedExtMessageHash) {
-            const normHash = TonWeb.utils.getNormalizedExtMessageHash(msg);
-            return TonWeb.utils.bytesToHex(normHash);
-        }
-    } catch (e) {
-        console.warn("getNormalizedExtMessageHash failed, falling back to manual normalization", e);
-    }
-    
-    // Manual normalization per TEP-467
-    // Steps: set src to addr_none (all zeros), set import_fee to 0, ensure body is a ref
-    try {
-        // Clone the cell structure and modify for normalization
-        // For external messages, we need to remove src address and set import_fee to 0
-        const normalizedCell = TonWeb.boc.Cell.oneFromBoc(bocBase64);
-        // This is a simplified approach – TonWeb may not expose all normalization APIs
-        const normHashBytes = await normalizedCell.hash();
-        const hash = TonWeb.utils.bytesToHex(normHashBytes);
-        console.log("Manual normalized hash (may not be fully TEP-467 compliant):", hash);
-        return hash;
-    } catch (e) {
-        console.error("Manual normalization failed:", e);
-        // Ultimate fallback: send raw hash to backend
-        const rawHashBytes = await originalCell.hash();
-        const rawHash = TonWeb.utils.bytesToHex(rawHashBytes);
-        console.log("Falling back to raw message hash:", rawHash);
-        return rawHash;
-    }
 }
 
 // ========== WALLET UI FUNCTIONS ==========
@@ -240,7 +192,7 @@ export async function initWalletUI() {
     }
 }
 
-// ========== SEND TON PREMIUM (with normalized hash) ==========
+// ========== SEND TON PREMIUM (user‑wallet polling) ==========
 export async function sendTonPremiumPayment() {
     const tg = window.Telegram.WebApp;
     const statusEl = document.getElementById('paymentStatus');
@@ -295,17 +247,16 @@ export async function sendTonPremiumPayment() {
         const bocBase64 = result.boc;
         if (!bocBase64) throw new Error("No BOC returned from wallet");
         
-        if (statusEl) statusEl.textContent = "⏳ Computing normalized hash...";
-        const normHash = await computeNormalizedMsgHash(bocBase64);
-        const BOC_LENGTH = bocBase64.length;
-        console.log("Normalized message hash:", normHash);
-        console.log("BOC length (chars):", BOC_LENGTH);
+        // Send the sender's wallet address to allow backend to poll user's transactions
+        if (statusEl) statusEl.textContent = "⏳ Verifying payment (checking your wallet)...";
         
-        if (statusEl) statusEl.textContent = "⏳ Verifying payment...";
         const response = await fetch(`${API_URL}/api/ton-confirm-payment`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'X-Telegram-Init-Data': tg.initData },
-            body: JSON.stringify({ norm_hash: normHash, boc_b64: bocBase64 })
+            body: JSON.stringify({ 
+                sender_address: walletAddress,
+                boc_b64: bocBase64 
+            })
         });
         
         if (!response.ok) {
