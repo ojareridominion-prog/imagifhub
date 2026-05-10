@@ -10,7 +10,8 @@ from utils import get_user_id_from_init_data
 from config import supabase
 from datetime import datetime, timedelta
 
-from tonsdk.boc import Cell
+# Use the 'ton' library (install with: pip install ton)
+from ton import Cell, Address
 
 router = APIRouter()
 
@@ -55,20 +56,17 @@ def internal_msg_hash_from_boc(boc_base64: str) -> str | None:
     """
     try:
         boc_bytes = base64.b64decode(boc_base64)
-        logger.debug(f"BOC length: {len(boc_bytes)} bytes")
-
         # Deserialize the root cell (external message)
-        root_cell = Cell.one_from_boc(boc_bytes)
-        logger.debug(f"Root cell bits: {root_cell.bits.used}, refs: {len(root_cell.refs)}")
-
+        root_cell = Cell.deserialize(boc_bytes)
+        
         # The external message has a reference to the internal message cell
         if not root_cell.refs:
             logger.error("No references in external message cell")
             return None
-
+        
         internal_cell = root_cell.refs[0]
-        # Compute hash: serialize the internal cell without index (pure cell representation)
-        internal_bytes = internal_cell.to_boc(has_idx=False)
+        # Compute hash: serialize the internal message cell to bytes
+        internal_bytes = internal_cell.serialize()
         msg_hash = hashlib.sha256(internal_bytes).hexdigest()
         logger.info(f"Computed internal message hash: {msg_hash}")
         return msg_hash
@@ -96,7 +94,6 @@ async def verify_by_internal_msg_hash(
 
     async with httpx.AsyncClient(timeout=15.0) as client:
         try:
-            logger.info(f"Calling TonAPI: {url}")
             resp = await client.get(url, headers=headers)
             if resp.status_code != 200:
                 logger.error(f"TonAPI error {resp.status_code}: {resp.text[:200]}")
@@ -238,5 +235,5 @@ async def ton_config():
     return {
         "adminAddress": TON_ADMIN_ADDRESS,
         "amount": TON_AMOUNT
-    }
+            }
     
