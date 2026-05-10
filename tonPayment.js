@@ -1,4 +1,4 @@
-// tonPayment.js – Polling-based payment verification (no hash calculation)
+// tonPayment.js – Polling via user wallet address (TonAPI)
 import { verifyPremiumStatus } from './premiumManager.js';
 
 let tonConnectUI = null;
@@ -9,7 +9,6 @@ let initializationPromise = null;
 const API_URL = "https://imagifhub.onrender.com";
 const MANIFEST_URL = `${API_URL}/ton-manifest.json`;
 
-// Load TonWeb only if needed (now only for payload creation)
 async function loadTonWeb() {
     if (window.TonWeb) return window.TonWeb;
     return new Promise((resolve, reject) => {
@@ -21,16 +20,14 @@ async function loadTonWeb() {
     });
 }
 
-// Create a valid payload cell for a text comment
 async function createTextPayload(text) {
     const TonWeb = await loadTonWeb();
     const cell = new TonWeb.boc.Cell();
-    cell.bits.writeUint(0, 32);   // simple text comment op
+    cell.bits.writeUint(0, 32);
     cell.bits.writeString(text);
     return TonWeb.utils.bytesToBase64(await cell.toBoc());
 }
 
-// ========== WALLET UI FUNCTIONS ==========
 function updateWalletUI() {
     const walletRow = document.getElementById('walletConnectRow');
     if (!walletRow) return;
@@ -182,7 +179,7 @@ export async function initWalletUI() {
     }
 }
 
-// ========== SEND TON PREMIUM (Polling version) ==========
+// ========== SEND TON PREMIUM – Polling via user wallet ==========
 export async function sendTonPremiumPayment() {
     const tg = window.Telegram.WebApp;
     const statusEl = document.getElementById('paymentStatus');
@@ -209,7 +206,7 @@ export async function sendTonPremiumPayment() {
         if (!walletConnected) throw new Error("Wallet not connected");
     }
 
-    const userWalletAddr = walletAddress; // sender address
+    const userWallet = walletAddress; // sender address
     const comment = `user:${tg.initDataUnsafe?.user?.id}`;
     const amountNano = Math.floor(amountTon * 1e9);
     
@@ -239,15 +236,15 @@ export async function sendTonPremiumPayment() {
         
         if (statusEl) statusEl.textContent = "⏳ Verifying payment (may take up to 45 seconds)...";
         
-        // Call backend polling endpoint with user wallet address
+        // Call backend with user wallet address and expected comment
         const response = await fetch(`${API_URL}/api/ton-confirm-payment`, {
             method: 'POST',
-            headers: { 
+            headers: {
                 'Content-Type': 'application/json',
-                'X-Telegram-Init-Data': tg.initData 
+                'X-Telegram-Init-Data': tg.initData
             },
             body: JSON.stringify({
-                user_wallet: userWalletAddr,
+                user_wallet: userWallet,
                 comment: comment
             })
         });
@@ -287,7 +284,6 @@ async function fetchTonAdminAddress() {
     }
 }
 
-// Expose for global usage
 window.initWalletUI = initWalletUI;
 window.sendTonPremiumPayment = sendTonPremiumPayment;
 window.disconnectTonWallet = disconnectTonWallet;
