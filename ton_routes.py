@@ -226,26 +226,5 @@ async def ton_config():
     return {
         "adminAddress": TON_ADMIN_ADDRESS,
         "amount": TON_AMOUNT
-    }
-
-
-# ========== DEBUG ENDPOINT (remove after testing) ==========
-@router.get("/api/ton-debug-msg-hash/{msg_hash}")
-async def debug_ton_api(msg_hash: str):
-    """Returns raw TonAPI response for a given message hash (for debugging)."""
-    clean_hash = msg_hash.lower().replace('0x', '')
-    url = f"https://tonapi.io/v2/blockchain/transactions/by_message_hash/{clean_hash}"
-    headers = {}
-    if TONAPI_KEY:
-        headers["Authorization"] = f"Bearer {TONAPI_KEY}"
-    async with httpx.AsyncClient(timeout=15.0) as client:
-        try:
-            resp = await client.get(url, headers=headers)
-            return {
-                "url": url,
-                "status": resp.status_code,
-                "body": resp.json() if resp.status_code == 200 else resp.text[:500]
-            }
-        except Exception as e:
-            return {"url": url, "error": str(e)}
-            
+                }
+    
