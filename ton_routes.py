@@ -252,3 +252,10 @@ async def ton_config():
         "amount": TON_AMOUNT
             }
     
+@router.get("/debug/admin-raw")
+async def debug_admin_raw():
+    return {
+        "env_raw": TON_ADMIN_ADDRESS,
+        "normalized": normalize_ton_address(TON_ADMIN_ADDRESS)
+    }
+    
