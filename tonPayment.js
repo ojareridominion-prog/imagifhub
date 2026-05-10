@@ -1,4 +1,4 @@
-// tonPayment.js – Message hash based verification (no polling)
+// tonPayment.js – Normalized message hash flow (TEP‑467)
 import { verifyPremiumStatus } from './premiumManager.js';
 
 let tonConnectUI = null;
@@ -21,23 +21,50 @@ async function loadTonWeb() {
     });
 }
 
-// Compute message hash from BOC (TonWeb method)
-async function computeMessageHash(bocBase64) {
-    const TonWeb = await loadTonWeb();
-    const cell = TonWeb.boc.Cell.oneFromBoc(TonWeb.utils.base64ToBytes(bocBase64));
-    const hashBytes = await cell.hash();
-    return TonWeb.utils.bytesToHex(hashBytes);
+// Convert base64 to Uint8Array
+function base64ToBytes(base64) {
+    const binaryString = atob(base64);
+    const bytes = new Uint8Array(binaryString.length);
+    for (let i = 0; i < binaryString.length; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+    }
+    return bytes;
 }
 
-// Create a valid payload cell for a text comment
+// ========== NORMALIZED MESSAGE HASH (TEP‑467) ==========
+export async function computeMessageHash(bocBase64) {
+    const TonWeb = await loadTonWeb();
+    // 1. Parse the BOC into a Cell
+    const cell = TonWeb.boc.Cell.oneFromBoc(base64ToBytes(bocBase64));
+
+    // 2. Build the "External In Message" structure
+    const externalMessage = new TonWeb.boc.Cell();
+    externalMessage.bits.writeUint(0x2, 6);          // flags: external message without state init
+    externalMessage.bits.writeAddress(cell.refs[0]); // destination address (first ref)
+    externalMessage.refs.push(cell.refs[1]);         // payload cell (second ref)
+
+    // 3. Serialize the complete external message to bytes
+    const serializedBytes = await externalMessage.toBoc();
+
+    // 4. SHA‑256 hash of the serialized bytes
+    const hashBytes = await crypto.subtle.digest('SHA-256', serializedBytes);
+
+    // 5. Return as hex string
+    return Array.from(new Uint8Array(hashBytes))
+        .map(b => b.toString(16).padStart(2, '0'))
+        .join('');
+}
+
+// Create a valid payload cell for a text comment (unchanged)
 async function createTextPayload(text) {
     const TonWeb = await loadTonWeb();
     const cell = new TonWeb.boc.Cell();
-    cell.bits.writeUint(0, 32); // op code for simple transfer (0)
+    cell.bits.writeUint(0, 32); // op code for simple transfer
     cell.bits.writeString(text);
     return TonWeb.utils.bytesToBase64(await cell.toBoc());
 }
 
+// ========== WALLET UI ==========
 function updateWalletUI() {
     const walletRow = document.getElementById('walletConnectRow');
     if (!walletRow) return;
@@ -191,7 +218,7 @@ export async function initWalletUI() {
     }
 }
 
-// -------------------- SEND TON PREMIUM (NEW – NO POLLING) --------------------
+// ========== SEND TON PREMIUM (NO POLLING) ==========
 export async function sendTonPremiumPayment() {
     const tg = window.Telegram.WebApp;
     const statusEl = document.getElementById('paymentStatus');
@@ -224,7 +251,6 @@ export async function sendTonPremiumPayment() {
     const comment = `user:${tg.initDataUnsafe?.user?.id}`;
     const amountNano = Math.floor(amountTon * 1e9);
     
-    // Build a valid payload cell for the comment
     let payloadBase64;
     try {
         payloadBase64 = await createTextPayload(comment);
@@ -246,19 +272,19 @@ export async function sendTonPremiumPayment() {
         const ui = await initTonConnectUI();
         if (!ui) throw new Error("TON SDK unavailable");
         
-        // Step 1: Send transaction and get BOC
+        // 1. Send transaction and get BOC
         const result = await ui.sendTransaction(transaction);
         const bocBase64 = result.boc;
         if (!bocBase64) throw new Error("No BOC returned from wallet");
         
-        // Step 2: Compute message hash from BOC
+        // 2. Compute normalized message hash (TEP‑467)
         if (statusEl) {
             statusEl.textContent = "⏳ Computing message hash...";
         }
         const msgHash = await computeMessageHash(bocBase64);
-        console.log("Computed message hash:", msgHash);
+        console.log("Normalized message hash:", msgHash);
         
-        // Step 3: Single API call to confirm payment
+        // 3. Single API call to confirm payment
         if (statusEl) {
             statusEl.textContent = "⏳ Verifying payment...";
         }
