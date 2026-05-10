@@ -1,4 +1,4 @@
-# ton_routes.py – Updated with robust address normalization
+# ton_routes.py – Correct destination normalization with detailed logging
 import os
 import asyncio
 import logging
@@ -20,39 +20,44 @@ TONAPI_KEY = os.environ.get("TONAPI_KEY", "")
 logger = logging.getLogger(__name__)
 
 
-# ========== IMPROVED ADDRESS NORMALIZATION ==========
+# ========== ADDRESS NORMALIZATION (FIXED) ==========
 def normalize_ton_address(addr: str) -> str:
     """
-    Convert any TON address to its raw 32-byte hex hash.
-    Ensures consistent comparison between User-Friendly (EQ/UQ) and Raw formats.
+    Convert any TON address to raw hex (without 0: prefix).
+    Handles raw hex (0:...), raw hex without prefix, and user‑friendly (EQ/UQ...).
     """
-    addr = addr.strip().lower()
+    addr = addr.strip()
     if not addr:
         return ""
 
-    # Remove workchain prefix if present (e.g., "0:" or "-1:")
+    # Already a raw hex value (64 chars) without workchain prefix
+    if len(addr) == 64 and all(c in "0123456789abcdefABCDEF" for c in addr):
+        return addr.lower()
+
+    # Raw hex with workchain prefix (e.g., "0:...")
     if ":" in addr:
-        addr = addr.split(":")[-1]
+        return addr.split(":")[-1].lower()
 
-    # If it is already a 64-character hex string, return it
-    if len(addr) == 64 and all(c in "0123456789abcdef" for c in addr):
-        return addr
-
-    # Handle User-friendly format (EQ... or UQ...)
-    if addr.startswith("eq") or addr.startswith("uq"):
+    # User‑friendly format (EQ... or UQ...)
+    if addr.startswith("EQ") or addr.startswith("UQ"):
+        b64 = addr[2:].replace('-', '+').replace('_', '/')
+        missing = len(b64) % 4
+        if missing:
+            b64 += '=' * (4 - missing)
         try:
-            # Fix base64 padding and URL-safe characters
-            b64 = addr[2:].replace('-', '+').replace('_', '/')
-            b64 += "=" * ((4 - len(b64) % 4) % 4)
-            
             decoded = base64.b64decode(b64)
-            # TON Address structure: [tag(1), workchain(1), hash(32), checksum(2)]
+            # decoded structure: [tag(1), workchain(1), address(32), checksum(2)]
+            # The actual raw address is bytes 2..34 (32 bytes)
             if len(decoded) >= 34:
-                return decoded[2:34].hex().lower()
+                hex_part = decoded[2:34].hex()
+                return hex_part.lower()
+            else:
+                logger.error(f"Unexpected decoded address length: {len(decoded)}")
         except Exception as e:
-            logger.error(f"Failed to decode Base64 address {addr}: {e}")
+            logger.error(f"Failed to decode Base64 address: {e}")
 
-    return addr
+    # Fallback: return as is lowercase
+    return addr.lower()
 
 
 # ========== VERIFY TRANSACTION BY TRANSACTION HASH ==========
@@ -69,7 +74,7 @@ async def verify_transaction_by_hash(
         return {"hash": "dev_tx_hash"}
 
     if not TON_ADMIN_ADDRESS:
-        logger.error("TON_ADMIN_ADDRESS environment variable is not set")
+        logger.error("TON_ADMIN_ADDRESS not set")
         return None
 
     clean_hash = tx_hash.lower().replace('0x', '')
@@ -83,83 +88,109 @@ async def verify_transaction_by_hash(
                 resp = await client.get(url, headers=headers)
 
                 if resp.status_code == 404:
-                    logger.warning(f"Transaction {tx_hash} not found (attempt {attempt}/{max_retries})")
+                    logger.warning(f"Transaction {tx_hash} not found yet (attempt {attempt}/{max_retries})")
                     if attempt < max_retries:
                         await asyncio.sleep(delay_seconds)
                         continue
-                    return None
+                    else:
+                        logger.error("Transaction not found after all retries")
+                        return None
 
                 if resp.status_code != 200:
                     logger.error(f"TonAPI error {resp.status_code}: {resp.text[:200]}")
                     return None
 
                 tx = resp.json()
+                fetched_hash = tx.get("hash")
+                if not fetched_hash:
+                    logger.error("No transaction hash in response")
+                    return None
+
+                # Transaction structure: contains "in_msg" (singular)
                 in_msg = tx.get("in_msg")
                 if not in_msg:
-                    logger.error("No incoming message found in transaction")
+                    logger.error("No in_msg in transaction")
                     return None
 
-                # Extract destination address
+                # Destination can be a string or an object with "address"
                 destination = in_msg.get("destination")
-                dest_addr = destination.get("address", "") if isinstance(destination, dict) else str(destination or "")
+                if isinstance(destination, dict):
+                    dest_addr = destination.get("address", "")
+                else:
+                    dest_addr = str(destination) if destination else ""
 
-                # Normalization comparison
-                admin_norm = normalize_ton_address(TON_ADMIN_ADDRESS)
-                dest_norm = normalize_ton_address(dest_addr)
-
-                if admin_norm != dest_norm:
-                    logger.error(f"Destination mismatch: Received {dest_norm}, Expected {admin_norm}")
-                    return None
-
-                # Verify amount
                 value = in_msg.get("value")
-                if value is None or int(value) < expected_amount_nano:
-                    logger.error(f"Amount mismatch or insufficient: {value} < {expected_amount_nano}")
-                    return None
-
-                # Verify comment (payload)
+                # Comment may be in decoded_body.text or raw message
                 decoded_body = in_msg.get("decoded_body", {})
                 comment = decoded_body.get("text", "") or in_msg.get("message", "")
-                target_comment = f"user:{expected_user_id}"
-                
-                if target_comment not in comment:
-                    logger.error(f"Comment mismatch: Expected '{target_comment}', got '{comment}'")
+
+                # ========== DETAILED LOGGING ==========
+                admin_norm = normalize_ton_address(TON_ADMIN_ADDRESS)
+                dest_norm = normalize_ton_address(dest_addr)
+                logger.info(f"Admin original (env): {TON_ADMIN_ADDRESS}")
+                logger.info(f"Admin normalized: {admin_norm}")
+                logger.info(f"Destination original: {dest_addr}")
+                logger.info(f"Destination normalized: {dest_norm}")
+
+                if admin_norm != dest_norm:
+                    logger.error(f"Destination mismatch: {dest_norm} != {admin_norm}")
                     return None
 
-                return {"hash": tx.get("hash")}
+                if value is None:
+                    logger.error("Amount missing")
+                    return None
+                try:
+                    value_nano = int(value)
+                except (ValueError, TypeError):
+                    logger.error(f"Invalid amount format: {value}")
+                    return None
+
+                if value_nano < expected_amount_nano:
+                    logger.error(f"Amount too low: {value_nano} < {expected_amount_nano}")
+                    return None
+
+                target_comment = f"user:{expected_user_id}"
+                if target_comment not in comment:
+                    logger.error(f"Comment mismatch: expected '{target_comment}', got '{comment}'")
+                    return None
+
+                logger.info(f"✅ Transaction verified: {fetched_hash}")
+                return {"hash": fetched_hash}
 
             except Exception as e:
-                logger.error(f"Exception during TonAPI call (attempt {attempt}): {e}")
+                logger.error(f"TonAPI exception on attempt {attempt}: {e}", exc_info=True)
                 if attempt < max_retries:
                     await asyncio.sleep(delay_seconds)
                 else:
                     return None
+
     return None
 
 
 # ========== IDEMPOTENT PREMIUM GRANT ==========
 async def verify_and_grant_premium(user_id: int, tx_hash: str) -> bool:
-    # Check if transaction was already processed
     existing = supabase.table("payments").select("id").eq("transaction_id", tx_hash).execute()
-    if existing.data:
-        logger.info(f"Transaction {tx_hash} already processed. Skipping.")
+    if existing.data and len(existing.data) > 0:
+        logger.info(f"Transaction {tx_hash} already processed – skipping.")
         return True
 
     now = datetime.utcnow()
     new_expiry = now + timedelta(days=30)
 
-    # Check for existing subscription to stack time
     user_result = supabase.table("users").select("premium_expires_at").eq("telegram_id", user_id).execute()
     if user_result.data and user_result.data[0].get("premium_expires_at"):
+        current_expiry_str = user_result.data[0]["premium_expires_at"]
         try:
-            current_expiry_str = user_result.data[0]["premium_expires_at"].replace('Z', '+00:00')
-            current_expiry = datetime.fromisoformat(current_expiry_str).replace(tzinfo=None)
-            if current_expiry > now:
+            if current_expiry_str.endswith('Z'):
+                current_expiry_str = current_expiry_str.replace('Z', '+00:00')
+            current_expiry = datetime.fromisoformat(current_expiry_str)
+            if current_expiry.tzinfo:
+                current_expiry = current_expiry.replace(tzinfo=None)
+            if current_expiry > now and current_expiry > new_expiry:
                 new_expiry = current_expiry + timedelta(days=30)
         except Exception:
             pass
 
-    # Update User Table
     supabase.table("users").upsert({
         "telegram_id": user_id,
         "is_premium": True,
@@ -167,7 +198,6 @@ async def verify_and_grant_premium(user_id: int, tx_hash: str) -> bool:
         "updated_at": now.isoformat()
     }).execute()
 
-    # Record Payment
     expected_nano = int(TON_AMOUNT * 1_000_000_000)
     supabase.table("payments").insert({
         "telegram_id": user_id,
@@ -180,14 +210,14 @@ async def verify_and_grant_premium(user_id: int, tx_hash: str) -> bool:
         "created_at": now.isoformat()
     }).execute()
 
-    logger.info(f"✅ Premium granted to {user_id}")
+    logger.info(f"✅ Premium granted to user {user_id} via tx {tx_hash}")
     return True
 
 
-# ========== ENDPOINTS ==========
-
+# ========== ENDPOINT: CONFIRM TON PAYMENT ==========
 @router.post("/api/ton-confirm-payment")
 async def confirm_payment(request: Request):
+    """Receive transaction hash, verify via TonAPI, grant premium."""
     init_data = request.headers.get("X-Telegram-Init-Data", "")
     if not init_data:
         raise HTTPException(status_code=401, detail="Missing init data")
@@ -197,7 +227,7 @@ async def confirm_payment(request: Request):
         raise HTTPException(status_code=401, detail="Invalid user")
 
     body = await request.json()
-    tx_hash = body.get("tx_hash")
+    tx_hash = body.get("tx_hash")  # note: frontend sends "tx_hash"
     if not tx_hash:
         raise HTTPException(status_code=400, detail="Missing tx_hash")
 
@@ -207,16 +237,18 @@ async def confirm_payment(request: Request):
     if not tx_info:
         raise HTTPException(status_code=400, detail="Transaction verification failed")
 
-    if await verify_and_grant_premium(user_id, tx_info["hash"]):
-        return {"status": "completed", "message": "Premium activated"}
-    
-    raise HTTPException(status_code=500, detail="Failed to grant premium")
+    success = await verify_and_grant_premium(user_id, tx_info["hash"])
+    if not success:
+        raise HTTPException(status_code=500, detail="Failed to grant premium")
+
+    return {"status": "completed", "message": "Premium activated"}
 
 
+# ========== CONFIGURATION ENDPOINT ==========
 @router.get("/api/ton-config")
 async def ton_config():
     return {
         "adminAddress": TON_ADMIN_ADDRESS,
         "amount": TON_AMOUNT
-    }
+            }
     
