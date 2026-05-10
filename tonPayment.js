@@ -1,4 +1,4 @@
-// tonPayment.js – Compute transaction hash (cell hash) from BOC
+// tonPayment.js – Use transaction hash from wallet
 import { verifyPremiumStatus } from './premiumManager.js';
 
 let tonConnectUI = null;
@@ -40,16 +40,7 @@ async function createTextPayload(text) {
     return TonWeb.utils.bytesToBase64(await cell.toBoc());
 }
 
-// ========== CORRECT TRANSACTION HASH (CELL HASH) ==========
-async function computeTxHash(bocBase64) {
-    const TonWeb = await loadTonWeb();
-    const bocBytes = base64ToBytes(bocBase64);
-    const cell = TonWeb.boc.Cell.oneFromBoc(bocBytes);
-    const hashBytes = await cell.hash();
-    return TonWeb.utils.bytesToHex(hashBytes);
-}
-
-// ========== WALLET UI (fully preserved) ==========
+// ========== WALLET UI (unchanged) ==========
 function updateWalletUI() {
     const walletRow = document.getElementById('walletConnectRow');
     if (!walletRow) return;
@@ -203,7 +194,7 @@ export async function initWalletUI() {
     }
 }
 
-// ========== SEND TON PREMIUM (uses transaction hash) ==========
+// ========== SEND TON PREMIUM (UPDATED: use transaction hash from wallet) ==========
 export async function sendTonPremiumPayment() {
     const tg = window.Telegram.WebApp;
     const statusEl = document.getElementById('paymentStatus');
@@ -258,11 +249,10 @@ export async function sendTonPremiumPayment() {
         if (!ui) throw new Error("TON SDK unavailable");
         
         const result = await ui.sendTransaction(transaction);
-        const bocBase64 = result.boc;
-        if (!bocBase64) throw new Error("No BOC returned from wallet");
+        // Use the transaction hash directly from the wallet response
+        const txHash = result.hash;
+        if (!txHash) throw new Error("No transaction hash returned from wallet");
         
-        if (statusEl) statusEl.textContent = "⏳ Computing transaction hash...";
-        const txHash = await computeTxHash(bocBase64);
         console.log("Transaction hash:", txHash);
         
         if (statusEl) statusEl.textContent = "⏳ Verifying payment...";
