@@ -64,16 +64,9 @@ def internal_msg_hash_from_boc(boc_base64: str) -> str | None:
             return None
         
         internal_cell = root_cell.refs[0]
-        # Compute hash of the internal message cell
-        # The hash is SHA256 of the cell's representation (including its data and references)
-        # Using cell.hash property (most reliable)
-        if hasattr(internal_cell, 'hash'):
-            msg_hash = internal_cell.hash.hex()
-        else:
-            # Fallback: serialize and hash
-            internal_bytes = internal_cell.serialize()
-            msg_hash = hashlib.sha256(internal_bytes).hexdigest()
-        
+        # The hash of the cell is its representation hash (SHA256)
+        # .hash returns bytes, convert to hex
+        msg_hash = internal_cell.hash.hex()
         logger.info(f"Computed internal message hash: {msg_hash}")
         return msg_hash
     except Exception as e:
@@ -241,5 +234,5 @@ async def ton_config():
     return {
         "adminAddress": TON_ADMIN_ADDRESS,
         "amount": TON_AMOUNT
-    }
+                    }
     
