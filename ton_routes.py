@@ -1,4 +1,4 @@
-# ton_routes.py – Verify payment using transaction hash (no admin wallet scan)
+# ton_routes.py – Correct destination normalization
 import os
 import asyncio
 import logging
@@ -20,16 +20,25 @@ TONAPI_KEY = os.environ.get("TONAPI_KEY", "")
 logger = logging.getLogger(__name__)
 
 
-# ========== ADDRESS NORMALIZATION ==========
+# ========== ADDRESS NORMALIZATION (FIXED) ==========
 def normalize_ton_address(addr: str) -> str:
-    """Convert any TON address to raw hex (without 0: prefix)."""
+    """
+    Convert any TON address to raw hex (without 0: prefix).
+    Handles raw hex (0:...), raw hex without prefix, and user‑friendly (EQ/UQ...).
+    """
     addr = addr.strip()
     if not addr:
         return ""
+
+    # Already a raw hex value (64 chars) without workchain prefix
     if len(addr) == 64 and all(c in "0123456789abcdefABCDEF" for c in addr):
         return addr.lower()
-    if addr.startswith("0:"):
-        return addr[2:].lower()
+
+    # Raw hex with workchain prefix (e.g., "0:...")
+    if ":" in addr:
+        return addr.split(":")[-1].lower()
+
+    # User‑friendly format (EQ... or UQ...)
     if addr.startswith("EQ") or addr.startswith("UQ"):
         b64 = addr[2:].replace('-', '+').replace('_', '/')
         missing = len(b64) % 4
@@ -37,14 +46,21 @@ def normalize_ton_address(addr: str) -> str:
             b64 += '=' * (4 - missing)
         try:
             decoded = base64.b64decode(b64)
-            hex_part = decoded[1:].hex()
-            return hex_part
-        except Exception:
-            pass
+            # decoded structure: [tag(1), workchain(1), address(32), checksum(2)]
+            # The actual raw address is bytes 2..34 (32 bytes)
+            if len(decoded) >= 34:
+                hex_part = decoded[2:34].hex()
+                return hex_part.lower()
+            else:
+                logger.error(f"Unexpected decoded address length: {len(decoded)}")
+        except Exception as e:
+            logger.error(f"Failed to decode Base64 address: {e}")
+
+    # Fallback: return as is lowercase
     return addr.lower()
 
 
-# ========== VERIFY TRANSACTION BY TRANSACTION HASH (TonAPI) ==========
+# ========== VERIFY TRANSACTION BY TRANSACTION HASH ==========
 async def verify_transaction_by_hash(
     tx_hash: str,
     expected_amount_nano: int,
@@ -52,10 +68,7 @@ async def verify_transaction_by_hash(
     max_retries: int = 3,
     delay_seconds: int = 5
 ) -> dict | None:
-    """
-    Query TonAPI /v2/blockchain/transactions/{tx_hash} with retries.
-    Returns dict with at least {"hash": tx_hash} if valid, else None.
-    """
+    """Query TonAPI /v2/blockchain/transactions/{tx_hash} with retries."""
     if TON_DEV_MODE:
         logger.info(f"[DEV MODE] Simulating verification for tx_hash {tx_hash}")
         return {"hash": "dev_tx_hash"}
@@ -93,21 +106,21 @@ async def verify_transaction_by_hash(
                     logger.error("No transaction hash in response")
                     return None
 
-                # Transaction structure differs: `in_msg` (singular) not `in_msgs`
+                # Transaction structure: contains "in_msg" (singular)
                 in_msg = tx.get("in_msg")
                 if not in_msg:
-                    logger.error("No in_msg in transaction – cannot verify destination")
+                    logger.error("No in_msg in transaction")
                     return None
 
-                # Destination may be nested under "destination" -> "address"
-                destination = in_msg.get("destination", {})
+                # Destination can be a string or an object with "address"
+                destination = in_msg.get("destination")
                 if isinstance(destination, dict):
                     dest_addr = destination.get("address", "")
                 else:
-                    dest_addr = str(destination)
+                    dest_addr = str(destination) if destination else ""
 
                 value = in_msg.get("value")
-                # Comment can be in "decoded_body" -> "text" or raw "message"
+                # Comment may be in decoded_body.text or raw message
                 decoded_body = in_msg.get("decoded_body", {})
                 comment = decoded_body.get("text", "") or in_msg.get("message", "")
 
@@ -119,7 +132,7 @@ async def verify_transaction_by_hash(
                     return None
 
                 if value is None:
-                    logger.error("Amount missing in transaction")
+                    logger.error("Amount missing")
                     return None
                 try:
                     value_nano = int(value)
@@ -136,11 +149,11 @@ async def verify_transaction_by_hash(
                     logger.error(f"Comment mismatch: expected '{target_comment}', got '{comment}'")
                     return None
 
-                logger.info(f"✅ Transaction verified: {fetched_hash} for user {expected_user_id}")
+                logger.info(f"✅ Transaction verified: {fetched_hash}")
                 return {"hash": fetched_hash}
 
             except Exception as e:
-                logger.error(f"TonAPI verification exception on attempt {attempt}: {e}", exc_info=True)
+                logger.error(f"TonAPI exception on attempt {attempt}: {e}", exc_info=True)
                 if attempt < max_retries:
                     await asyncio.sleep(delay_seconds)
                 else:
@@ -199,7 +212,7 @@ async def verify_and_grant_premium(user_id: int, tx_hash: str) -> bool:
 # ========== ENDPOINT: CONFIRM TON PAYMENT ==========
 @router.post("/api/ton-confirm-payment")
 async def confirm_payment(request: Request):
-    """Receive transaction hash, verify via TonAPI with retries, grant premium."""
+    """Receive transaction hash, verify via TonAPI, grant premium."""
     init_data = request.headers.get("X-Telegram-Init-Data", "")
     if not init_data:
         raise HTTPException(status_code=401, detail="Missing init data")
@@ -209,7 +222,7 @@ async def confirm_payment(request: Request):
         raise HTTPException(status_code=401, detail="Invalid user")
 
     body = await request.json()
-    tx_hash = body.get("tx_hash")
+    tx_hash = body.get("tx_hash")  # note: frontend sends "tx_hash"
     if not tx_hash:
         raise HTTPException(status_code=400, detail="Missing tx_hash")
 
@@ -232,5 +245,5 @@ async def ton_config():
     return {
         "adminAddress": TON_ADMIN_ADDRESS,
         "amount": TON_AMOUNT
-                    }
+    }
     
