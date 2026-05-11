@@ -15,7 +15,7 @@ TON_ADMIN_ADDRESS = os.environ.get("TON_ADMIN_ADDRESS", "").strip()
 TON_AMOUNT = float(os.environ.get("TON_AMOUNT", "0.01"))
 TON_API_KEY = os.environ.get("TON_API_KEY", "")
 
-POLL_MAX_SECONDS = 60  # Increased slightly for network reliability
+POLL_MAX_SECONDS = 60  # 60 seconds timeout
 POLL_INTERVAL = 3
 
 logger = logging.getLogger(__name__)
@@ -41,7 +41,6 @@ def to_raw_ton_address(address: str) -> str:
 
     try:
         data = base64.b64decode(b64)
-        # The raw address is usually at bytes 2-34
         workchain = data[1]
         if workchain == 0xff:
             workchain = -1
@@ -76,16 +75,13 @@ def find_payment_in_events(events, admin_raw: str, expected_comment: str, min_na
     """
     Searches through TonAPI events for a matching TonTransfer action.
     """
-    # Normalize admin address to lowercase for safe comparison
     target_address = admin_raw.lower()
 
     for event in events:
-        # Skip events still being processed by the indexer
         if event.get("in_progress") is True:
             continue
 
         for action in event.get("actions", []):
-            # TonAPI v2 uses "TonTransfer" (PascalCase) in the JSON payload
             if action.get("type") == "TonTransfer" and action.get("status") == "ok":
                 transfer = action.get("TonTransfer") or action.get("ton_transfer") or {}
                 
@@ -129,29 +125,29 @@ async def grant_premium(telegram_id: int, tx_hash: str, amount: int, comment: st
     """
     expires_at = (datetime.utcnow() + timedelta(days=365)).isoformat()
     
-    # Check if payment hash already exists to prevent double-spending
-    # FIX: changed column name from 'tx_hash' to 'transaction_id' to match your schema
+    # Check for duplicate transaction_id (was 'tx_hash' column)
     existing = supabase.table("payments").select("id").eq("transaction_id", tx_hash).execute()
     if existing.data:
         logger.warning(f"Duplicate payment attempt: {tx_hash}")
         return
 
-    # Record payment with correct column name 'transaction_id'
+    # Insert payment record (only columns that exist in your payments table)
     supabase.table("payments").insert({
         "telegram_id": telegram_id,
-        "transaction_id": tx_hash,          # was 'tx_hash'
-        "amount": amount / 1_000_000_000,
-        "comment": comment,
-        "status": "completed"
+        "transaction_id": tx_hash,
+        "amount": amount / 1_000_000_000,   # convert nano to TON
+        "status": "completed",
+        "provider": "ton",                  # <-- add provider to distinguish from stars
+        # "comment" column does NOT exist – removed
     }).execute()
 
-    # Update user status
+    # Update user premium status
     supabase.table("users").update({
         "is_premium": True,
         "premium_expires_at": expires_at
     }).eq("telegram_id", telegram_id).execute()
     
-    logger.info(f"Premium granted to {telegram_id}")
+    logger.info(f"Premium granted to {telegram_id} via TON, tx: {tx_hash}")
 
 
 @router.post("/api/ton-confirm-payment")
