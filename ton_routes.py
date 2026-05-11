@@ -1,4 +1,4 @@
-# ton_routes.py – Poll user wallet via TonAPI (your conversion logic)
+# ton_routes.py – Poll user wallet via TonAPI (exact conversion from your script)
 import os
 import asyncio
 import logging
@@ -25,8 +25,8 @@ logger = logging.getLogger(__name__)
 
 def to_raw_ton_address(address: str) -> str:
     """
-    Convert TON user‑friendly address (EQ/UQ/kQ/0Q…) to raw hex format.
-    Exact copy of your working Python code.
+    Convert TON user-friendly address (EQ/UQ/kQ/0Q…) to raw hex format.
+    Exact copy of your provided Python script (no prefix removal).
     """
     address = address.strip()
     if not address:
@@ -40,17 +40,14 @@ def to_raw_ton_address(address: str) -> str:
     if len(address) == 64 and all(c in "0123456789abcdefABCDEF" for c in address):
         return f"0:{address.lower()}"
 
-    # User‑friendly format
-    # Remove the first two characters (EQ, UQ, etc.)
-    addr = address[2:]
-    # Convert URL‑safe base64 to standard
-    addr = addr.replace('-', '+').replace('_', '/')
+    # Convert URL-safe base64 to standard
+    b64 = address.replace('-', '+').replace('_', '/')
     # Add padding if missing
-    padding = '=' * (-len(addr) % 4)
-    addr += padding
+    padding = '=' * (-len(b64) % 4)
+    b64 += padding
 
     try:
-        data = base64.b64decode(addr)
+        data = base64.b64decode(b64)
         # Byte 0 = tag, byte 1 = workchain, bytes 2-33 = account ID, bytes 34-35 = checksum
         workchain_byte = data[1]
         # Convert signed byte
@@ -58,7 +55,7 @@ def to_raw_ton_address(address: str) -> str:
             workchain = -1
         else:
             workchain = workchain_byte
-        account_id = data[2:34]   # 32 bytes
+        account_id = data[2:34]   # 32 bytes → 64 hex chars
         hex_part = binascii.hexlify(account_id).decode()
         return f"{workchain}:{hex_part}"
     except Exception as e:
@@ -70,7 +67,6 @@ async def fetch_user_transactions(user_wallet_raw: str, limit: int = 20):
     url = f"https://tonapi.io/v2/accounts/{user_wallet_raw}/transactions"
     headers = {"Authorization": f"Bearer {TON_API_KEY}"} if TON_API_KEY else {}
     params = {"limit": limit}
-
     logger.info(f"TonAPI request: {url}")
     async with httpx.AsyncClient(timeout=15.0) as client:
         try:
@@ -89,8 +85,7 @@ async def fetch_user_transactions(user_wallet_raw: str, limit: int = 20):
 def find_outgoing_payment(transactions, admin_raw: str, expected_comment_prefix: str, min_amount_nano: int):
     for tx in transactions:
         tx_hash = tx.get("hash")
-        out_msgs = tx.get("out_msgs", [])
-        for msg in out_msgs:
+        for msg in tx.get("out_msgs", []):
             dest = msg.get("destination", {})
             dest_addr = dest.get("address") if isinstance(dest, dict) else str(dest) if dest else ""
             if not dest_addr:
@@ -106,10 +101,7 @@ def find_outgoing_payment(transactions, admin_raw: str, expected_comment_prefix:
                 continue
             if value_nano < min_amount_nano:
                 continue
-            comment = ""
-            decoded = msg.get("decoded_body", {})
-            if decoded and isinstance(decoded, dict):
-                comment = decoded.get("text", "")
+            comment = msg.get("decoded_body", {}).get("text", "")
             if comment.startswith(expected_comment_prefix):
                 logger.info(f"✅ Found tx {tx_hash} amount {value_nano} comment {comment}")
                 return tx_hash, value_nano, comment
@@ -194,7 +186,6 @@ async def confirm_payment(request: Request):
         raise HTTPException(status_code=400, detail="Missing comment")
 
     if TON_DEV_MODE:
-        logger.info(f"DEV MODE: granting premium to user {user_id}")
         await grant_premium(user_id, "dev_tx_hash", int(TON_AMOUNT * 1e9), expected_comment)
         return {"status": "completed", "message": "Premium activated (dev mode)"}
 
@@ -207,22 +198,13 @@ async def confirm_payment(request: Request):
         logger.info(f"User raw: {user_raw}")
         logger.info(f"Admin raw: {admin_raw}")
     except Exception as e:
-        logger.error(f"Address conversion error: {e}")
-        raise HTTPException(status_code=400, detail="Invalid wallet address format")
+        logger.error(f"Conversion error: {e}")
+        raise HTTPException(status_code=400, detail="Invalid wallet address")
 
     expected_nano = int(TON_AMOUNT * 1_000_000_000)
-    logger.info(f"Polling user {user_id} for comment {expected_comment}")
-
     result = await poll_user_wallet_for_payment(
-        user_id=user_id,
-        user_wallet_raw=user_raw,
-        admin_raw=admin_raw,
-        expected_comment=expected_comment,
-        expected_nano=expected_nano,
-        max_wait=POLL_MAX_SECONDS,
-        interval=POLL_INTERVAL
+        user_id, user_raw, admin_raw, expected_comment, expected_nano
     )
-
     if not result:
         raise HTTPException(status_code=400, detail="Transaction not found after polling")
 
@@ -247,20 +229,18 @@ async def debug_ton_payment(wallet: str = None):
         "poll_max_seconds": POLL_MAX_SECONDS,
         "poll_interval": POLL_INTERVAL,
         "troubleshooting_tips": [
-            "Your conversion logic exactly matches the provided Python script",
-            "Admin address (EQ...) → workchain 0: account ID = 32 bytes (64 hex chars)",
-            "User wallet (UQ...) → workchain -1: account ID = 32 bytes",
-            "TonAPI accepts raw format: 0:... or -1:...",
-            "Make sure you actually sent a transaction with the correct amount and comment"
+            "Now using your exact conversion (no prefix removal).",
+            "Admin address (EQ...) should become 0:dd74f3...",
+            "User wallet (UQ...) should become -1:c67b4f...",
+            "After sending a transaction, wait 15 seconds and refresh debug."
         ]
     }
-
     if wallet:
         try:
-            wallet_raw = to_raw_ton_address(wallet)
+            raw = to_raw_ton_address(wallet)
             debug["input_wallet"] = wallet
-            debug["normalized_wallet_raw"] = wallet_raw
-            txs = await fetch_user_transactions(wallet_raw, limit=5)
+            debug["normalized_wallet_raw"] = raw
+            txs = await fetch_user_transactions(raw, limit=5)
             debug["transactions_found"] = len(txs)
             debug["transactions"] = []
             for tx in txs[:5]:
@@ -279,6 +259,5 @@ async def debug_ton_payment(wallet: str = None):
                 })
         except Exception as e:
             debug["error"] = str(e)
-
     return debug
     
