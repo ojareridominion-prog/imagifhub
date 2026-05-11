@@ -179,18 +179,34 @@ export async function initWalletUI() {
     }
 }
 
-// ========== SEND TON PREMIUM – Polling via user wallet ==========
+// ---------- Dynamic TON price update (for UI) ----------
+export async function updateTonPrices() {
+    try {
+        const response = await fetch(`${API_URL}/api/ton-config`);
+        if (!response.ok) throw new Error("Failed to fetch TON config");
+        const config = await response.json();
+        
+        const oldPriceSpan = document.getElementById('tonOldPrice');
+        const newPriceSpan = document.getElementById('tonNewPrice');
+        if (oldPriceSpan) oldPriceSpan.textContent = `${config.oldAmount} TON`;
+        if (newPriceSpan) newPriceSpan.textContent = `${config.amount} TON / 30 days`;
+    } catch (e) {
+        console.warn("Could not update TON prices:", e);
+    }
+}
+
+// ---------- Send TON payment (uses amount from config) ----------
 export async function sendTonPremiumPayment() {
     const tg = window.Telegram.WebApp;
     const statusEl = document.getElementById('paymentStatus');
     
-    let amountTon = 1.12;
+    let amountTon = 1.12; // fallback
     try {
         const configRes = await fetch(`${API_URL}/api/ton-config`);
         const config = await configRes.json();
         if (config.amount) amountTon = config.amount;
     } catch (e) {
-        console.warn("Could not fetch TON amount, using default 1.12", e);
+        console.warn("Could not fetch TON amount, using fallback", e);
     }
     
     const adminAddr = await fetchTonAdminAddress();
@@ -206,7 +222,7 @@ export async function sendTonPremiumPayment() {
         if (!walletConnected) throw new Error("Wallet not connected");
     }
 
-    const userWallet = walletAddress; // sender address
+    const userWallet = walletAddress;
     const comment = `user:${tg.initDataUnsafe?.user?.id}`;
     const amountNano = Math.floor(amountTon * 1e9);
     
@@ -231,12 +247,10 @@ export async function sendTonPremiumPayment() {
         const ui = await initTonConnectUI();
         if (!ui) throw new Error("TON SDK unavailable");
         
-        // Send transaction – we ignore the returned BOC
         await ui.sendTransaction(transaction);
         
         if (statusEl) statusEl.textContent = "⏳ Verifying payment (may take up to 45 seconds)...";
         
-        // Call backend with user wallet address and expected comment
         const response = await fetch(`${API_URL}/api/ton-confirm-payment`, {
             method: 'POST',
             headers: {
@@ -284,6 +298,8 @@ async function fetchTonAdminAddress() {
     }
 }
 
+// Expose updateTonPrices globally for use in UI
+window.updateTonPrices = updateTonPrices;
 window.initWalletUI = initWalletUI;
 window.sendTonPremiumPayment = sendTonPremiumPayment;
 window.disconnectTonWallet = disconnectTonWallet;
