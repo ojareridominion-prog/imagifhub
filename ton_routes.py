@@ -1,9 +1,10 @@
-# ton_routes.py – Poll user wallet via TonAPI (correct workchain)
+# ton_routes.py – Poll user wallet via TonAPI (fixed conversion)
 import os
 import asyncio
 import logging
 import httpx
 import base64
+import binascii
 from fastapi import APIRouter, Request, HTTPException
 from utils import get_user_id_from_init_data
 from config import supabase
@@ -24,48 +25,49 @@ logger = logging.getLogger(__name__)
 
 def to_raw_ton_address(addr: str) -> str:
     """
-    Convert user‑friendly (EQ/UQ) or raw address to the format required by TonAPI:
-      - EQ... -> 0:hex
-      - UQ... -> -1:hex
-      - raw 0:... or -1:... -> as is
+    Convert TON user‑friendly address (EQ/UQ/kQ/0Q…) to raw format "workchain:hex".
+    Uses the same logic as the working Python snippet.
     """
     addr = addr.strip()
     if not addr:
         return ""
 
-    # Already in raw format (0: or -1:)
-    if addr.startswith(("0:", "-1:")):
+    # Already in raw format
+    if addr.startswith(('0:', '-1:')):
         return addr
 
     # Raw without prefix (64 hex chars) – assume workchain 0
     if len(addr) == 64 and all(c in "0123456789abcdefABCDEF" for c in addr):
         return f"0:{addr.lower()}"
 
-    # User‑friendly format (EQ... or UQ...)
-    if addr.startswith(("EQ", "UQ")):
+    # User‑friendly format
+    if addr.startswith(('EQ', 'UQ', 'kQ', '0Q')):
+        # Convert URL‑safe base64 to standard
+        b64 = addr[2:].replace('-', '+').replace('_', '/')
+        # Add padding if needed
+        padding = '=' * (-len(b64) % 4)
+        b64 += padding
         try:
-            # Convert to base64 (URL-safe -> standard)
-            b64 = addr[2:].replace('-', '+').replace('_', '/')
-            missing = len(b64) % 4
-            if missing:
-                b64 += '=' * (4 - missing)
-            decoded = base64.b64decode(b64)
-            # First byte is workchain: 0x00 for EQ (0), 0x80 for UQ (-1)
-            workchain_byte = decoded[0]
-            if workchain_byte == 0x00:
+            data = base64.b64decode(b64)
+            # data[0] = tag, data[1] = workchain, data[2:34] = account ID (32 bytes)
+            workchain_byte = data[1]
+            # Convert to signed workchain
+            if workchain_byte == 0:
                 workchain = 0
-            elif workchain_byte == 0x80:
+            elif workchain_byte == 128:   # UQ addresses
                 workchain = -1
             else:
-                logger.warning(f"Unknown workchain byte {workchain_byte} for {addr}, assuming 0")
-                workchain = 0
-            hex_part = decoded[1:].hex()  # 64 hex chars (32 bytes)
+                # Fallback for other values (should not happen)
+                workchain = workchain_byte - 256 if workchain_byte > 127 else workchain_byte
+
+            account_id = data[2:34]   # 32 bytes → 64 hex chars
+            hex_part = binascii.hexlify(account_id).decode()
             return f"{workchain}:{hex_part}"
         except Exception as e:
-            logger.error(f"Base64 decode error for {addr}: {e}")
+            logger.error(f"Failed to decode address {addr}: {e}")
             raise
 
-    # Fallback: return as is (likely invalid but let TonAPI reject)
+    # Fallback – return as is (may cause 404)
     return addr
 
 
@@ -255,10 +257,10 @@ async def debug_ton_payment(wallet: str = None):
         "poll_interval": POLL_INTERVAL,
         "troubleshooting_tips": [
             "TonAPI requires raw address format: 0:hex for EQ, -1:hex for UQ",
-            "Your admin address (EQ...) converts to 0:dd74f3...",
-            "Your user wallet (UQ...) converts to -1:c67b4f...",
+            "Your admin address (EQ...) should convert to 0:dd74f3...",
+            "Your user wallet (UQ...) should convert to -1:c67b4f...",
             "Make sure you actually sent the transaction with the correct comment and amount",
-            "Transactions take 10-30 seconds to appear"
+            "Transactions take 10‑30 seconds to appear"
         ]
     }
 
