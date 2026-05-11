@@ -1,4 +1,4 @@
-# ton_routes.py – Poll user wallet via TonAPI (raw address format)
+# ton_routes.py – Poll user wallet via TonAPI (correct workchain)
 import os
 import asyncio
 import logging
@@ -24,18 +24,16 @@ logger = logging.getLogger(__name__)
 
 def to_raw_ton_address(addr: str) -> str:
     """
-    Convert user‑friendly (EQ/UQ) or raw (0:... or -1:...) address to
-    the format required by TonAPI: "workchain:hex" (no 0x prefix).
-    Input examples:
-      - EQDddPPthP3-ketobS2PwaQ9h5W9CDRAKOb2ORysfgESZeql
-      - UQA8Z7T2QZ2ncP7nXjzpahH__1ReBL8fFyy6bPX_GqJw6-O1
-      - 0:dd74f3ed84fdfe91eb686d2d8fc1a43d8795bd08344028e6f6391cac7e011265
+    Convert user‑friendly (EQ/UQ) or raw address to the format required by TonAPI:
+      - EQ... -> 0:hex
+      - UQ... -> -1:hex
+      - raw 0:... or -1:... -> as is
     """
     addr = addr.strip()
     if not addr:
         return ""
 
-    # Already raw format (0:... or -1:...)
+    # Already in raw format (0: or -1:)
     if addr.startswith(("0:", "-1:")):
         return addr
 
@@ -46,39 +44,41 @@ def to_raw_ton_address(addr: str) -> str:
     # User‑friendly format (EQ... or UQ...)
     if addr.startswith(("EQ", "UQ")):
         try:
+            # Convert to base64 (URL-safe -> standard)
             b64 = addr[2:].replace('-', '+').replace('_', '/')
             missing = len(b64) % 4
             if missing:
                 b64 += '=' * (4 - missing)
             decoded = base64.b64decode(b64)
-            # decoded[0] is the workchain (0x00 for EQ, 0x80 for UQ)
+            # First byte is workchain: 0x00 for EQ (0), 0x80 for UQ (-1)
             workchain_byte = decoded[0]
             if workchain_byte == 0x00:
                 workchain = 0
             elif workchain_byte == 0x80:
                 workchain = -1
             else:
-                workchain = workchain_byte  # fallback
-            hex_part = decoded[1:].hex()
+                logger.warning(f"Unknown workchain byte {workchain_byte} for {addr}, assuming 0")
+                workchain = 0
+            hex_part = decoded[1:].hex()  # 64 hex chars (32 bytes)
             return f"{workchain}:{hex_part}"
         except Exception as e:
-            logger.error(f"Failed to decode address {addr}: {e}")
+            logger.error(f"Base64 decode error for {addr}: {e}")
             raise
 
-    # Fallback: return as is (likely already valid raw)
+    # Fallback: return as is (likely invalid but let TonAPI reject)
     return addr
 
 
 async def fetch_user_transactions(user_wallet_raw: str, limit: int = 20):
     """
     Fetch recent transactions of the user's wallet using TonAPI.
-    user_wallet_raw must be in "workchain:hex" format (e.g. "0:dd74f3...").
+    user_wallet_raw must be in "workchain:hex" format (e.g. "0:dd74f3..." or "-1:...").
     """
     url = f"https://tonapi.io/v2/accounts/{user_wallet_raw}/transactions"
     headers = {"Authorization": f"Bearer {TON_API_KEY}"} if TON_API_KEY else {}
     params = {"limit": limit}
 
-    logger.info(f"TonAPI request URL: {url}")
+    logger.info(f"TonAPI request: {url}")
     async with httpx.AsyncClient(timeout=15.0) as client:
         try:
             resp = await client.get(url, headers=headers, params=params)
@@ -102,7 +102,6 @@ def find_outgoing_payment(transactions, admin_raw: str, expected_comment_prefix:
             dest_addr = dest.get("address") if isinstance(dest, dict) else str(dest) if dest else ""
             if not dest_addr:
                 continue
-            # Compare raw addresses (both in "workchain:hex" format)
             if dest_addr != admin_raw:
                 continue
             value = msg.get("value")
@@ -219,7 +218,7 @@ async def confirm_payment(request: Request):
         raise HTTPException(status_code=400, detail="Invalid wallet address format")
 
     expected_nano = int(TON_AMOUNT * 1_000_000_000)
-    logger.info(f"Polling user {user_id} raw {user_raw} for comment {expected_comment}")
+    logger.info(f"Polling user {user_id} for comment {expected_comment}")
 
     result = await poll_user_wallet_for_payment(
         user_id=user_id,
@@ -255,10 +254,11 @@ async def debug_ton_payment(wallet: str = None):
         "poll_max_seconds": POLL_MAX_SECONDS,
         "poll_interval": POLL_INTERVAL,
         "troubleshooting_tips": [
-            "TonAPI requires raw address format (workchain:hex). User‑friendly EQ/UQ are automatically converted.",
-            "Make sure TON_API_KEY is valid and has access to /v2/accounts/.../transactions",
-            "The user wallet must send a transaction to the admin address with the correct comment",
-            "Transactions may take 10-30 seconds to appear on TonAPI"
+            "TonAPI requires raw address format: 0:hex for EQ, -1:hex for UQ",
+            "Your admin address (EQ...) converts to 0:dd74f3...",
+            "Your user wallet (UQ...) converts to -1:c67b4f...",
+            "Make sure you actually sent the transaction with the correct comment and amount",
+            "Transactions take 10-30 seconds to appear"
         ]
     }
 
