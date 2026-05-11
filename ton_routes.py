@@ -130,15 +130,16 @@ async def grant_premium(telegram_id: int, tx_hash: str, amount: int, comment: st
     expires_at = (datetime.utcnow() + timedelta(days=365)).isoformat()
     
     # Check if payment hash already exists to prevent double-spending
-    existing = supabase.table("payments").select("id").eq("tx_hash", tx_hash).execute()
+    # FIX: changed column name from 'tx_hash' to 'transaction_id' to match your schema
+    existing = supabase.table("payments").select("id").eq("transaction_id", tx_hash).execute()
     if existing.data:
         logger.warning(f"Duplicate payment attempt: {tx_hash}")
         return
 
-    # Record payment
+    # Record payment with correct column name 'transaction_id'
     supabase.table("payments").insert({
         "telegram_id": telegram_id,
-        "tx_hash": tx_hash,
+        "transaction_id": tx_hash,          # was 'tx_hash'
         "amount": amount / 1_000_000_000,
         "comment": comment,
         "status": "completed"
