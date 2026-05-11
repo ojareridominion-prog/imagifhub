@@ -1,4 +1,4 @@
-# ton_routes.py – Poll user wallet via TonAPI (fixed conversion)
+# ton_routes.py – Poll user wallet via TonAPI (your conversion logic)
 import os
 import asyncio
 import logging
@@ -23,59 +23,50 @@ POLL_INTERVAL = 3
 logger = logging.getLogger(__name__)
 
 
-def to_raw_ton_address(addr: str) -> str:
+def to_raw_ton_address(address: str) -> str:
     """
-    Convert TON user‑friendly address (EQ/UQ/kQ/0Q…) to raw format "workchain:hex".
-    Uses the same logic as the working Python snippet.
+    Convert TON user‑friendly address (EQ/UQ/kQ/0Q…) to raw hex format.
+    Exact copy of your working Python code.
     """
-    addr = addr.strip()
-    if not addr:
+    address = address.strip()
+    if not address:
         return ""
 
     # Already in raw format
-    if addr.startswith(('0:', '-1:')):
-        return addr
+    if address.startswith(('0:', '-1:')):
+        return address
 
     # Raw without prefix (64 hex chars) – assume workchain 0
-    if len(addr) == 64 and all(c in "0123456789abcdefABCDEF" for c in addr):
-        return f"0:{addr.lower()}"
+    if len(address) == 64 and all(c in "0123456789abcdefABCDEF" for c in address):
+        return f"0:{address.lower()}"
 
     # User‑friendly format
-    if addr.startswith(('EQ', 'UQ', 'kQ', '0Q')):
-        # Convert URL‑safe base64 to standard
-        b64 = addr[2:].replace('-', '+').replace('_', '/')
-        # Add padding if needed
-        padding = '=' * (-len(b64) % 4)
-        b64 += padding
-        try:
-            data = base64.b64decode(b64)
-            # data[0] = tag, data[1] = workchain, data[2:34] = account ID (32 bytes)
-            workchain_byte = data[1]
-            # Convert to signed workchain
-            if workchain_byte == 0:
-                workchain = 0
-            elif workchain_byte == 128:   # UQ addresses
-                workchain = -1
-            else:
-                # Fallback for other values (should not happen)
-                workchain = workchain_byte - 256 if workchain_byte > 127 else workchain_byte
+    # Remove the first two characters (EQ, UQ, etc.)
+    addr = address[2:]
+    # Convert URL‑safe base64 to standard
+    addr = addr.replace('-', '+').replace('_', '/')
+    # Add padding if missing
+    padding = '=' * (-len(addr) % 4)
+    addr += padding
 
-            account_id = data[2:34]   # 32 bytes → 64 hex chars
-            hex_part = binascii.hexlify(account_id).decode()
-            return f"{workchain}:{hex_part}"
-        except Exception as e:
-            logger.error(f"Failed to decode address {addr}: {e}")
-            raise
-
-    # Fallback – return as is (may cause 404)
-    return addr
+    try:
+        data = base64.b64decode(addr)
+        # Byte 0 = tag, byte 1 = workchain, bytes 2-33 = account ID, bytes 34-35 = checksum
+        workchain_byte = data[1]
+        # Convert signed byte
+        if workchain_byte == 255:
+            workchain = -1
+        else:
+            workchain = workchain_byte
+        account_id = data[2:34]   # 32 bytes
+        hex_part = binascii.hexlify(account_id).decode()
+        return f"{workchain}:{hex_part}"
+    except Exception as e:
+        logger.error(f"Failed to decode address {address}: {e}")
+        raise
 
 
 async def fetch_user_transactions(user_wallet_raw: str, limit: int = 20):
-    """
-    Fetch recent transactions of the user's wallet using TonAPI.
-    user_wallet_raw must be in "workchain:hex" format (e.g. "0:dd74f3..." or "-1:...").
-    """
     url = f"https://tonapi.io/v2/accounts/{user_wallet_raw}/transactions"
     headers = {"Authorization": f"Bearer {TON_API_KEY}"} if TON_API_KEY else {}
     params = {"limit": limit}
@@ -256,11 +247,11 @@ async def debug_ton_payment(wallet: str = None):
         "poll_max_seconds": POLL_MAX_SECONDS,
         "poll_interval": POLL_INTERVAL,
         "troubleshooting_tips": [
-            "TonAPI requires raw address format: 0:hex for EQ, -1:hex for UQ",
-            "Your admin address (EQ...) should convert to 0:dd74f3...",
-            "Your user wallet (UQ...) should convert to -1:c67b4f...",
-            "Make sure you actually sent the transaction with the correct comment and amount",
-            "Transactions take 10‑30 seconds to appear"
+            "Your conversion logic exactly matches the provided Python script",
+            "Admin address (EQ...) → workchain 0: account ID = 32 bytes (64 hex chars)",
+            "User wallet (UQ...) → workchain -1: account ID = 32 bytes",
+            "TonAPI accepts raw format: 0:... or -1:...",
+            "Make sure you actually sent a transaction with the correct amount and comment"
         ]
     }
 
