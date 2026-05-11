@@ -288,7 +288,12 @@ export async function shareBot() {
     } catch (err) { console.log('Error sharing:', err); }
 }
 
+// MODIFIED: refresh TON prices before opening premium modal
 export function openPremium() {
+    // Update TON prices dynamically (if function exists)
+    if (window.updateTonPrices) {
+        window.updateTonPrices().catch(console.warn);
+    }
     const panel = document.getElementById('menuPanel');
     const overlay = getMenuOverlay();
     if (panel.classList.contains('open')) {
@@ -368,4 +373,4 @@ export function initUI() {
     initCustomThemeEngine();
     initMenuOverlay();
     initSearchPanel();
-        }
+    }
