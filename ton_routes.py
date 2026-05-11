@@ -3,7 +3,6 @@ import asyncio
 import logging
 import httpx
 import base64
-import binascii
 from fastapi import APIRouter, Request, HTTPException
 from utils import get_user_id_from_init_data
 from config import supabase
@@ -13,11 +12,10 @@ router = APIRouter()
 
 # Configuration from environment variables
 TON_ADMIN_ADDRESS = os.environ.get("TON_ADMIN_ADDRESS", "").strip()
-TON_AMOUNT = float(os.environ.get("TON_AMOUNT", "1.12"))
+TON_AMOUNT = float(os.environ.get("TON_AMOUNT", "0.01"))
 TON_API_KEY = os.environ.get("TON_API_KEY", "")
-TON_DEV_MODE = os.environ.get("TON_DEV_MODE", "false").lower() == "true"
 
-POLL_MAX_SECONDS = 45
+POLL_MAX_SECONDS = 60  # Increased slightly for network reliability
 POLL_INTERVAL = 3
 
 logger = logging.getLogger(__name__)
@@ -32,7 +30,7 @@ def to_raw_ton_address(address: str) -> str:
         return ""
 
     if address.startswith(('0:', '-1:')):
-        return address
+        return address.lower()
 
     if len(address) == 64 and all(c in "0123456789abcdefABCDEF" for c in address):
         return f"0:{address.lower()}"
@@ -43,141 +41,128 @@ def to_raw_ton_address(address: str) -> str:
 
     try:
         data = base64.b64decode(b64)
-        workchain_byte = data[1]
-        workchain = -1 if workchain_byte == 255 else workchain_byte
-        account_id = data[2:34]   
-        hex_part = binascii.hexlify(account_id).decode()
-        return f"{workchain}:{hex_part}"
+        # The raw address is usually at bytes 2-34
+        workchain = data[1]
+        if workchain == 0xff:
+            workchain = -1
+        hash_part = data[2:34].hex()
+        return f"{workchain}:{hash_part}".lower()
     except Exception as e:
-        logger.error(f"Failed to decode address {address}: {e}")
-        raise
+        logger.error(f"Error decoding address {address}: {e}")
+        return ""
 
 
-async def fetch_user_events(user_wallet_raw: str, limit: int = 10):
+async def fetch_user_events(account_id: str, limit: int = 5):
     """
-    Fetches high-level events using the TonAPI v2 Account Events endpoint.
-    This replaces the broken /transactions endpoint.
+    Fetches account events from TonAPI.
     """
-    url = f"https://tonapi.io/v2/accounts/{user_wallet_raw}/events"
-    headers = {"Authorization": f"Bearer {TON_API_KEY}"} if TON_API_KEY else {}
-    
-    async with httpx.AsyncClient(timeout=15.0) as client:
+    url = f"https://tonapi.io/v2/accounts/{account_id}/events?limit={limit}"
+    headers = {}
+    if TON_API_KEY:
+        headers["Authorization"] = f"Bearer {TON_API_KEY}"
+
+    async with httpx.AsyncClient() as client:
         try:
-            # We fetch 'events' because TonAPI automatically decodes 
-            # the transfer details and comments for us.
-            resp = await client.get(url, headers=headers, params={"limit": limit})
-            
-            if resp.status_code != 200:
-                logger.error(f"TonAPI error {resp.status_code}: {resp.text[:500]}")
-                return []
-                
-            data = resp.json()
-            return data.get("events", [])
+            resp = await client.get(url, headers=headers, timeout=10)
+            if resp.status_code == 200:
+                return resp.json().get("events", [])
+            logger.error(f"TonAPI error: {resp.status_code} - {resp.text}")
         except Exception as e:
-            logger.error(f"Exception fetching events: {e}", exc_info=True)
-            return []
+            logger.error(f"Failed to fetch events: {e}")
+    return []
 
 
 def find_payment_in_events(events, admin_raw: str, expected_comment: str, min_nano: int):
     """
     Searches through TonAPI events for a matching TonTransfer action.
     """
+    # Normalize admin address to lowercase for safe comparison
+    target_address = admin_raw.lower()
+
     for event in events:
-        event_id = event.get("event_id")
-        
+        # Skip events still being processed by the indexer
+        if event.get("in_progress") is True:
+            continue
+
         for action in event.get("actions", []):
-            if action.get("type") == "TonTransfer":
-                transfer = action.get("ton_transfer", {})
+            # TonAPI v2 uses "TonTransfer" (PascalCase) in the JSON payload
+            if action.get("type") == "TonTransfer" and action.get("status") == "ok":
+                transfer = action.get("TonTransfer") or action.get("ton_transfer") or {}
                 
-                # Normalize values for comparison
-                recipient = transfer.get("recipient", {}).get("address")
-                amount = transfer.get("amount", 0)
+                if not transfer:
+                    continue
+
+                recipient = transfer.get("recipient", {}).get("address", "").lower()
+                amount = int(transfer.get("amount", 0))
                 comment = transfer.get("comment", "")
 
-                if recipient == admin_raw and amount >= min_nano and comment == expected_comment:
-                    logger.info(f"✅ Matching payment found! Event: {event_id}")
-                    return event_id, amount, comment
+                logger.info(f"Inspecting Transfer: To={recipient}, Amount={amount}, Comment='{comment}'")
+
+                if recipient == target_address and amount >= min_nano and comment == expected_comment:
+                    return event.get("event_id"), amount, comment
                     
     return None
 
 
-async def poll_user_wallet_for_payment(user_wallet_raw: str, admin_raw: str,
-                                        expected_comment: str, expected_nano: int,
-                                        max_wait: int = POLL_MAX_SECONDS, interval: int = POLL_INTERVAL):
+async def poll_user_wallet_for_payment(user_raw, admin_raw, comment, expected_nano):
     """
-    Polls the wallet until a matching event is found or timeout occurs.
+    Polls the blockchain until the transaction appears or timeout is reached.
     """
-    start = asyncio.get_event_loop().time()
+    start_time = asyncio.get_event_loop().time()
     
-    while (asyncio.get_event_loop().time() - start) < max_wait:
-        events = await fetch_user_events(user_wallet_raw, limit=10)
-        result = find_payment_in_events(events, admin_raw, expected_comment, expected_nano)
+    while (asyncio.get_event_loop().time() - start_time) < POLL_MAX_SECONDS:
+        logger.info(f"Polling TonAPI for wallet: {user_raw}")
+        events = await fetch_user_events(user_raw)
         
-        if result:
-            return result
+        match = find_payment_in_events(events, admin_raw, comment, expected_nano)
+        if match:
+            return match
             
-        await asyncio.sleep(interval)
+        await asyncio.sleep(POLL_INTERVAL)
         
     return None
 
 
-async def grant_premium(user_id: int, tx_hash: str, amount_nano: int, comment: str):
+async def grant_premium(telegram_id: int, tx_hash: str, amount: int, comment: str):
     """
-    Updates Supabase to reflect the user's new premium status.
+    Updates the database to grant premium status.
     """
-    existing = supabase.table("payments").select("id").eq("transaction_id", tx_hash).execute()
-    if existing.data:
-        logger.info(f"Tx {tx_hash} already processed")
-        return True
-
-    now = datetime.utcnow()
-    new_expiry = now + timedelta(days=30)
-
-    user_result = supabase.table("users").select("premium_expires_at").eq("telegram_id", user_id).execute()
+    expires_at = (datetime.utcnow() + timedelta(days=365)).isoformat()
     
-    if user_result.data and user_result.data[0].get("premium_expires_at"):
-        current_expiry_str = user_result.data[0]["premium_expires_at"]
-        try:
-            if current_expiry_str.endswith('Z'):
-                current_expiry_str = current_expiry_str.replace('Z', '+00:00')
-            current_expiry = datetime.fromisoformat(current_expiry_str)
-            if current_expiry.tzinfo:
-                current_expiry = current_expiry.replace(tzinfo=None)
-            if current_expiry > now:
-                new_expiry = current_expiry + timedelta(days=30)
-        except Exception:
-            pass
+    # Check if payment hash already exists to prevent double-spending
+    existing = supabase.table("payments").select("id").eq("tx_hash", tx_hash).execute()
+    if existing.data:
+        logger.warning(f"Duplicate payment attempt: {tx_hash}")
+        return
 
-    supabase.table("users").upsert({
-        "telegram_id": user_id,
-        "is_premium": True,
-        "premium_expires_at": new_expiry.isoformat(),
-        "updated_at": now.isoformat()
-    }).execute()
-
+    # Record payment
     supabase.table("payments").insert({
-        "telegram_id": user_id,
-        "provider": "ton",
-        "amount": amount_nano,
-        "currency": "nanoTON",
-        "payload": comment[:100],
-        "transaction_id": tx_hash,
-        "status": "completed",
-        "created_at": now.isoformat()
+        "telegram_id": telegram_id,
+        "tx_hash": tx_hash,
+        "amount": amount / 1_000_000_000,
+        "comment": comment,
+        "status": "completed"
     }).execute()
 
-    return True
+    # Update user status
+    supabase.table("users").update({
+        "is_premium": True,
+        "premium_expires_at": expires_at
+    }).eq("telegram_id", telegram_id).execute()
+    
+    logger.info(f"Premium granted to {telegram_id}")
 
 
 @router.post("/api/ton-confirm-payment")
-async def confirm_payment(request: Request):
-    init_data = request.headers.get("X-Telegram-Init-Data", "")
-    if not init_data:
-        raise HTTPException(status_code=401, detail="Missing init data")
-
-    user_id = get_user_id_from_init_data(init_data)
+async def ton_confirm_payment(request: Request):
+    """
+    Endpoint called by frontend to trigger transaction verification.
+    """
+    init_data_raw = request.headers.get("X-Telegram-Init-Data")
+    user_id = get_user_id_from_init_data(init_data_raw)
+    
     if not user_id:
-        raise HTTPException(status_code=401, detail="Invalid user")
+        raise HTTPException(status_code=401, detail="Unauthorized")
 
     body = await request.json()
     user_wallet = body.get("user_wallet")
@@ -185,10 +170,6 @@ async def confirm_payment(request: Request):
 
     if not user_wallet or not expected_comment:
         raise HTTPException(status_code=400, detail="Missing wallet or comment")
-
-    if TON_DEV_MODE:
-        await grant_premium(user_id, "dev_tx_hash", int(TON_AMOUNT * 1e9), expected_comment)
-        return {"status": "completed", "message": "Dev mode active"}
 
     try:
         user_raw = to_raw_ton_address(user_wallet)
@@ -198,13 +179,12 @@ async def confirm_payment(request: Request):
 
     expected_nano = int(TON_AMOUNT * 1_000_000_000)
     
-    # Start the polling process
     result = await poll_user_wallet_for_payment(
         user_raw, admin_raw, expected_comment, expected_nano
     )
     
     if not result:
-        raise HTTPException(status_code=400, detail="Transaction not found after polling")
+        raise HTTPException(status_code=400, detail="Transaction not found. Please wait a few seconds and try again.")
 
     tx_hash, amount, comment = result
     await grant_premium(user_id, tx_hash, amount, comment)
@@ -220,7 +200,7 @@ async def ton_config():
 @router.get("/debug/ton-payment")
 async def debug_ton_payment(wallet: str = None):
     """
-    Debug helper updated to show TonAPI events.
+    Helper to verify the state of the payment system.
     """
     debug = {
         "admin_address": TON_ADMIN_ADDRESS,
@@ -239,4 +219,4 @@ async def debug_ton_payment(wallet: str = None):
             debug["error"] = str(e)
             
     return debug
-                                       
+    
