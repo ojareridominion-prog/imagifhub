@@ -6,7 +6,7 @@ import urllib.parse
 import logging
 import httpx
 import os   # <-- ADDED for admin token check
-from config import supabase, bot, BOT_TOKEN
+from config import supabase, bot, BOT_TOKEN, ADMIN_ID   # <-- import ADMIN_ID
 from utils import get_user_id_from_init_data
 
 router = APIRouter()
@@ -97,6 +97,9 @@ async def get_user_data(request: Request):
         if not user_id:
             return {"user": None, "premium": False}
         
+        # --- NEW: Check if user is admin ---
+        is_admin = (user_id == ADMIN_ID)
+        
         try:
             parsed = urllib.parse.parse_qs(init_data)
             user_json = json.loads(parsed['user'][0])
@@ -111,11 +114,18 @@ async def get_user_data(request: Request):
         
         premium_result = await check_premium_logic(user_id)
         
+        # --- Admin is always premium (override) ---
+        if is_admin:
+            premium_result["is_premium"] = True
+            premium_result["days_left"] = None   # will be handled in UI
+            premium_result["expires_at"] = None
+        
         return {
             "user": user_info,
             "premium": premium_result["is_premium"],
             "expires_at": premium_result.get("expires_at"),
-            "days_left": premium_result.get("days_left")
+            "days_left": premium_result.get("days_left"),
+            "is_admin": is_admin   # <-- NEW: admin flag
         }
         
     except Exception as e:
