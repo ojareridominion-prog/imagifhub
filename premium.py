@@ -5,8 +5,8 @@ import json
 import urllib.parse
 import logging
 import httpx
-import os   # <-- ADDED for admin token check
-from config import supabase, bot, BOT_TOKEN, ADMIN_ID   # <-- import ADMIN_ID
+import os
+from config import supabase, bot, BOT_TOKEN, ADMIN_IDS   # <-- import ADMIN_IDS (list)
 from utils import get_user_id_from_init_data
 
 router = APIRouter()
@@ -97,8 +97,8 @@ async def get_user_data(request: Request):
         if not user_id:
             return {"user": None, "premium": False}
         
-        # --- NEW: Check if user is admin ---
-        is_admin = (user_id == ADMIN_ID)
+        # --- NEW: Check if user is admin (multiple IDs supported) ---
+        is_admin = (user_id in ADMIN_IDS)   # <-- changed from == ADMIN_ID
         
         try:
             parsed = urllib.parse.parse_qs(init_data)
