@@ -8,9 +8,9 @@ from aiogram import F
 from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton, PreCheckoutQuery, ContentType, LabeledPrice
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
-from config import bot, dp, supabase, ADMIN_ID, IMGBB_API_KEY, BOT_TOKEN, CATEGORIES
+from config import bot, dp, supabase, ADMIN_IDS, ADMIN_TOKEN, IMGBB_API_KEY, BOT_TOKEN, CATEGORIES   # <-- import ADMIN_IDS
 from ad_utils import send_banner_ad
-from gifts_data import GIFTS   # NEW import for gift validation
+from gifts_data import GIFTS
 
 # Warn if ImgBB API key is missing (for debugging)
 if not IMGBB_API_KEY:
@@ -105,8 +105,6 @@ async def on_successful_payment(message: Message):
                 return
 
         # --- Else it's a PREMIUM payment (original logic) ---
-        # (Keep your existing premium payment code exactly as it was)
-        # I'll paste the original premium payment block below.
         logging.info(f"💰 Successful premium payment from user {telegram_id}, amount={payment.total_amount} {payment.currency}")
 
         # Get existing user (if any)
@@ -336,7 +334,8 @@ async def start_premium(message: Message):
 
 # ==================== ADMIN COMMANDS ====================
 
-@dp.message(F.from_user.id == ADMIN_ID, F.text == "/admin")
+# Use ADMIN_IDS instead of single ADMIN_ID
+@dp.message(F.from_user.id.in_(ADMIN_IDS), F.text == "/admin")
 async def admin_cmd(message: Message, state: FSMContext):
     await state.clear()
     kb = InlineKeyboardMarkup(inline_keyboard=[
