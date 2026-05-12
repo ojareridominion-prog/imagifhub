@@ -122,12 +122,19 @@ export function startTempPremiumCountdown() {
     tempPremiumInterval = setInterval(updateTimer, 1000);
 }
 
-function updatePremiumUI(isPremium, expiryStr = null, daysLeft = null, isTemp = false) {
+// ----- MODIFIED: accept isAdmin flag and show "admin" instead of days left -----
+function updatePremiumUI(isPremium, expiryStr = null, daysLeft = null, isTemp = false, isAdmin = false) {
     const premiumBtn = document.querySelector('.premium-btn-menu');
     const expiryDisplay = document.getElementById('premiumExpiryDisplay');
     if (premiumBtn) {
         if (isPremium) {
-            if (isTemp) {
+            if (isAdmin) {
+                premiumBtn.innerText = "⭐ ADMIN";
+                premiumBtn.style.background = "#4CAF50";
+                premiumBtn.style.color = "white";
+                premiumBtn.disabled = true;
+                premiumBtn.onclick = null;
+            } else if (isTemp) {
                 premiumBtn.innerText = "⏱️ TEMP PREMIUM (1h)";
                 premiumBtn.style.background = "#ff8c00";
                 premiumBtn.style.color = "white";
@@ -149,7 +156,9 @@ function updatePremiumUI(isPremium, expiryStr = null, daysLeft = null, isTemp = 
         }
     }
     if (expiryDisplay) {
-        if (isPremium) {
+        if (isAdmin) {
+            expiryDisplay.innerText = "admin";
+        } else if (isPremium) {
             if (isTemp) {
                 expiryDisplay.innerText = "⏳ 1‑hour trial – see timer below";
             } else if (daysLeft !== null) {
@@ -196,6 +205,7 @@ function formatExpiryDate(expiryStr) {
     } catch { return ''; }
 }
 
+// ----- MODIFIED: capture is_admin from API response and override -----
 export async function verifyPremiumStatus(skipReset = false) {
     try {
         const tg = window.Telegram.WebApp;
@@ -203,6 +213,7 @@ export async function verifyPremiumStatus(skipReset = false) {
         let paidPremium = false;
         let expiry = null;
         let daysLeft = null;
+        let isAdmin = false;
         if (initData) {
             const response = await fetch(`${API_URL}/api/user-data`, {
                 headers: { 'X-Telegram-Init-Data': initData }
@@ -216,6 +227,7 @@ export async function verifyPremiumStatus(skipReset = false) {
             paidPremium = data.premium === true;
             expiry = data.expires_at;
             daysLeft = data.days_left;
+            isAdmin = data.is_admin === true;   // <--- NEW
         } else {
             paidPremium = localStorage.getItem("isPremium") === "true";
             expiry = localStorage.getItem("premiumExpires");
@@ -224,20 +236,30 @@ export async function verifyPremiumStatus(skipReset = false) {
         }
         const tempExpiry = getTempPremiumExpiry();
         const tempActive = tempExpiry !== null;
-        const newPremiumStatus = paidPremium || tempActive;
+        
+        // Admin overrides everything
+        let newPremiumStatus = paidPremium || tempActive;
+        if (isAdmin) {
+            newPremiumStatus = true;
+            paidPremium = true;   // treat as full premium
+        }
+        
         const wasPremium = state.isPremiumUser;
         state.paidPremiumActive = paidPremium;
         state.isPremiumUser = newPremiumStatus;
         
-        const isTemp = tempActive && !paidPremium;
+        const isTemp = tempActive && !paidPremium && !isAdmin;
         
-        if (paidPremium) {
+        if (isAdmin) {
+            updatePremiumUI(true, null, null, false, true);
+            updateWatchAdCard();  // hide watch ads card for admin
+        } else if (paidPremium) {
             localStorage.setItem("isPremium", "true");
             if (expiry) localStorage.setItem("premiumExpires", expiry);
-            updatePremiumUI(true, expiry, daysLeft, false);
+            updatePremiumUI(true, expiry, daysLeft, false, false);
             if (!tempActive) updateWatchAdCard();
         } else if (tempActive) {
-            updatePremiumUI(true, null, null, true);
+            updatePremiumUI(true, null, null, true, false);
             updateWatchAdCard();
             startTempPremiumCountdown();
         } else {
@@ -255,6 +277,7 @@ export async function verifyPremiumStatus(skipReset = false) {
         const paid = localStorage.getItem("isPremium") === "true";
         const tempExpiry = getTempPremiumExpiry();
         const tempActive = tempExpiry !== null;
+        // No admin detection here – fallback
         const newStatus = paid || tempActive;
         const was = state.isPremiumUser;
         state.isPremiumUser = newStatus;
@@ -263,7 +286,7 @@ export async function verifyPremiumStatus(skipReset = false) {
         if (was !== newStatus && !skipReset) {
             resetAndLoadFeed(state.currentCategory);
         }
-        updatePremiumUI(newStatus, null, null, isTemp);
+        updatePremiumUI(newStatus, null, null, isTemp, false);
         if (tempActive) {
             updateWatchAdCard();
             startTempPremiumCountdown();
@@ -295,4 +318,4 @@ function updateUserCard(user) {
         .then(response => response.ok ? response.blob() : Promise.reject())
         .then(blob => { avatarImg.src = URL.createObjectURL(blob); })
         .catch(() => { avatarImg.src = generateInitialsAvatar(user); });
-            }
+}
