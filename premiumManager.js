@@ -129,7 +129,7 @@ function updatePremiumUI(isPremium, expiryStr = null, daysLeft = null, isTemp = 
     if (premiumBtn) {
         if (isPremium) {
             if (isAdmin) {
-                premiumBtn.innerText = "⭐ ADMIN";
+                premiumBtn.innerText = "✨ YOU ARE ADMIN";
                 premiumBtn.style.background = "#4CAF50";
                 premiumBtn.style.color = "white";
                 premiumBtn.disabled = true;
