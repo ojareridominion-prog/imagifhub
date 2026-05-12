@@ -2,13 +2,13 @@ import logging
 import os
 from datetime import datetime, timedelta
 import aiohttp
-from config import supabase, bot
+from config import supabase, bot, ADMIN_IDS   # <-- import ADMIN_IDS
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 
 async def send_banner_ad(chat_id: int, user_id: int):
     """Send one random banner ad to the user if not premium and cooldown allows (8h between ads, max 3 per day)."""
-    ADMIN_ID = int(os.environ.get("ADMIN_ID", 0))
-    if user_id == ADMIN_ID:
+    # Skip ads for any admin ID
+    if user_id in ADMIN_IDS:   # <-- now checks list
         return
 
     # 1. Get or create user record
