@@ -141,8 +141,20 @@ function initPremiumPaymentToggle() {
     const starsNewSpan = document.querySelector('.premium-card .new-price.stars-price');
     const tonNewSpan = document.querySelector('.premium-card .new-price.ton-price');
     const premiumCard = document.querySelector('.premium-card');
+    const paymentInfoText = document.getElementById('paymentInfoText');
 
     if (!starsOldSpan || !tonOldSpan || !starsNewSpan || !tonNewSpan) return;
+
+    function setPaymentInfo(method) {
+        if (method === 'stars') {
+            paymentInfoText.innerHTML = `🔒 <b>Secure Payment via Telegram</b><br>
+                                         Clicking "Go Premium" will open Telegram chat.`;
+        } else {
+            paymentInfoText.innerHTML = `🔒 <b>Secure Payment via TON</b><br>
+                                         Clicking "Go Premium" will start TON payment.<br><br>
+                                         ⚠️ <b>Important:</b> Only use a self‑custodial TON wallet (e.g., Tonkeeper, MyTonWallet, TON Space). Exchange wallets will not work. Do not change or alter anything like comment or price in transaction.`;
+        }
+    }
 
     toggleContainer.querySelectorAll('.seg-option').forEach(btn => {
         btn.addEventListener('click', (e) => {
@@ -156,6 +168,7 @@ function initPremiumPaymentToggle() {
                 tonNewSpan.style.display = 'none';
                 premiumCard.classList.remove('payment-mode-ton');
                 premiumCard.classList.add('payment-mode-stars');
+                setPaymentInfo('stars');
             } else {
                 starsOldSpan.style.display = 'none';
                 tonOldSpan.style.display = 'block';
@@ -163,6 +176,7 @@ function initPremiumPaymentToggle() {
                 tonNewSpan.style.display = 'block';
                 premiumCard.classList.remove('payment-mode-stars');
                 premiumCard.classList.add('payment-mode-ton');
+                setPaymentInfo('ton');
             }
         });
     });
@@ -170,8 +184,10 @@ function initPremiumPaymentToggle() {
     const activeBtn = toggleContainer.querySelector('.seg-option.active');
     if (activeBtn && activeBtn.dataset.payment === 'stars') {
         premiumCard.classList.add('payment-mode-stars');
+        setPaymentInfo('stars');
     } else {
         premiumCard.classList.add('payment-mode-ton');
+        setPaymentInfo('ton');
     }
 }
 
