@@ -148,7 +148,7 @@ function initPremiumPaymentToggle() {
     function setPaymentInfo(method) {
         if (method === 'stars') {
             paymentInfoText.innerHTML = `🔒 <b>Secure Payment via Telegram</b><br>
-                                         Clicking "Go Premium" will open Telegram chat.`;
+                                         Clicking "Go Premium" will create telegram star invoice.`;
         } else {
             paymentInfoText.innerHTML = `🔒 <b>Secure Payment via TON</b><br>
                                          Clicking "Go Premium" will start TON payment.<br><br>
