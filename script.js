@@ -30,7 +30,144 @@ window.copyUserId = copyUserId;
 window.openPrivacy = openPrivacy;
 window.closePrivacy = closePrivacy;
 
-// Payment / invoice function (supports TON)
+// ===== NEW: saved images state =====
+state.savedImageIds = new Set();
+state.savedOffset = 0;
+state.savedLimit = 20;
+state.savedHasMore = true;
+state.loadingSaved = false;
+
+// ===== NEW: Toast notification =====
+function showToast(message, type = 'info', duration = 3000) {
+    // Simple toast using Telegram alert or console
+    if (window.Telegram?.WebApp?.showAlert) {
+        window.Telegram.WebApp.showAlert(message);
+    } else {
+        alert(message);
+    }
+}
+window.showToast = showToast;
+
+// ===== NEW: Saved images overlay functions =====
+function openSavedOverlay() {
+    // Close menu if open
+    const panel = document.getElementById('menuPanel');
+    if (panel && panel.classList.contains('open')) {
+        panel.classList.remove('open');
+        document.getElementById('menuOverlay').classList.remove('active');
+        document.body.style.overflow = '';
+    }
+    document.getElementById('savedOverlay').classList.add('active');
+    loadSavedImages(true);
+}
+
+function closeSavedOverlay() {
+    document.getElementById('savedOverlay').classList.remove('active');
+}
+
+async function loadSavedImages(reset = false) {
+    if (state.loadingSaved || (!state.savedHasMore && !reset)) return;
+    state.loadingSaved = true;
+
+    const grid = document.getElementById('savedGrid');
+    if (reset) {
+        grid.innerHTML = '';
+        state.savedOffset = 0;
+        state.savedHasMore = true;
+        // Show skeleton
+        for (let i = 0; i < 4; i++) {
+            const skel = document.createElement('div');
+            skel.className = 'skeleton-card';
+            skel.innerHTML = `<div class="img"></div><div class="line"></div>`;
+            grid.appendChild(skel);
+        }
+    }
+
+    try {
+        if (!state.user) {
+            grid.innerHTML = '<div class="saved-empty-state">Unable to load user context.</div>';
+            return;
+        }
+        const resp = await fetch(`${API_URL}/saved-images?telegram_id=${state.user.id}`);
+        const images = await resp.json();
+
+        if (reset) grid.innerHTML = '';
+
+        if (!images || images.length === 0) {
+            if (reset) {
+                grid.innerHTML = '<div class="saved-empty-state">No images saved yet</div>';
+            }
+            state.savedHasMore = false;
+            return;
+        }
+
+        images.forEach(img => {
+            const card = document.createElement('div');
+            card.className = 'game-card';
+            card.innerHTML = `
+                <button class="card-menu-btn">⋮</button>
+                <div class="card-dropdown">
+                    <div class="card-dropdown-item delete-item">🗑 Delete</div>
+                </div>
+                <img src="${img.url}" alt="${img.Keyword || 'Image'}" loading="lazy" />
+                <div class="info">
+                    <div class="title">${img.Keyword || 'Untitled'}</div>
+                    <div class="category">${img.category || 'Other'}</div>
+                </div>
+            `;
+
+            const menuBtn = card.querySelector('.card-menu-btn');
+            const dropdown = card.querySelector('.card-dropdown');
+            const deleteItem = card.querySelector('.delete-item');
+
+            menuBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                dropdown.classList.toggle('show');
+            });
+
+            deleteItem.addEventListener('click', async (e) => {
+                e.stopPropagation();
+                dropdown.classList.remove('show');
+                // Toggle save off (delete)
+                await window.toggleSaveImage(img.id, null);
+                // toggleSaveImage will refresh the overlay if it's open
+            });
+
+            card.addEventListener('click', () => {
+                closeSavedOverlay();
+                showToast('Image saved – find it in the feed!', 'info');
+            });
+
+            grid.appendChild(card);
+        });
+
+        state.savedHasMore = false; // no pagination for now, all images loaded at once
+    } catch (e) {
+        console.error(e);
+        if (reset) grid.innerHTML = '<div class="saved-empty-state">Failed to load saved images.</div>';
+        showToast('Failed to load saved images.', 'error');
+    } finally {
+        state.loadingSaved = false;
+    }
+}
+// Expose loadSavedImages globally for use in feedManager
+window.loadSavedImages = loadSavedImages;
+
+// ===== NEW: fetch saved image IDs =====
+async function fetchSavedImageIds() {
+    if (!state.user || !state.user.id) return;
+    try {
+        const resp = await fetch(`${API_URL}/saved-images?telegram_id=${state.user.id}`);
+        const images = await resp.json();
+        if (Array.isArray(images)) {
+            state.savedImageIds = new Set(images.map(img => String(img.id)));
+        }
+    } catch (err) {
+        console.error("Failed to fetch saved image IDs:", err);
+    }
+}
+
+// ===== Payment / invoice function =====
 async function goPremium() {
     const tg = window.Telegram.WebApp;
     const statusEl = document.getElementById('paymentStatus');
@@ -191,9 +328,7 @@ function initPremiumPaymentToggle() {
     }
 }
 
-// -------------------------------
-// DEFERRED INITIALIZATION (runs after CONTINUE)
-// -------------------------------
+// ====== DEFERRED INITIALIZATION ======
 async function initializeApp() {
     const tg = window.Telegram.WebApp;
     if (tg && tg.expand) tg.expand();
@@ -232,13 +367,16 @@ async function initializeApp() {
     // Verify premium status WITHOUT triggering feed reload
     await verifyPremiumStatus(true);
 
+    // ===== NEW: fetch saved image IDs after user is set =====
+    if (state.user) {
+        await fetchSavedImageIds();
+    }
+
     // Finally load the feed
     await loadFeed("Discover", "", true);
 }
 
-// -------------------------------
-// WELCOME OVERLAY (only this runs immediately)
-// -------------------------------
+// ====== WELCOME OVERLAY ======
 window.onload = () => {
     const welcomeOverlay = document.getElementById('welcomeOverlay');
     const continueBtn = document.getElementById('welcomeContinueBtn');
@@ -280,6 +418,36 @@ window.onload = () => {
             e.stopPropagation();
         }
     });
+
+    // ===== NEW: saved overlay event listeners =====
+    const savedLink = document.getElementById('savedImagesLink');
+    if (savedLink) {
+        savedLink.addEventListener('click', (e) => {
+            e.preventDefault();
+            openSavedOverlay();
+        });
+    }
+
+    const closeSavedBtn = document.getElementById('closeSavedOverlay');
+    if (closeSavedBtn) {
+        closeSavedBtn.addEventListener('click', closeSavedOverlay);
+    }
+
+    const refreshSavedBtn = document.getElementById('refreshSavedBtn');
+    if (refreshSavedBtn) {
+        refreshSavedBtn.addEventListener('click', () => {
+            state.savedOffset = 0;
+            state.savedHasMore = true;
+            loadSavedImages(true);
+        });
+    }
+
+    const savedOverlay = document.getElementById('savedOverlay');
+    if (savedOverlay) {
+        savedOverlay.addEventListener('click', (e) => {
+            if (e.target === e.currentTarget) closeSavedOverlay();
+        });
+    }
 };
 
 // Global guard – blocks clicks on hidden Join elements
