@@ -1085,3 +1085,192 @@ body.search-open {
 .color-swatch:active {
     transform: scale(0.95);
     }
+
+/* ==================== SAVED IMAGES OVERLAY ==================== */
+.saved-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: var(--bg);
+    z-index: 9000;
+    display: none;
+    flex-direction: column;
+}
+.saved-overlay.active {
+    display: flex;
+}
+.saved-header {
+    height: 56px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 16px;
+    background: var(--bar);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+.saved-header h2 {
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--text);
+}
+.saved-header .back-btn,
+.saved-header .icon-btn {
+    background: none;
+    border: none;
+    color: var(--text);
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+}
+.saved-grid-container {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px 16px 40px;
+}
+.saved-grid-container .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 12px;
+}
+.saved-grid-container .saved-empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    opacity: 0.6;
+    font-size: 16px;
+    color: var(--text);
+}
+.saved-grid-container .game-card {   /* reuse game-card style for images */
+    background: var(--card-bg, #1e1e1e);
+    border-radius: 16px;
+    overflow: hidden;
+    cursor: pointer;
+    transition: transform 0.15s, box-shadow 0.2s;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+    position: relative;
+}
+.saved-grid-container .game-card:active {
+    transform: scale(0.96);
+}
+.saved-grid-container .game-card img {
+    width: 100%;
+    aspect-ratio: 1/1;  /* square for images */
+    object-fit: cover;
+    background: #2a2a2a;
+}
+.saved-grid-container .game-card .info {
+    padding: 8px 10px;
+}
+.saved-grid-container .game-card .info .title {
+    font-size: 14px;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: var(--text);
+}
+.saved-grid-container .game-card .info .category {
+    font-size: 11px;
+    opacity: 0.6;
+    margin-top: 2px;
+    color: var(--text);
+}
+/* Card 3-dot menu (for delete) */
+.saved-grid-container .game-card .card-menu-btn {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    background: rgba(0, 0, 0, 0.6);
+    color: #fff;
+    border: none;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    font-size: 14px;
+    font-weight: bold;
+    cursor: pointer;
+    z-index: 5;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.saved-grid-container .game-card .card-dropdown {
+    position: absolute;
+    top: 38px;
+    right: 6px;
+    background: #2a2a2a;
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+    z-index: 10;
+    display: none;
+}
+.saved-grid-container .game-card .card-dropdown.show {
+    display: block;
+}
+.saved-grid-container .game-card .card-dropdown-item {
+    padding: 8px 12px;
+    font-size: 13px;
+    color: #ff5555;
+    cursor: pointer;
+    white-space: nowrap;
+}
+.saved-grid-container .game-card .card-dropdown-item:hover {
+    background: rgba(255,255,255,0.05);
+}
+/* Skeleton for saved grid */
+.saved-grid-container .skeleton-card {
+    background: var(--card-bg, #1e1e1e);
+    border-radius: 16px;
+    overflow: hidden;
+    animation: pulse 1.5s infinite;
+}
+.saved-grid-container .skeleton-card .img {
+    width: 100%;
+    aspect-ratio: 1/1;
+    background: #2a2a2a;
+}
+.saved-grid-container .skeleton-card .line {
+    height: 14px;
+    background: #2a2a2a;
+    margin: 8px 10px;
+    border-radius: 4px;
+}
+
+/* ==================== SAVE BUTTON ON IMAGE SLIDES ==================== */
+.save-image-btn {
+    position: absolute;
+    bottom: 16px;
+    right: 16px;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    border: 1px solid rgba(255,255,255,0.2);
+    border-radius: 50%;
+    width: 44px;
+    height: 44px;
+    font-size: 24px;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    z-index: 20;
+    transition: transform 0.15s, background 0.2s;
+    touch-action: manipulation;
+}
+.save-image-btn:active {
+    transform: scale(0.9);
+}
+.save-image-btn.saved {
+    background: rgba(255, 70, 70, 0.8);
+    color: #ff4444;
+    border-color: #ff4444;
+}
+.save-image-btn.saved::before {
+    content: "❤️";
+}
+.save-image-btn:not(.saved)::before {
+    content: "🤍";
+        }
