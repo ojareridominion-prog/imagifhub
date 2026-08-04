@@ -82,7 +82,7 @@ app.include_router(ads_router)
 app.include_router(ad_trigger_router)
 app.include_router(gift_router)
 app.include_router(ton_router)
-app.include_router(saved_router) 
+app.include_router(saved_router)
 
 @app.get("/")
 async def root():
