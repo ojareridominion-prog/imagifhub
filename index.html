@@ -125,6 +125,7 @@
             </div>
         </div>
 
+        <a href="#" class="menu-link" id="savedImagesLink">📌 Saved Images</a>
         <a href="#" class="menu-link" onclick="openCopyright()">⚖️ Copyright Policy</a>
         <a href="#" class="menu-link" onclick="openPrivacy()">🔒 Privacy Policy</a>
         <div class="menu-link" onclick="toggleDarkText()" style="display:flex; justify-content:space-between; align-items:center;">
@@ -284,6 +285,19 @@
         </div>
     </div>
 
+
+    <!-- SAVED IMAGES OVERLAY -->
+<div class="saved-overlay" id="savedOverlay">
+    <div class="saved-header">
+        <button class="back-btn" id="closeSavedOverlay">← Back</button>
+        <h2>📌 Saved Images</h2>
+        <button class="icon-btn" id="refreshSavedBtn" style="font-size:20px;">⟳</button>
+    </div>
+    <div class="saved-grid-container" id="savedGridContainer">
+        <div class="grid" id="savedGrid"></div>
+    </div>
+</div>
+    
     <script type="module" src="script.js"></script>
     <script type="module" src="giftManager.js"></script>
     
