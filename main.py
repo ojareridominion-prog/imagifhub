@@ -20,6 +20,7 @@ from ads_router import router as ads_router
 from ad_trigger import router as ad_trigger_router
 from gift_routes import router as gift_router
 from ton_routes import router as ton_router
+from saved_routes import router as saved_router
 
 # Import bot handlers to register them with dispatcher
 import bot_handlers  # noqa
@@ -81,6 +82,7 @@ app.include_router(ads_router)
 app.include_router(ad_trigger_router)
 app.include_router(gift_router)
 app.include_router(ton_router)
+app.include_router(saved_router) 
 
 @app.get("/")
 async def root():
