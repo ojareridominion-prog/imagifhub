@@ -77,7 +77,7 @@ function escapeHtml(str) {
     });
 }
 
-// Modified generateImageSlide with save button
+// Modified generateImageSlide with save button – removed inner text from button
 function generateImageSlide(img) {
     const keyword = img.Keyword || '';
     const maxLength = 100;
@@ -102,7 +102,7 @@ function generateImageSlide(img) {
         <div class="swiper-slide" data-type="image" data-image-id="${imageId}">
             <img src="${img.url}" alt="${escapeHtml(img.category)}" style="width:100%; height:100%; object-fit:cover;">
             <button class="gift-icon-btn" aria-label="Send Gift">🎁</button>
-            <button class="save-image-btn ${heartClass}" data-image-id="${imageId}" aria-label="Save Image">❤️</button>
+            <button class="save-image-btn ${heartClass}" data-image-id="${imageId}" aria-label="Save Image"></button>
             <div class="meta-overlay">
                 <div class="category-tag">#${escapeHtml(img.category)}</div>
                 <div class="keyword-container">${keywordHtml}</div>
@@ -215,9 +215,7 @@ function renderSlides(slides) {
 function initSaveButtonListeners() {
     const feed = document.getElementById('feed');
     if (!feed) return;
-    // Remove any previous listener to avoid duplicates (use a flag or just remove)
-    // We'll use a named function so we can remove and re-add, but for simplicity we use a single listener with event delegation.
-    // If listener already exists, we remove it first.
+    // Remove any previous listener to avoid duplicates
     if (feed._saveListener) {
         feed.removeEventListener('click', feed._saveListener);
     }
@@ -252,16 +250,15 @@ export async function toggleSaveImage(imageId, btnElement) {
         if (data.status === 'success') {
             // Update state
             state.savedImageIds = new Set(data.saved_images.map(String));
-            // Update button appearance if provided
-            if (btnElement) {
-                const isSaved = data.is_saved;
-                btnElement.classList.toggle('saved', isSaved);
-                btnElement.textContent = isSaved ? '❤️' : '🤍';
-            }
+            
+            // Sync all matching save buttons across active slides in the feed
+            document.querySelectorAll(`.save-image-btn[data-image-id="${imageId}"]`).forEach(btn => {
+                btn.classList.toggle('saved', data.is_saved);
+            });
+
             // If saved overlay is open, refresh it
             const overlay = document.getElementById('savedOverlay');
             if (overlay && overlay.classList.contains('active')) {
-                // loadSavedImages is defined in script.js, so we call it via window
                 if (window.loadSavedImages) {
                     window.loadSavedImages(true);
                 }
@@ -276,8 +273,7 @@ export async function toggleSaveImage(imageId, btnElement) {
         }
     }
 }
-
-// Expose toggleSaveImage globally for use in script.js (overlay delete)
+// Make toggleSaveImage globally available
 window.toggleSaveImage = toggleSaveImage;
 
 export async function loadMoreImages(preservePosition = false) {
@@ -341,4 +337,4 @@ export async function resetAndLoadFeed(cat, search = "", skipAd = false) {
 
 export async function loadFeed(cat, search = "", skipAd = false) {
     await resetAndLoadFeed(cat, search, skipAd);
-}
+        }
