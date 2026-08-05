@@ -15,5 +15,10 @@ export const state = {
     isPremiumUser: false,
     paidPremiumActive: false,
     nativeAds: [],
-    user: null  // <-- ADDED
+    user: null,
+    savedImageIds: new Set(),        // for quick "saved" status
+    savedImagesList: [],             // full list for viewer (NEW)
+    savedOffset: 0,
+    savedHasMore: true,
+    loadingSaved: false
 };
