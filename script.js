@@ -36,6 +36,7 @@ state.savedOffset = 0;
 state.savedLimit = 20;
 state.savedHasMore = true;
 state.loadingSaved = false;
+state.savedImagesList = [];  // <-- ADDED for viewer
 
 // ===== NEW: Toast notification =====
 function showToast(message, type = 'info', duration = 3000) {
@@ -62,8 +63,64 @@ function openSavedOverlay() {
 }
 
 function closeSavedOverlay() {
+    closeSavedViewer();  // ensure viewer is closed when gallery is closed
     document.getElementById('savedOverlay').classList.remove('active');
 }
+
+// ===== NEW: SAVED IMAGE VIEWER (sub‑viewer) =====
+let savedSwiperInstance = null;
+
+function openSavedViewer(startIndex = 0) {
+    const viewerModal = document.getElementById('savedViewerModal');
+    const swiperWrapper = document.getElementById('savedSwiperWrapper');
+
+    if (!state.savedImagesList || state.savedImagesList.length === 0) return;
+
+    // Render slides from the saved list (preserving order)
+    swiperWrapper.innerHTML = state.savedImagesList.map(img => `
+        <div class="swiper-slide">
+            <img src="${img.url}" alt="${img.Keyword || 'Saved Image'}" loading="lazy" />
+            <div class="slide-caption">
+                <h3>${img.Keyword || 'Untitled'}</h3>
+            </div>
+        </div>
+    `).join('');
+
+    // Show modal
+    viewerModal.classList.remove('hidden');
+
+    // Destroy any existing Swiper instance
+    if (savedSwiperInstance) {
+        savedSwiperInstance.destroy(true, true);
+        savedSwiperInstance = null;
+    }
+
+    // Initialize Swiper with vertical loop
+    savedSwiperInstance = new Swiper('#savedSwiperContainer', {
+        direction: 'vertical',
+        initialSlide: startIndex,
+        loop: state.savedImagesList.length > 1,
+        pagination: {
+            el: '#savedSwiperContainer .swiper-pagination',
+            clickable: true,
+        },
+        // Prevent zoom/gesture conflicts
+        touchRatio: 0.8,
+    });
+}
+
+function closeSavedViewer() {
+    const viewerModal = document.getElementById('savedViewerModal');
+    viewerModal.classList.add('hidden');
+
+    if (savedSwiperInstance) {
+        savedSwiperInstance.destroy(true, true);
+        savedSwiperInstance = null;
+    }
+}
+
+// Bind close button
+document.getElementById('closeSavedViewerBtn')?.addEventListener('click', closeSavedViewer);
 
 async function loadSavedImages(reset = false) {
     if (state.loadingSaved || (!state.savedHasMore && !reset)) return;
@@ -88,7 +145,6 @@ async function loadSavedImages(reset = false) {
             grid.innerHTML = '<div class="saved-empty-state">Unable to load user context.</div>';
             return;
         }
-        // FIXED: added /api prefix
         const resp = await fetch(`${API_URL}/api/saved-images?telegram_id=${state.user.id}`);
         const images = await resp.json();
 
@@ -102,7 +158,9 @@ async function loadSavedImages(reset = false) {
             return;
         }
 
-        images.forEach(img => {
+        state.savedImagesList = images;  // <-- store for viewer
+
+        images.forEach((img, index) => {
             const card = document.createElement('div');
             card.className = 'game-card';
             card.innerHTML = `
@@ -129,14 +187,13 @@ async function loadSavedImages(reset = false) {
             deleteItem.addEventListener('click', async (e) => {
                 e.stopPropagation();
                 dropdown.classList.remove('show');
-                // Toggle save off (delete)
                 await window.toggleSaveImage(img.id, null);
                 // toggleSaveImage will refresh the overlay if it's open
             });
 
+            // ---- CLICK ON CARD OPENS THE VIEWER ----
             card.addEventListener('click', () => {
-                closeSavedOverlay();
-                showToast('Image saved – find it in the feed!', 'info');
+                openSavedViewer(index);
             });
 
             grid.appendChild(card);
@@ -158,7 +215,6 @@ window.loadSavedImages = loadSavedImages;
 async function fetchSavedImageIds() {
     if (!state.user || !state.user.id) return;
     try {
-        // FIXED: added /api prefix
         const resp = await fetch(`${API_URL}/api/saved-images?telegram_id=${state.user.id}`);
         const images = await resp.json();
         if (Array.isArray(images)) {
