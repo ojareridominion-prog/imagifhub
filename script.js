@@ -67,7 +67,7 @@ function closeSavedOverlay() {
     document.getElementById('savedOverlay').classList.remove('active');
 }
 
-// ===== NEW: SAVED IMAGE VIEWER (sub‑viewer) =====
+// ===== UPDATED: SAVED IMAGE VIEWER (sub‑viewer) =====
 let savedSwiperInstance = null;
 
 function openSavedViewer(startIndex = 0) {
@@ -76,7 +76,7 @@ function openSavedViewer(startIndex = 0) {
 
     if (!state.savedImagesList || state.savedImagesList.length === 0) return;
 
-    // Render slides from the saved list (preserving order)
+    // Render slides from saved list
     swiperWrapper.innerHTML = state.savedImagesList.map(img => `
         <div class="swiper-slide">
             <img src="${img.url}" alt="${img.Keyword || 'Saved Image'}" loading="lazy" />
@@ -86,32 +86,37 @@ function openSavedViewer(startIndex = 0) {
         </div>
     `).join('');
 
-    // Show modal
+    // Show modal and activate pointer events
     viewerModal.classList.remove('hidden');
+    viewerModal.classList.add('active');
 
-    // Destroy any existing Swiper instance
+    // Destroy existing Swiper instance if present
     if (savedSwiperInstance) {
         savedSwiperInstance.destroy(true, true);
         savedSwiperInstance = null;
     }
 
-    // Initialize Swiper with vertical loop
-    savedSwiperInstance = new Swiper('#savedSwiperContainer', {
-        direction: 'vertical',
-        initialSlide: startIndex,
-        loop: state.savedImagesList.length > 1,
-        pagination: {
-            el: '#savedSwiperContainer .swiper-pagination',
-            clickable: true,
-        },
-        // Prevent zoom/gesture conflicts
-        touchRatio: 0.8,
-    });
+    // Initialize Swiper after modal display update
+    setTimeout(() => {
+        savedSwiperInstance = new Swiper('#savedSwiperContainer', {
+            direction: 'vertical',
+            initialSlide: startIndex,
+            loop: state.savedImagesList.length > 1,
+            observer: true,
+            observeParents: true,
+            pagination: {
+                el: '#savedSwiperContainer .swiper-pagination',
+                clickable: true,
+            },
+            touchRatio: 1,
+        });
+    }, 50);
 }
 
 function closeSavedViewer() {
     const viewerModal = document.getElementById('savedViewerModal');
     viewerModal.classList.add('hidden');
+    viewerModal.classList.remove('active');
 
     if (savedSwiperInstance) {
         savedSwiperInstance.destroy(true, true);
