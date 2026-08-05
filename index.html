@@ -297,9 +297,21 @@
         <div class="grid" id="savedGrid"></div>
     </div>
 </div>
-    
+
+    <!-- ===== NEW: DEDICATED VIEWER FOR SAVED IMAGES ===== -->
+    <div id="savedViewerModal" class="modal-overlay hidden">
+        <div class="saved-viewer-header">
+            <button id="closeSavedViewerBtn" class="back-btn">← Back to Saved</button>
+            <span class="saved-viewer-title">📌 Saved View</span>
+        </div>
+        <div class="swiper-container" id="savedSwiperContainer">
+            <div class="swiper-wrapper" id="savedSwiperWrapper"></div>
+            <div class="swiper-pagination"></div>
+        </div>
+    </div>
+
     <script type="module" src="script.js"></script>
     <script type="module" src="giftManager.js"></script>
-    
+
 </body>
 </html>
