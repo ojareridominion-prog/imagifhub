@@ -14,5 +14,6 @@ export const state = {
     darkTextEnabled: false,
     isPremiumUser: false,
     paidPremiumActive: false,
-    nativeAds: []
+    nativeAds: [],
+    user: null  // <-- ADDED
 };
