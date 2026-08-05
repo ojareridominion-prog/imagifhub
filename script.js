@@ -385,9 +385,14 @@ window.onload = () => {
         welcomeOverlay.style.backgroundImage = `url('${getHolidayImage()}')`;
         
         continueBtn.addEventListener('click', async () => {
+            // ===== SET USER EARLY =====
+            const tg = window.Telegram.WebApp;
+            if (tg && tg.initDataUnsafe && tg.initDataUnsafe.user) {
+                state.user = tg.initDataUnsafe.user;
+            }
+            
             welcomeOverlay.classList.add('hidden');
             
-            const tg = window.Telegram.WebApp;
             fetch(`${API_URL}/api/trigger-ad`, {
                 method: 'POST',
                 headers: { 'X-Telegram-Init-Data': tg.initData }
@@ -396,6 +401,11 @@ window.onload = () => {
             await initializeApp();
         });
     } else {
+        // No welcome overlay? Still try to set user.
+        const tg = window.Telegram.WebApp;
+        if (tg && tg.initDataUnsafe && tg.initDataUnsafe.user) {
+            state.user = tg.initDataUnsafe.user;
+        }
         initializeApp();
     }
     
