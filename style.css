@@ -1276,7 +1276,7 @@ body.search-open {
         }
 /* ... existing CSS ... */
 
-/* ===== SAVED VIEWER OVERLAY (fullscreen, on top of gallery) ===== */
+/* ===== SAVED VIEWER MODAL (fullscreen, on top of gallery) ===== */
 #savedViewerModal {
     position: fixed;
     top: 0;
@@ -1287,6 +1287,14 @@ body.search-open {
     z-index: 9999; /* above saved gallery */
     display: flex;
     flex-direction: column;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s ease;
+}
+
+#savedViewerModal.active {
+    opacity: 1;
+    pointer-events: all;
 }
 
 #savedViewerModal.hidden {
