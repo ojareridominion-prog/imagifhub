@@ -88,7 +88,8 @@ async function loadSavedImages(reset = false) {
             grid.innerHTML = '<div class="saved-empty-state">Unable to load user context.</div>';
             return;
         }
-        const resp = await fetch(`${API_URL}/saved-images?telegram_id=${state.user.id}`);
+        // FIXED: added /api prefix
+        const resp = await fetch(`${API_URL}/api/saved-images?telegram_id=${state.user.id}`);
         const images = await resp.json();
 
         if (reset) grid.innerHTML = '';
@@ -157,7 +158,8 @@ window.loadSavedImages = loadSavedImages;
 async function fetchSavedImageIds() {
     if (!state.user || !state.user.id) return;
     try {
-        const resp = await fetch(`${API_URL}/saved-images?telegram_id=${state.user.id}`);
+        // FIXED: added /api prefix
+        const resp = await fetch(`${API_URL}/api/saved-images?telegram_id=${state.user.id}`);
         const images = await resp.json();
         if (Array.isArray(images)) {
             state.savedImageIds = new Set(images.map(img => String(img.id)));
