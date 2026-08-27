@@ -72,3 +72,15 @@ async def get_random_media(limit: int = 30, category: str = None, search: str = 
         print(f"Error in /media/random: {e}")
         return []
         
+@router.get("/media/{image_id}")
+async def get_media_by_id(image_id: str):
+    """Fetch a single image by its UUID."""
+    try:
+        res = supabase.table('media_content').select('*').eq('id', image_id).execute()
+        if not res.data:
+            raise HTTPException(status_code=404, detail="Image not found")
+        return res.data[0]
+    except Exception as e:
+        print(f"Error fetching image by ID: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+        
