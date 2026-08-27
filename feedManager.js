@@ -3,13 +3,14 @@ import { state } from './state.js';
 import { getSeenList, trackSeenImage, showLoadingSpinner, hideLoadingSpinner } from './utils.js';
 import { buildSlides, showMonetagInterstitial } from './adsManager.js';
 import { playRandomMusic } from './musicManager.js';
+import { showGiftDrawer } from './giftManager.js'; // <-- IMPORT for gift button
 
 const API_URL = "https://imagifhub.onrender.com";
 const PAGE_SIZE = 30;
 const MAX_RETRIES = 3;
 const AD_FREQUENCY = 3; // same as in adsManager
 
-// ===== NEW: helper to check if an image is saved =====
+// ===== helper to check if an image is saved =====
 function isImageSaved(imageId) {
     return state.savedImageIds && state.savedImageIds.has(String(imageId));
 }
@@ -77,7 +78,7 @@ function escapeHtml(str) {
     });
 }
 
-// ===== MODIFIED: generateImageSlide with vertical button bar =====
+// ===== generateImageSlide with vertical button bar =====
 function generateImageSlide(img) {
     const keyword = img.Keyword || '';
     const maxLength = 100;
@@ -98,7 +99,7 @@ function generateImageSlide(img) {
     const saved = isImageSaved(imageId);
     const heartClass = saved ? 'saved' : '';
 
-    // NEW: button bar HTML
+    // button bar HTML
     const controlsHtml = `
         <div class="image-controls">
             <button class="ctrl-btn save-btn ${heartClass}" data-image-id="${imageId}" aria-label="Save Image">${saved ? '♥️' : '🤍'}</button>
@@ -220,7 +221,7 @@ function renderSlides(slides) {
     initSlideButtonListeners();
 }
 
-// ===== NEW: unified button listeners (save, share, refresh, gift) =====
+// ===== unified button listeners =====
 function initSlideButtonListeners() {
     const feed = document.getElementById('feed');
     if (!feed) return;
@@ -244,10 +245,10 @@ function initSlideButtonListeners() {
             return;
         }
 
-        // Gift button – use existing gift drawer logic
+        // Gift button – use imported function directly (FIXED)
         if (target.classList.contains('gift-btn')) {
             e.stopPropagation();
-            if (window.showGiftDrawer) window.showGiftDrawer();
+            showGiftDrawer(); // <-- now works because we imported it
             return;
         }
 
@@ -269,7 +270,6 @@ function initSlideButtonListeners() {
                 const url = new URL(src);
                 url.searchParams.set('_t', Date.now());
                 img.src = url.toString();
-                // Optionally show a small toast
                 if (window.showToast) window.showToast('Refreshing image...', 'info', 1500);
             }
             return;
@@ -279,16 +279,15 @@ function initSlideButtonListeners() {
     feed.addEventListener('click', handler);
 }
 
-// ===== NEW: share deep link =====
+// ===== share deep link =====
 function copyDeepLink(imageId) {
-    const botUsername = 'IMAGIFHUB_bot'; // as per config
+    const botUsername = 'IMAGIFHUB_bot';
     const deepLink = `https://t.me/${botUsername}?startapp=${imageId}`;
     navigator.clipboard.writeText(deepLink)
         .then(() => {
             if (window.showToast) window.showToast('✅ Image link copied!', 'success', 2000);
         })
         .catch(() => {
-            // Fallback
             const textarea = document.createElement('textarea');
             textarea.value = deepLink;
             document.body.appendChild(textarea);
@@ -299,7 +298,7 @@ function copyDeepLink(imageId) {
         });
 }
 
-// ===== NEW: load a single image by ID (for deep link) =====
+// ===== load a single image by ID (for deep link) =====
 export async function loadImageById(imageId) {
     try {
         const resp = await fetch(`${API_URL}/media/${imageId}`);
@@ -434,12 +433,12 @@ export async function loadFeed(cat, search = "", skipAd = false) {
     await resetAndLoadFeed(cat, search, skipAd);
 }
 
-// ===== NEW: handle deep link start_param =====
+// ===== handle deep link start_param =====
 export async function handleDeepLink() {
     const tg = window.Telegram.WebApp;
     const startParam = tg.initDataUnsafe?.start_param;
-    if (!startParam) return;
-    // startParam is the image ID
+    if (!startParam) return false;
     console.log('[Deep Link] Loading image:', startParam);
-    await loadImageById(startParam);
-    }
+    const success = await loadImageById(startParam);
+    return success;
+}
