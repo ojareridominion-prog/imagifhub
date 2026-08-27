@@ -5,7 +5,7 @@ import { state } from './state.js';
 import { playRandomMusic, toggleMute } from './musicManager.js';
 import { fetchNativeAds, setupAdButtonListeners } from './adsManager.js';
 import { verifyPremiumStatus, updateWatchAdCard, startTempPremiumCountdown, showRewardedAdWrapper as premiumRewardedWrapper } from './premiumManager.js';
-import { loadFeed, resetAndLoadFeed } from './feedManager.js';
+import { loadFeed, resetAndLoadFeed, handleDeepLink } from './feedManager.js';
 import { toggleMenu, applyTheme, triggerSearch, shareBot, openPremium, closePremium, openCopyright, closeCopyright, openPrivacy, closePrivacy, copyUserId, toggleDarkText, initUI } from './uiManager.js';
 import { initGiftSystem, refreshRecentGiftCard, showGiftDrawer } from './giftManager.js';
 import { initWalletUI, sendTonPremiumPayment } from './tonPayment.js';
@@ -435,8 +435,12 @@ async function initializeApp() {
         await fetchSavedImageIds();
     }
 
-    // Finally load the feed
-    await loadFeed("Discover", "", true);
+    // ===== NEW: handle deep link – if loaded, skip default feed =====
+    const deepLinkLoaded = await handleDeepLink();
+    if (!deepLinkLoaded) {
+        // Finally load the feed
+        await loadFeed("Discover", "", true);
+    }
 }
 
 // ====== WELCOME OVERLAY ======
