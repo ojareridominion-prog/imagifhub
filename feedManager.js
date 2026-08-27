@@ -77,7 +77,7 @@ function escapeHtml(str) {
     });
 }
 
-// Modified generateImageSlide with save button – removed inner text from button
+// ===== MODIFIED: generateImageSlide with vertical button bar =====
 function generateImageSlide(img) {
     const keyword = img.Keyword || '';
     const maxLength = 100;
@@ -98,11 +98,20 @@ function generateImageSlide(img) {
     const saved = isImageSaved(imageId);
     const heartClass = saved ? 'saved' : '';
 
+    // NEW: button bar HTML
+    const controlsHtml = `
+        <div class="image-controls">
+            <button class="ctrl-btn save-btn ${heartClass}" data-image-id="${imageId}" aria-label="Save Image">${saved ? '♥️' : '🤍'}</button>
+            <button class="ctrl-btn gift-btn" aria-label="Send Gift">🎁</button>
+            <button class="ctrl-btn share-btn" data-image-id="${imageId}" aria-label="Share Image">🔗</button>
+            <button class="ctrl-btn refresh-btn" data-image-id="${imageId}" aria-label="Refresh Image">🔄</button>
+        </div>
+    `;
+
     return `
         <div class="swiper-slide" data-type="image" data-image-id="${imageId}">
             <img src="${img.url}" alt="${escapeHtml(img.category)}" style="width:100%; height:100%; object-fit:cover;">
-            <button class="gift-icon-btn" aria-label="Send Gift">🎁</button>
-            <button class="save-image-btn ${heartClass}" data-image-id="${imageId}" aria-label="Save Image"></button>
+            ${controlsHtml}
             <div class="meta-overlay">
                 <div class="category-tag">#${escapeHtml(img.category)}</div>
                 <div class="keyword-container">${keywordHtml}</div>
@@ -207,31 +216,119 @@ function renderSlides(slides) {
         }
     });
 
-    // Attach save button listeners after slides are rendered
-    initSaveButtonListeners();
+    // Attach button listeners (save, share, refresh, gift)
+    initSlideButtonListeners();
 }
 
-// ===== NEW: event delegation for save buttons =====
-function initSaveButtonListeners() {
+// ===== NEW: unified button listeners (save, share, refresh, gift) =====
+function initSlideButtonListeners() {
     const feed = document.getElementById('feed');
     if (!feed) return;
-    // Remove any previous listener to avoid duplicates
-    if (feed._saveListener) {
-        feed.removeEventListener('click', feed._saveListener);
+    // Remove previous listener to avoid duplicates
+    if (feed._slideListener) {
+        feed.removeEventListener('click', feed._slideListener);
     }
     const handler = async (e) => {
-        const btn = e.target.closest('.save-image-btn');
-        if (!btn) return;
-        e.stopPropagation();
-        const imageId = btn.dataset.imageId;
-        if (!imageId) return;
-        await toggleSaveImage(imageId, btn);
+        const target = e.target.closest('.ctrl-btn');
+        if (!target) return;
+
+        const slide = target.closest('.swiper-slide');
+        if (!slide) return;
+        const imageId = slide.dataset.imageId;
+
+        // Save button
+        if (target.classList.contains('save-btn')) {
+            e.stopPropagation();
+            if (!imageId) return;
+            await toggleSaveImage(imageId, target);
+            return;
+        }
+
+        // Gift button – use existing gift drawer logic
+        if (target.classList.contains('gift-btn')) {
+            e.stopPropagation();
+            if (window.showGiftDrawer) window.showGiftDrawer();
+            return;
+        }
+
+        // Share button
+        if (target.classList.contains('share-btn')) {
+            e.stopPropagation();
+            if (!imageId) return;
+            copyDeepLink(imageId);
+            return;
+        }
+
+        // Refresh button
+        if (target.classList.contains('refresh-btn')) {
+            e.stopPropagation();
+            const img = slide.querySelector('img');
+            if (img) {
+                // Force reload by adding cache-busting parameter
+                const src = img.src;
+                const url = new URL(src);
+                url.searchParams.set('_t', Date.now());
+                img.src = url.toString();
+                // Optionally show a small toast
+                if (window.showToast) window.showToast('Refreshing image...', 'info', 1500);
+            }
+            return;
+        }
     };
-    feed._saveListener = handler;
+    feed._slideListener = handler;
     feed.addEventListener('click', handler);
 }
 
-// ===== NEW: toggle save image (used by both feed and saved overlay) =====
+// ===== NEW: share deep link =====
+function copyDeepLink(imageId) {
+    const botUsername = 'IMAGIFHUB_bot'; // as per config
+    const deepLink = `https://t.me/${botUsername}?startapp=${imageId}`;
+    navigator.clipboard.writeText(deepLink)
+        .then(() => {
+            if (window.showToast) window.showToast('✅ Image link copied!', 'success', 2000);
+        })
+        .catch(() => {
+            // Fallback
+            const textarea = document.createElement('textarea');
+            textarea.value = deepLink;
+            document.body.appendChild(textarea);
+            textarea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textarea);
+            if (window.showToast) window.showToast('✅ Image link copied!', 'success', 2000);
+        });
+}
+
+// ===== NEW: load a single image by ID (for deep link) =====
+export async function loadImageById(imageId) {
+    try {
+        const resp = await fetch(`${API_URL}/media/${imageId}`);
+        if (!resp.ok) {
+            if (resp.status === 404) {
+                if (window.showToast) window.showToast('Image not found', 'error');
+                return false;
+            }
+            throw new Error('Network error');
+        }
+        const image = await resp.json();
+        // Reset feed and show only this image initially
+        state.allImages = [image];
+        state.sessionSeenUrls.clear();
+        state.hasMoreImages = true;
+        state.imagesShownSinceLastAd = 0;
+        state.currentAdIndex = 0;
+        const slides = buildSlides(state.allImages, state.isPremiumUser);
+        renderSlides(slides);
+        // Load more images in background
+        setTimeout(() => loadMoreImages(true), 500);
+        return true;
+    } catch (err) {
+        console.error('loadImageById error:', err);
+        if (window.showToast) window.showToast('Failed to load image', 'error');
+        return false;
+    }
+}
+
 export async function toggleSaveImage(imageId, btnElement) {
     if (!state.user || !state.user.id) {
         if (window.Telegram?.WebApp?.showAlert) {
@@ -248,14 +345,13 @@ export async function toggleSaveImage(imageId, btnElement) {
         });
         const data = await resp.json();
         if (data.status === 'success') {
-            // Update state
             state.savedImageIds = new Set(data.saved_images.map(String));
-            
-            // Sync all matching save buttons across active slides in the feed
-            document.querySelectorAll(`.save-image-btn[data-image-id="${imageId}"]`).forEach(btn => {
-                btn.classList.toggle('saved', data.is_saved);
+            // Update all save buttons for this image
+            document.querySelectorAll(`.save-btn[data-image-id="${imageId}"]`).forEach(btn => {
+                const isSaved = data.is_saved;
+                btn.classList.toggle('saved', isSaved);
+                btn.textContent = isSaved ? '♥️' : '🤍';
             });
-
             // If saved overlay is open, refresh it
             const overlay = document.getElementById('savedOverlay');
             if (overlay && overlay.classList.contains('active')) {
@@ -273,7 +369,6 @@ export async function toggleSaveImage(imageId, btnElement) {
         }
     }
 }
-// Make toggleSaveImage globally available
 window.toggleSaveImage = toggleSaveImage;
 
 export async function loadMoreImages(preservePosition = false) {
@@ -337,4 +432,14 @@ export async function resetAndLoadFeed(cat, search = "", skipAd = false) {
 
 export async function loadFeed(cat, search = "", skipAd = false) {
     await resetAndLoadFeed(cat, search, skipAd);
-        }
+}
+
+// ===== NEW: handle deep link start_param =====
+export async function handleDeepLink() {
+    const tg = window.Telegram.WebApp;
+    const startParam = tg.initDataUnsafe?.start_param;
+    if (!startParam) return;
+    // startParam is the image ID
+    console.log('[Deep Link] Loading image:', startParam);
+    await loadImageById(startParam);
+    }
