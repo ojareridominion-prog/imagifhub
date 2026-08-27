@@ -1368,3 +1368,50 @@ body.search-open {
 #savedSwiperContainer .swiper-pagination-bullet-active {
     background: #fff;
 }
+
+/* ===== NEW: IMAGE CONTROLS (vertical bar) ===== */
+.image-controls {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    z-index: 20;
+    pointer-events: none; /* allow click-through on container, buttons themselves are clickable */
+}
+.image-controls .ctrl-btn {
+    pointer-events: auto;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: #fff;
+    font-size: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: transform 0.15s, background 0.2s, box-shadow 0.2s;
+    touch-action: manipulation;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+    padding: 0;
+    line-height: 1;
+}
+.image-controls .ctrl-btn:active {
+    transform: scale(0.9);
+}
+.image-controls .ctrl-btn:hover {
+    background: rgba(0, 0, 0, 0.8);
+    box-shadow: 0 0 12px rgba(255,255,255,0.2);
+}
+.image-controls .save-btn.saved {
+    background: rgba(255, 70, 70, 0.8);
+    border-color: #ff4444;
+}
+.image-controls .gift-btn {
+    animation: none !important; /* override any existing pulse */
+}
