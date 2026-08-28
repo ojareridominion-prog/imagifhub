@@ -3,14 +3,13 @@ import { state } from './state.js';
 import { getSeenList, trackSeenImage, showLoadingSpinner, hideLoadingSpinner } from './utils.js';
 import { buildSlides, showMonetagInterstitial } from './adsManager.js';
 import { playRandomMusic } from './musicManager.js';
-import { showGiftDrawer } from './giftManager.js'; // <-- IMPORT for gift button
+import { showGiftDrawer } from './giftManager.js';
 
 const API_URL = "https://imagifhub.onrender.com";
 const PAGE_SIZE = 30;
 const MAX_RETRIES = 3;
-const AD_FREQUENCY = 3; // same as in adsManager
+const AD_FREQUENCY = 3;
 
-// ===== helper to check if an image is saved =====
 function isImageSaved(imageId) {
     return state.savedImageIds && state.savedImageIds.has(String(imageId));
 }
@@ -30,7 +29,6 @@ async function fetchRandomImages(category = state.currentCategory, search = "", 
             return [];
         }
         
-        // For search: ignore localStorage seen history, only filter by current session
         const isSearchActive = search && search.trim().length > 0;
         let seenHistory = new Set();
         if (!isSearchActive) {
@@ -78,7 +76,6 @@ function escapeHtml(str) {
     });
 }
 
-// ===== generateImageSlide with vertical button bar =====
 function generateImageSlide(img) {
     const keyword = img.Keyword || '';
     const maxLength = 100;
@@ -99,7 +96,6 @@ function generateImageSlide(img) {
     const saved = isImageSaved(imageId);
     const heartClass = saved ? 'saved' : '';
 
-    // button bar HTML
     const controlsHtml = `
         <div class="image-controls">
             <button class="ctrl-btn save-btn ${heartClass}" data-image-id="${imageId}" aria-label="Save Image">${saved ? '♥️' : '🤍'}</button>
@@ -148,7 +144,6 @@ async function appendMoreImages(newImages) {
         const img = newImages[i];
         htmlSlides.push(generateImageSlide(img));
 
-        // Insert native ad after every AD_FREQUENCY images (continuing pattern)
         const position = oldImageCount + i + 1;
         if (!state.isPremiumUser && position % AD_FREQUENCY === 0) {
             const ad = state.nativeAds[localAdIndex % state.nativeAds.length];
@@ -217,15 +212,12 @@ function renderSlides(slides) {
         }
     });
 
-    // Attach button listeners (save, share, refresh, gift)
     initSlideButtonListeners();
 }
 
-// ===== unified button listeners =====
 function initSlideButtonListeners() {
     const feed = document.getElementById('feed');
     if (!feed) return;
-    // Remove previous listener to avoid duplicates
     if (feed._slideListener) {
         feed.removeEventListener('click', feed._slideListener);
     }
@@ -237,7 +229,6 @@ function initSlideButtonListeners() {
         if (!slide) return;
         const imageId = slide.dataset.imageId;
 
-        // Save button
         if (target.classList.contains('save-btn')) {
             e.stopPropagation();
             if (!imageId) return;
@@ -245,14 +236,12 @@ function initSlideButtonListeners() {
             return;
         }
 
-        // Gift button – use imported function directly (FIXED)
         if (target.classList.contains('gift-btn')) {
             e.stopPropagation();
-            showGiftDrawer(); // <-- now works because we imported it
+            showGiftDrawer();
             return;
         }
 
-        // Share button
         if (target.classList.contains('share-btn')) {
             e.stopPropagation();
             if (!imageId) return;
@@ -260,12 +249,10 @@ function initSlideButtonListeners() {
             return;
         }
 
-        // Refresh button
         if (target.classList.contains('refresh-btn')) {
             e.stopPropagation();
             const img = slide.querySelector('img');
             if (img) {
-                // Force reload by adding cache-busting parameter
                 const src = img.src;
                 const url = new URL(src);
                 url.searchParams.set('_t', Date.now());
@@ -279,7 +266,6 @@ function initSlideButtonListeners() {
     feed.addEventListener('click', handler);
 }
 
-// ===== share deep link =====
 function copyDeepLink(imageId) {
     const botUsername = 'IMAGIFHUB_bot';
     const deepLink = `https://t.me/${botUsername}?startapp=${imageId}`;
@@ -298,7 +284,6 @@ function copyDeepLink(imageId) {
         });
 }
 
-// ===== load a single image by ID (for deep link) =====
 export async function loadImageById(imageId) {
     try {
         const resp = await fetch(`${API_URL}/media/${imageId}`);
@@ -310,7 +295,6 @@ export async function loadImageById(imageId) {
             throw new Error('Network error');
         }
         const image = await resp.json();
-        // Reset feed and show only this image initially
         state.allImages = [image];
         state.sessionSeenUrls.clear();
         state.hasMoreImages = true;
@@ -318,7 +302,6 @@ export async function loadImageById(imageId) {
         state.currentAdIndex = 0;
         const slides = buildSlides(state.allImages, state.isPremiumUser);
         renderSlides(slides);
-        // Load more images in background
         setTimeout(() => loadMoreImages(true), 500);
         return true;
     } catch (err) {
@@ -345,13 +328,11 @@ export async function toggleSaveImage(imageId, btnElement) {
         const data = await resp.json();
         if (data.status === 'success') {
             state.savedImageIds = new Set(data.saved_images.map(String));
-            // Update all save buttons for this image
             document.querySelectorAll(`.save-btn[data-image-id="${imageId}"]`).forEach(btn => {
                 const isSaved = data.is_saved;
                 btn.classList.toggle('saved', isSaved);
                 btn.textContent = isSaved ? '♥️' : '🤍';
             });
-            // If saved overlay is open, refresh it
             const overlay = document.getElementById('savedOverlay');
             if (overlay && overlay.classList.contains('active')) {
                 if (window.loadSavedImages) {
@@ -396,9 +377,10 @@ export async function resetAndLoadFeed(cat, search = "", skipAd = false) {
     state.currentCategory = cat;
     document.querySelectorAll('.cat-btn').forEach(b => b.classList.toggle('active', b.innerText === cat));
     const audio = document.getElementById('bgMusic');
-    if (audio.paused || state.currentCategory !== cat) playRandomMusic(cat);
+    if (audio.paused || state.currentCategory !== cat) {
+        await playRandomMusic(cat);
+    }
     const feed = document.getElementById('feed');
-    // Skeleton loading
     feed.innerHTML = `
         <div class="skeleton-wrapper">
             <div class="skeleton-slide">
@@ -433,7 +415,6 @@ export async function loadFeed(cat, search = "", skipAd = false) {
     await resetAndLoadFeed(cat, search, skipAd);
 }
 
-// ===== handle deep link start_param =====
 export async function handleDeepLink() {
     const tg = window.Telegram.WebApp;
     const startParam = tg.initDataUnsafe?.start_param;
