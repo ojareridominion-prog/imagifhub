@@ -409,7 +409,9 @@ async function initializeApp() {
 
     const audioElem = document.getElementById('bgMusic');
     audioElem.addEventListener('ended', () => {
-        if (state.currentCategory) playRandomMusic(state.currentCategory);
+        if (state.currentCategory) {
+            playRandomMusic(state.currentCategory).catch(console.error);
+        }
     });
 
     initWatchAdButton();
