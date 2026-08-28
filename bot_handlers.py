@@ -13,7 +13,6 @@ from config import bot, dp, supabase, ADMIN_IDS, ADMIN_TOKEN, IMGBB_API_KEY, BOT
 from ad_utils import send_banner_ad
 from gifts_data import GIFTS
 
-# Warn if ImgBB API key is missing
 if not IMGBB_API_KEY:
     logging.warning("⚠️ IMGBB_API_KEY is not set in environment. Admin uploads will fail with 'forbidden' errors.")
 
@@ -31,7 +30,10 @@ class AdminMusicUpload(StatesGroup):
 class AdminImageDelete(StatesGroup):
     waiting_input = State()
 
-# ---------- PAYMENT HANDLERS (unchanged) ----------
+class AdminBrokenDelete(StatesGroup):
+    confirming = State()   # holds broken_ids
+
+# ---------- PAYMENT HANDLERS ----------
 @dp.pre_checkout_query()
 async def on_pre_checkout_query(pre_checkout_query: PreCheckoutQuery):
     try:
@@ -329,7 +331,7 @@ async def admin_cmd(message: Message, state: FSMContext):
     ])
     await message.answer("<b>Admin Control Panel</b>", reply_markup=kb, parse_mode="HTML")
 
-# ---------- EXISTING UPLOAD MEDIA (unchanged) ----------
+# ---------- EXISTING UPLOAD MEDIA ----------
 @dp.callback_query(F.data == "up")
 async def up_step1(call: CallbackQuery, state: FSMContext):
     await call.message.edit_text("Please send the photo you want to add to the gallery.")
@@ -428,14 +430,12 @@ async def music_step1(call: CallbackQuery, state: FSMContext):
 @dp.message(AdminMusicUpload.waiting_link)
 async def music_step2(message: Message, state: FSMContext):
     link = message.text.strip()
-    # Basic URL validation
     if not re.match(r'^https?://[^\s]+$', link):
         await message.answer("❌ Invalid URL. Please send a valid link (starting with http:// or https://).")
         return
 
     await state.update_data(link=link)
 
-    # Build category buttons (exclude "Default" from this list)
     categories_for_music = [c for c in CATEGORIES if c != "Default"]
     btns = []
     for i in range(0, len(categories_for_music), 2):
@@ -459,7 +459,6 @@ async def music_step3(call: CallbackQuery, state: FSMContext):
         await state.clear()
         return
 
-    # Check for duplicate in this category
     try:
         result = supabase.table("music_tracks") \
             .select("id") \
@@ -470,7 +469,6 @@ async def music_step3(call: CallbackQuery, state: FSMContext):
             await call.message.edit_text(
                 f"❌ This link already exists in category '{category}'. Please choose a different link or category."
             )
-            # Allow retry: ask again for category
             categories_for_music = [c for c in CATEGORIES if c != "Default"]
             btns = []
             for i in range(0, len(categories_for_music), 2):
@@ -483,14 +481,12 @@ async def music_step3(call: CallbackQuery, state: FSMContext):
             )
             return
 
-        # Save to music_tracks
         supabase.table("music_tracks").insert({
             "url": link,
             "category": category
         }).execute()
         logging.info(f"🎵 Music track added: {link} to category {category}")
 
-        # Ask if also add to Default
         await state.update_data(added_category=category)
         await call.message.edit_text(
             f"✅ Successfully added to **{category}**!\n\n"
@@ -517,7 +513,6 @@ async def music_add_default(call: CallbackQuery, state: FSMContext):
         await state.clear()
         return
 
-    # Check duplicate in Default
     try:
         result = supabase.table("music_tracks") \
             .select("id") \
@@ -534,7 +529,6 @@ async def music_add_default(call: CallbackQuery, state: FSMContext):
             await state.clear()
             return
 
-        # Save to Default
         supabase.table("music_tracks").insert({
             "url": link,
             "category": "Default"
@@ -561,9 +555,9 @@ async def music_cancel(call: CallbackQuery, state: FSMContext):
     await state.clear()
     await call.message.edit_text("❌ Music upload cancelled.")
 
-# ---------- NEW: CHECK BROKEN MUSIC LINKS (with delete buttons) ----------
+# ---------- NEW: CHECK BROKEN MUSIC LINKS (single delete button) ----------
 @dp.callback_query(F.data == "check_broken")
-async def check_broken_links(call: CallbackQuery):
+async def check_broken_links(call: CallbackQuery, state: FSMContext):
     await call.answer("Checking...")
     temp_msg = await call.message.answer("🔍 Checking all music tracks for broken links...")
 
@@ -590,21 +584,31 @@ async def check_broken_links(call: CallbackQuery):
             await temp_msg.edit_text("✅ All music links are working!")
             return
 
-        # Build report with inline delete buttons
-        keyboard_buttons = []
-        for track, info in broken:
-            # Shorten URL for display
+        # Build a text report, truncating if too long
+        report_lines = [f"❌ Found {len(broken)} broken link(s):\n"]
+        for idx, (track, info) in enumerate(broken):
             short_url = track["url"][:40] + "..." if len(track["url"]) > 40 else track["url"]
-            label = f"❌ {track['category']}: {short_url} ({info})"
-            callback_data = f"music_del_{track['id']}"
-            keyboard_buttons.append([InlineKeyboardButton(text=label, callback_data=callback_data)])
+            line = f"{idx+1}. {track['category']}: {short_url} – {info}"
+            if len(''.join(report_lines) + line) > 3500:  # leave room for markup
+                report_lines.append(f"... and {len(broken)-idx} more.")
+                break
+            report_lines.append(line)
 
-        # Add a cancel/close button
-        keyboard_buttons.append([InlineKeyboardButton(text="❌ Close", callback_data="music_close_report")])
+        report = "\n".join(report_lines)
+
+        # Store broken IDs in state for deletion
+        broken_ids = [track["id"] for track, _ in broken]
+        await state.update_data(broken_ids=broken_ids)
+        await state.set_state(AdminBrokenDelete.confirming)
+
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="🗑️ Delete all broken tracks", callback_data="music_delete_all_broken")],
+            [InlineKeyboardButton(text="❌ Close", callback_data="music_close_report")]
+        ])
 
         await temp_msg.edit_text(
-            f"❌ Found {len(broken)} broken link(s). Click the button below to delete that track:",
-            reply_markup=InlineKeyboardMarkup(inline_keyboard=keyboard_buttons)
+            report,
+            reply_markup=keyboard
         )
 
     except Exception as e:
@@ -612,41 +616,62 @@ async def check_broken_links(call: CallbackQuery):
         await temp_msg.edit_text("❌ An error occurred while checking links.")
 
 @dp.callback_query(F.data == "music_close_report")
-async def close_report(call: CallbackQuery):
+async def close_report(call: CallbackQuery, state: FSMContext):
+    await state.clear()
     await call.message.delete()
     await call.answer("Report closed.")
 
-@dp.callback_query(F.data.startswith("music_del_"))
-async def delete_music_track(call: CallbackQuery):
-    track_id = call.data.split("_", 2)[2]
-    # Confirm deletion
-    kb = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="✅ Yes, delete", callback_data=f"music_confirm_del_{track_id}")],
-        [InlineKeyboardButton(text="❌ Cancel", callback_data="music_cancel_del")]
+@dp.callback_query(F.data == "music_delete_all_broken")
+async def delete_all_broken(call: CallbackQuery, state: FSMContext):
+    # Get broken IDs from state
+    data = await state.get_data()
+    broken_ids = data.get("broken_ids", [])
+    if not broken_ids:
+        await call.message.edit_text("No broken tracks to delete.")
+        await state.clear()
+        return
+
+    # Confirm with user
+    confirm_kb = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="✅ Yes, delete all", callback_data="music_confirm_delete_all")],
+        [InlineKeyboardButton(text="❌ Cancel", callback_data="music_cancel_delete_all")]
     ])
     await call.message.edit_text(
-        f"⚠️ Are you sure you want to delete this music track (ID: {track_id})?",
-        reply_markup=kb
+        f"⚠️ Are you sure you want to delete {len(broken_ids)} broken track(s)?",
+        reply_markup=confirm_kb
     )
     await call.answer()
 
-@dp.callback_query(F.data.startswith("music_confirm_del_"))
-async def confirm_delete_music(call: CallbackQuery):
-    track_id = call.data.split("_", 3)[3]
-    try:
-        result = supabase.table("music_tracks").delete().eq("id", track_id).execute()
-        if result.data:
-            await call.message.edit_text(f"✅ Track with ID {track_id} has been deleted.")
-            logging.info(f"🎵 Admin deleted music track {track_id}")
-        else:
-            await call.message.edit_text("❌ Track not found or already deleted.")
-    except Exception as e:
-        logging.error(f"Error deleting music track: {e}", exc_info=True)
-        await call.message.edit_text("❌ An error occurred while deleting the track.")
+@dp.callback_query(F.data == "music_confirm_delete_all")
+async def confirm_delete_all_broken(call: CallbackQuery, state: FSMContext):
+    data = await state.get_data()
+    broken_ids = data.get("broken_ids", [])
+    if not broken_ids:
+        await call.message.edit_text("No broken tracks to delete.")
+        await state.clear()
+        return
 
-@dp.callback_query(F.data == "music_cancel_del")
-async def cancel_delete_music(call: CallbackQuery):
+    try:
+        # Delete all tracks with these IDs
+        deleted_count = 0
+        for track_id in broken_ids:
+            result = supabase.table("music_tracks").delete().eq("id", track_id).execute()
+            if result.data:
+                deleted_count += 1
+        logging.info(f"🎵 Admin deleted {deleted_count} broken music tracks")
+        await call.message.edit_text(
+            f"✅ Successfully deleted {deleted_count} out of {len(broken_ids)} broken track(s)."
+        )
+    except Exception as e:
+        logging.error(f"Error deleting broken tracks: {e}", exc_info=True)
+        await call.message.edit_text("❌ An error occurred while deleting tracks.")
+    finally:
+        await state.clear()
+
+@dp.callback_query(F.data == "music_cancel_delete_all")
+async def cancel_delete_all(call: CallbackQuery, state: FSMContext):
     await call.message.edit_text("❌ Deletion cancelled.")
+    await state.clear()
     await call.answer()
 
 # ---------- NEW: DELETE IMAGE ----------
@@ -666,7 +691,6 @@ async def delete_image_step2(message: Message, state: FSMContext):
         return
 
     try:
-        # Try to find the image by ID (UUID) or URL
         is_uuid = re.match(r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$', input_text, re.I)
         if is_uuid:
             result = supabase.table("media_content").select("*").eq("id", input_text).execute()
@@ -717,7 +741,7 @@ async def delete_image_cancel(call: CallbackQuery, state: FSMContext):
     await call.message.edit_text("❌ Deletion cancelled.")
     await state.clear()
 
-# ---------- CANCEL HANDLER (universal) ----------
+# ---------- CANCEL HANDLER ----------
 @dp.message(F.text == "/cancel")
 async def cancel_cmd(message: Message, state: FSMContext):
     current_state = await state.get_state()
