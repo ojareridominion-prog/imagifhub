@@ -1,5 +1,5 @@
 // script.js - Main entry point
-import { musicLibrary, categories } from './music.js';
+import { categories } from './music.js';
 import { getHolidayImage, getFestiveTitle } from './welcome.js';
 import { state } from './state.js';
 import { playRandomMusic, toggleMute } from './musicManager.js';
