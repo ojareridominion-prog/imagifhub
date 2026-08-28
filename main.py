@@ -21,6 +21,8 @@ from ad_trigger import router as ad_trigger_router
 from gift_routes import router as gift_router
 from ton_routes import router as ton_router
 from saved_routes import router as saved_router
+from music_routes import router as music_router   # add this
+
 
 # Import bot handlers to register them with dispatcher
 import bot_handlers  # noqa
@@ -83,6 +85,7 @@ app.include_router(ad_trigger_router)
 app.include_router(gift_router)
 app.include_router(ton_router)
 app.include_router(saved_router)
+app.include_router(music_router)   # add this line after other includes
 
 @app.get("/")
 async def root():
