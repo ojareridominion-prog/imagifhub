@@ -1,32 +1,39 @@
 import base64
 import logging
-import requests
+import re
 import aiohttp
+import requests
 import json
 from datetime import datetime, timedelta
 from aiogram import F
 from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton, PreCheckoutQuery, ContentType, LabeledPrice
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
-from config import bot, dp, supabase, ADMIN_IDS, ADMIN_TOKEN, IMGBB_API_KEY, BOT_TOKEN, CATEGORIES   # <-- import ADMIN_IDS
+from config import bot, dp, supabase, ADMIN_IDS, ADMIN_TOKEN, IMGBB_API_KEY, BOT_TOKEN, CATEGORIES
 from ad_utils import send_banner_ad
 from gifts_data import GIFTS
 
-# Warn if ImgBB API key is missing (for debugging)
+# Warn if ImgBB API key is missing
 if not IMGBB_API_KEY:
     logging.warning("⚠️ IMGBB_API_KEY is not set in environment. Admin uploads will fail with 'forbidden' errors.")
 
-# Define states
+# ---------- STATES ----------
 class AdminUpload(StatesGroup):
     waiting_media = State()
     waiting_category = State()
     waiting_keywords = State()
 
-# ==================== PAYMENT HANDLERS (UNIFIED) ====================
+class AdminMusicUpload(StatesGroup):
+    waiting_link = State()
+    waiting_category = State()
+    waiting_confirm_default = State()
 
+class AdminImageDelete(StatesGroup):
+    waiting_input = State()
+
+# ---------- PAYMENT HANDLERS (unchanged) ----------
 @dp.pre_checkout_query()
 async def on_pre_checkout_query(pre_checkout_query: PreCheckoutQuery):
-    """Required handler – answer within 10 seconds"""
     try:
         logging.info(f"📦 Pre-checkout query: id={pre_checkout_query.id}, user={pre_checkout_query.from_user.id}")
         await bot.answer_pre_checkout_query(pre_checkout_query.id, ok=True)
@@ -35,16 +42,13 @@ async def on_pre_checkout_query(pre_checkout_query: PreCheckoutQuery):
 
 @dp.message(F.content_type == ContentType.SUCCESSFUL_PAYMENT)
 async def on_successful_payment(message: Message):
-    """Handle successful payment – gifts or premium."""
     try:
         payment = message.successful_payment
         telegram_id = message.from_user.id
         payload = payment.invoice_payload
         now = datetime.utcnow()
 
-        # --- Check if this is a GIFT payment ---
         if payload.startswith("gift_"):
-            # Format: gift_{gift_id}_{user_id}
             parts = payload.split("_")
             if len(parts) >= 3:
                 gift_id = parts[1]
@@ -55,7 +59,6 @@ async def on_successful_payment(message: Message):
                     await message.answer("❌ Gift not recognized. Please contact support.")
                     return
 
-                # Record gift purchase
                 gift_record = {
                     "user_id": buyer_id,
                     "gift_id": gift["id"],
@@ -67,9 +70,7 @@ async def on_successful_payment(message: Message):
                 supabase.table("gift_purchases").insert(gift_record).execute()
                 logging.info(f"🎁 Gift purchase recorded: {gift['name']} for user {buyer_id}")
 
-                # If overpriced category → grant 30 days premium
                 if gift["category"] == "overpriced":
-                    # Get existing expiry
                     user_result = supabase.table("users").select("premium_expires_at").eq("telegram_id", buyer_id).execute()
                     new_expiry = now + timedelta(days=30)
                     if user_result.data and user_result.data[0].get("premium_expires_at"):
@@ -104,10 +105,8 @@ async def on_successful_payment(message: Message):
                     )
                 return
 
-        # --- Else it's a PREMIUM payment (original logic) ---
         logging.info(f"💰 Successful premium payment from user {telegram_id}, amount={payment.total_amount} {payment.currency}")
 
-        # Get existing user (if any)
         user_result = supabase.table("users").select("premium_expires_at").eq("telegram_id", telegram_id).execute()
         new_expiry = now + timedelta(days=30)
         if user_result.data:
@@ -125,7 +124,6 @@ async def on_successful_payment(message: Message):
                 except Exception as e:
                     logging.warning(f"Could not parse existing expiry, using 30 days from now: {e}")
 
-        # Upsert user
         user_data = {
             "telegram_id": telegram_id,
             "is_premium": True,
@@ -135,7 +133,6 @@ async def on_successful_payment(message: Message):
         supabase.table("users").upsert(user_data).execute()
         logging.info(f"✅ User {telegram_id} premium activated/updated until {new_expiry.isoformat()}")
 
-        # Insert payment record
         payment_record = {
             "telegram_id": telegram_id,
             "provider": "telegram_stars",
@@ -148,7 +145,6 @@ async def on_successful_payment(message: Message):
         supabase.table("payments").insert(payment_record).execute()
         logging.info(f"✅ Payment record inserted for user {telegram_id}")
 
-        # Notify user
         await message.answer(
             "🎉 Payment successful! You are now an IMAGIFHUB Premium member!\n\n"
             f"✅ Your premium access is active until {new_expiry.strftime('%Y-%m-%d')}.\n"
@@ -176,17 +172,13 @@ async def on_successful_payment(message: Message):
             f"Please contact support and provide your user ID: {message.from_user.id}"
         )
 
-# ==================== BOT COMMANDS ====================
-
+# ---------- BOT COMMANDS ----------
 @dp.message(F.text == "/start")
 async def cmd_start(message: Message):
-    # Optional: create user record on first start (so they exist in DB)
     telegram_id = message.from_user.id
     try:
-        # Check if user exists
         result = supabase.table("users").select("telegram_id").eq("telegram_id", telegram_id).execute()
         if not result.data:
-            # Create basic user record (non-premium)
             supabase.table("users").insert({
                 "telegram_id": telegram_id,
                 "is_premium": False,
@@ -196,7 +188,6 @@ async def cmd_start(message: Message):
     except Exception as e:
         logging.error(f"Error creating user on /start: {e}")
 
-    # Send banner ad (only if not premium, with cooldown/daily limit)
     await send_banner_ad(message.chat.id, telegram_id)
 
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
@@ -221,7 +212,6 @@ async def cmd_premium(message: Message):
             .execute()
 
         if not user_result.data or len(user_result.data) == 0:
-            # User not in DB – create them as free user
             supabase.table("users").insert({
                 "telegram_id": telegram_id,
                 "is_premium": False
@@ -233,7 +223,6 @@ async def cmd_premium(message: Message):
         is_premium = user_data.get("is_premium", False)
         premium_expires_at = user_data.get("premium_expires_at")
 
-        # Convert boolean/string to bool
         is_premium_bool = False
         if isinstance(is_premium, bool):
             is_premium_bool = is_premium
@@ -265,7 +254,6 @@ async def cmd_premium(message: Message):
             except Exception as e:
                 logging.error(f"Date parsing error: {e}")
 
-        # Not premium or expired
         keyboard = InlineKeyboardMarkup(inline_keyboard=[
             [InlineKeyboardButton(text="⭐ Get Premium", callback_data="get_premium")],
             [InlineKeyboardButton(text="🚀 Open IMAGIFHUB", web_app={"url": "https://ojareridominion-prog.github.io/imagifhub/"})]
@@ -285,7 +273,6 @@ async def cmd_premium(message: Message):
         logging.error(f"Premium check error: {e}", exc_info=True)
         await message.answer("❌ There was an error checking your premium status.\n\nPlease try again in a few moments.")
 
-    # Send banner ad after responding (only if user is not premium)
     await send_banner_ad(message.chat.id, telegram_id)
 
 @dp.callback_query(F.data == "get_premium")
@@ -313,14 +300,12 @@ async def get_premium_callback(call: CallbackQuery):
         parse_mode="HTML",
         reply_markup=keyboard
     )
-    # Send ad after callback
     await send_banner_ad(call.message.chat.id, call.from_user.id)
 
 @dp.callback_query(F.data == "back_to_premium")
 async def back_to_premium_callback(call: CallbackQuery):
     await call.answer()
     await cmd_premium(call.message)
-    # Send ad after returning to premium menu
     await send_banner_ad(call.message.chat.id, call.from_user.id)
 
 @dp.callback_query(F.data == "renew_premium")
@@ -332,17 +317,19 @@ async def renew_premium_callback(call: CallbackQuery):
 async def start_premium(message: Message):
     await cmd_premium(message)
 
-# ==================== ADMIN COMMANDS ====================
-
-# Use ADMIN_IDS instead of single ADMIN_ID
+# ---------- ADMIN COMMANDS ----------
 @dp.message(F.from_user.id.in_(ADMIN_IDS), F.text == "/admin")
 async def admin_cmd(message: Message, state: FSMContext):
     await state.clear()
     kb = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="📤 Upload New Media", callback_data="up")]
+        [InlineKeyboardButton(text="📤 Upload New Media", callback_data="up")],
+        [InlineKeyboardButton(text="🎵 Upload Music Link", callback_data="up_music")],
+        [InlineKeyboardButton(text="🔍 Check Broken Music Links", callback_data="check_broken")],
+        [InlineKeyboardButton(text="🗑️ Delete Image", callback_data="del_image")]
     ])
     await message.answer("<b>Admin Control Panel</b>", reply_markup=kb, parse_mode="HTML")
 
+# ---------- EXISTING UPLOAD MEDIA (unchanged) ----------
 @dp.callback_query(F.data == "up")
 async def up_step1(call: CallbackQuery, state: FSMContext):
     await call.message.edit_text("Please send the photo you want to add to the gallery.")
@@ -351,20 +338,14 @@ async def up_step1(call: CallbackQuery, state: FSMContext):
 @dp.message(AdminUpload.waiting_media, F.photo)
 async def up_step2(message: Message, state: FSMContext):
     try:
-        # Get the largest photo (last in array)
         photo = message.photo[-1]
         file_id = photo.file_id
-
-        # Download the file from Telegram
         file = await bot.get_file(file_id)
         file_path = file.file_path
         downloaded = await bot.download_file(file_path)
-
-        # Read the bytes and encode to base64
         image_data = downloaded.getvalue() if hasattr(downloaded, 'getvalue') else downloaded.read()
         base64_image = base64.b64encode(image_data).decode('utf-8')
 
-        # Validate API key is set
         if not IMGBB_API_KEY:
             await message.answer(
                 "❌ **ImgBB API key is missing.**\n"
@@ -374,11 +355,7 @@ async def up_step2(message: Message, state: FSMContext):
             logging.error("Upload aborted: IMGBB_API_KEY is empty")
             return
 
-        # Upload to ImgBB using base64
-        payload = {
-            'key': IMGBB_API_KEY,
-            'image': base64_image,
-        }
+        payload = {'key': IMGBB_API_KEY, 'image': base64_image}
         resp = requests.post('https://api.imgbb.com/1/upload', data=payload, timeout=30)
 
         if resp.status_code == 200:
@@ -387,7 +364,6 @@ async def up_step2(message: Message, state: FSMContext):
                 final_url = data['data']['url']
                 await state.update_data(url=final_url)
 
-                # Build category buttons
                 btns = []
                 for i in range(0, len(CATEGORIES), 2):
                     row = [InlineKeyboardButton(text=c, callback_data=f"set_{c}") for c in CATEGORIES[i:i+2]]
@@ -400,7 +376,6 @@ async def up_step2(message: Message, state: FSMContext):
                 logging.error(f"ImgBB API error: {error_msg}")
                 await message.answer(f"❌ ImgBB upload failed: {error_msg}\n\nPlease check your API key.")
         else:
-            # Detailed error reporting
             try:
                 error_json = resp.json()
                 error_msg = error_json.get('error', {}).get('message', 'Unknown error')
@@ -440,4 +415,315 @@ async def up_final(message: Message, state: FSMContext):
     }).execute()
     await message.answer(f"✅ Successfully added to {user_data['category']}!")
     await state.clear()
+
+# ---------- NEW: UPLOAD MUSIC LINK ----------
+@dp.callback_query(F.data == "up_music")
+async def music_step1(call: CallbackQuery, state: FSMContext):
+    await call.message.edit_text(
+        "Send me the direct URL of the music track (must be a publicly accessible audio file, e.g., .mp3, .ogg).\n"
+        "To cancel, send /cancel."
+    )
+    await state.set_state(AdminMusicUpload.waiting_link)
+
+@dp.message(AdminMusicUpload.waiting_link)
+async def music_step2(message: Message, state: FSMContext):
+    link = message.text.strip()
+    # Basic URL validation
+    if not re.match(r'^https?://[^\s]+$', link):
+        await message.answer("❌ Invalid URL. Please send a valid link (starting with http:// or https://).")
+        return
+
+    await state.update_data(link=link)
+
+    # Build category buttons (exclude "Default" from this list)
+    categories_for_music = [c for c in CATEGORIES if c != "Default"]
+    btns = []
+    for i in range(0, len(categories_for_music), 2):
+        row = [InlineKeyboardButton(text=c, callback_data=f"music_cat_{c}") for c in categories_for_music[i:i+2]]
+        btns.append(row)
+    btns.append([InlineKeyboardButton(text="❌ Cancel", callback_data="music_cancel")])
+
+    await message.answer(
+        "Select the category for this music track:",
+        reply_markup=InlineKeyboardMarkup(inline_keyboard=btns)
+    )
+    await state.set_state(AdminMusicUpload.waiting_category)
+
+@dp.callback_query(F.data.startswith("music_cat_"))
+async def music_step3(call: CallbackQuery, state: FSMContext):
+    category = call.data.split("_", 2)[2]
+    user_data = await state.get_data()
+    link = user_data.get("link")
+    if not link:
+        await call.message.edit_text("❌ Link not found. Please start over with /admin.")
+        await state.clear()
+        return
+
+    # Check for duplicate in this category
+    try:
+        result = supabase.table("music_tracks") \
+            .select("id") \
+            .eq("category", category) \
+            .eq("url", link) \
+            .execute()
+        if result.data and len(result.data) > 0:
+            await call.message.edit_text(
+                f"❌ This link already exists in category '{category}'. Please choose a different link or category."
+            )
+            # Allow retry: ask again for category
+            categories_for_music = [c for c in CATEGORIES if c != "Default"]
+            btns = []
+            for i in range(0, len(categories_for_music), 2):
+                row = [InlineKeyboardButton(text=c, callback_data=f"music_cat_{c}") for c in categories_for_music[i:i+2]]
+                btns.append(row)
+            btns.append([InlineKeyboardButton(text="❌ Cancel", callback_data="music_cancel")])
+            await call.message.answer(
+                "Select another category or cancel:",
+                reply_markup=InlineKeyboardMarkup(inline_keyboard=btns)
+            )
+            return
+
+        # Save to music_tracks
+        supabase.table("music_tracks").insert({
+            "url": link,
+            "category": category
+        }).execute()
+        logging.info(f"🎵 Music track added: {link} to category {category}")
+
+        # Ask if also add to Default
+        await state.update_data(added_category=category)
+        await call.message.edit_text(
+            f"✅ Successfully added to **{category}**!\n\n"
+            "Do you also want to add this track to the **Default** category (fallback)?",
+            parse_mode="HTML",
+            reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+                [InlineKeyboardButton(text="✅ Yes, add to Default", callback_data="music_confirm_default_yes")],
+                [InlineKeyboardButton(text="❌ No, skip", callback_data="music_confirm_default_no")]
+            ])
+        )
+        await state.set_state(AdminMusicUpload.waiting_confirm_default)
+
+    except Exception as e:
+        logging.error(f"Error in music upload: {e}", exc_info=True)
+        await call.message.edit_text("❌ An error occurred while saving the track. Please try again.")
+        await state.clear()
+
+@dp.callback_query(F.data == "music_confirm_default_yes")
+async def music_add_default(call: CallbackQuery, state: FSMContext):
+    user_data = await state.get_data()
+    link = user_data.get("link")
+    if not link:
+        await call.message.edit_text("❌ Link not found. Please start over.")
+        await state.clear()
+        return
+
+    # Check duplicate in Default
+    try:
+        result = supabase.table("music_tracks") \
+            .select("id") \
+            .eq("category", "Default") \
+            .eq("url", link) \
+            .execute()
+        if result.data and len(result.data) > 0:
+            await call.message.edit_text(
+                f"❌ This link already exists in **Default** category.\n\n"
+                f"✅ Track is already saved in {user_data.get('added_category', '')}."
+                f"\nNo further action taken.",
+                parse_mode="HTML"
+            )
+            await state.clear()
+            return
+
+        # Save to Default
+        supabase.table("music_tracks").insert({
+            "url": link,
+            "category": "Default"
+        }).execute()
+        logging.info(f"🎵 Music track also added to Default: {link}")
+
+        await call.message.edit_text(
+            f"✅ Track successfully added to **Default** as well!\n\n"
+            f"All done."
+        )
+        await state.clear()
+    except Exception as e:
+        logging.error(f"Error adding to Default: {e}", exc_info=True)
+        await call.message.edit_text("❌ An error occurred while adding to Default. Track was saved in the primary category.")
+        await state.clear()
+
+@dp.callback_query(F.data == "music_confirm_default_no")
+async def music_skip_default(call: CallbackQuery, state: FSMContext):
+    await call.message.edit_text("✅ Track saved. No changes to Default.")
+    await state.clear()
+
+@dp.callback_query(F.data == "music_cancel")
+async def music_cancel(call: CallbackQuery, state: FSMContext):
+    await state.clear()
+    await call.message.edit_text("❌ Music upload cancelled.")
+
+# ---------- NEW: CHECK BROKEN MUSIC LINKS (with delete buttons) ----------
+@dp.callback_query(F.data == "check_broken")
+async def check_broken_links(call: CallbackQuery):
+    await call.answer("Checking...")
+    temp_msg = await call.message.answer("🔍 Checking all music tracks for broken links...")
+
+    try:
+        result = supabase.table("music_tracks").select("id, url, category").execute()
+        tracks = result.data or []
+        if not tracks:
+            await temp_msg.edit_text("No music tracks found in the database.")
+            return
+
+        broken = []
+        timeout = aiohttp.ClientTimeout(total=10)
+        async with aiohttp.ClientSession(timeout=timeout) as session:
+            for track in tracks:
+                url = track["url"]
+                try:
+                    async with session.head(url, allow_redirects=True) as resp:
+                        if resp.status >= 400:
+                            broken.append((track, resp.status))
+                except Exception as e:
+                    broken.append((track, str(e)))
+
+        if not broken:
+            await temp_msg.edit_text("✅ All music links are working!")
+            return
+
+        # Build report with inline delete buttons
+        keyboard_buttons = []
+        for track, info in broken:
+            # Shorten URL for display
+            short_url = track["url"][:40] + "..." if len(track["url"]) > 40 else track["url"]
+            label = f"❌ {track['category']}: {short_url} ({info})"
+            callback_data = f"music_del_{track['id']}"
+            keyboard_buttons.append([InlineKeyboardButton(text=label, callback_data=callback_data)])
+
+        # Add a cancel/close button
+        keyboard_buttons.append([InlineKeyboardButton(text="❌ Close", callback_data="music_close_report")])
+
+        await temp_msg.edit_text(
+            f"❌ Found {len(broken)} broken link(s). Click the button below to delete that track:",
+            reply_markup=InlineKeyboardMarkup(inline_keyboard=keyboard_buttons)
+        )
+
+    except Exception as e:
+        logging.error(f"Error checking broken links: {e}", exc_info=True)
+        await temp_msg.edit_text("❌ An error occurred while checking links.")
+
+@dp.callback_query(F.data == "music_close_report")
+async def close_report(call: CallbackQuery):
+    await call.message.delete()
+    await call.answer("Report closed.")
+
+@dp.callback_query(F.data.startswith("music_del_"))
+async def delete_music_track(call: CallbackQuery):
+    track_id = call.data.split("_", 2)[2]
+    # Confirm deletion
+    kb = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="✅ Yes, delete", callback_data=f"music_confirm_del_{track_id}")],
+        [InlineKeyboardButton(text="❌ Cancel", callback_data="music_cancel_del")]
+    ])
+    await call.message.edit_text(
+        f"⚠️ Are you sure you want to delete this music track (ID: {track_id})?",
+        reply_markup=kb
+    )
+    await call.answer()
+
+@dp.callback_query(F.data.startswith("music_confirm_del_"))
+async def confirm_delete_music(call: CallbackQuery):
+    track_id = call.data.split("_", 3)[3]
+    try:
+        result = supabase.table("music_tracks").delete().eq("id", track_id).execute()
+        if result.data:
+            await call.message.edit_text(f"✅ Track with ID {track_id} has been deleted.")
+            logging.info(f"🎵 Admin deleted music track {track_id}")
+        else:
+            await call.message.edit_text("❌ Track not found or already deleted.")
+    except Exception as e:
+        logging.error(f"Error deleting music track: {e}", exc_info=True)
+        await call.message.edit_text("❌ An error occurred while deleting the track.")
+
+@dp.callback_query(F.data == "music_cancel_del")
+async def cancel_delete_music(call: CallbackQuery):
+    await call.message.edit_text("❌ Deletion cancelled.")
+    await call.answer()
+
+# ---------- NEW: DELETE IMAGE ----------
+@dp.callback_query(F.data == "del_image")
+async def delete_image_step1(call: CallbackQuery, state: FSMContext):
+    await call.message.edit_text(
+        "Send me the **URL** or **ID** (UUID) of the image you want to delete.\n"
+        "To cancel, send /cancel."
+    )
+    await state.set_state(AdminImageDelete.waiting_input)
+
+@dp.message(AdminImageDelete.waiting_input)
+async def delete_image_step2(message: Message, state: FSMContext):
+    input_text = message.text.strip()
+    if not input_text:
+        await message.answer("❌ Please send a valid URL or ID.")
+        return
+
+    try:
+        # Try to find the image by ID (UUID) or URL
+        is_uuid = re.match(r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$', input_text, re.I)
+        if is_uuid:
+            result = supabase.table("media_content").select("*").eq("id", input_text).execute()
+        else:
+            result = supabase.table("media_content").select("*").eq("url", input_text).execute()
+
+        if not result.data or len(result.data) == 0:
+            await message.answer("❌ No image found with that URL or ID.")
+            return
+
+        image_data = result.data[0]
+        confirm_kb = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="✅ Yes, delete", callback_data=f"del_confirm_{image_data['id']}")],
+            [InlineKeyboardButton(text="❌ Cancel", callback_data="del_cancel")]
+        ])
+        await message.answer(
+            f"⚠️ Are you sure you want to delete this image?\n\n"
+            f"ID: {image_data['id']}\n"
+            f"Category: {image_data.get('category', 'N/A')}\n"
+            f"Keyword: {image_data.get('Keyword', 'N/A')}\n"
+            f"URL: {image_data['url']}",
+            reply_markup=confirm_kb
+        )
+        await state.update_data(image_id=image_data['id'])
+
+    except Exception as e:
+        logging.error(f"Error finding image: {e}", exc_info=True)
+        await message.answer("❌ An error occurred while searching for the image.")
+
+@dp.callback_query(F.data.startswith("del_confirm_"))
+async def delete_image_confirm(call: CallbackQuery, state: FSMContext):
+    image_id = call.data.split("_", 2)[2]
+    try:
+        result = supabase.table("media_content").delete().eq("id", image_id).execute()
+        if result.data and len(result.data) > 0:
+            await call.message.edit_text(f"✅ Image with ID {image_id} has been deleted.")
+            logging.info(f"🗑️ Admin deleted image {image_id}")
+        else:
+            await call.message.edit_text("❌ Image not found or already deleted.")
+    except Exception as e:
+        logging.error(f"Error deleting image: {e}", exc_info=True)
+        await call.message.edit_text("❌ An error occurred while deleting the image.")
+    finally:
+        await state.clear()
+
+@dp.callback_query(F.data == "del_cancel")
+async def delete_image_cancel(call: CallbackQuery, state: FSMContext):
+    await call.message.edit_text("❌ Deletion cancelled.")
+    await state.clear()
+
+# ---------- CANCEL HANDLER (universal) ----------
+@dp.message(F.text == "/cancel")
+async def cancel_cmd(message: Message, state: FSMContext):
+    current_state = await state.get_state()
+    if current_state is None:
+        await message.answer("No operation to cancel.")
+        return
+    await state.clear()
+    await message.answer("✅ Operation cancelled.")
     
