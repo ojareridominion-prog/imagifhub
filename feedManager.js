@@ -284,6 +284,9 @@ function copyDeepLink(imageId) {
         });
 }
 
+// ================================================================
+//  MODIFIED: loadImageById now sets category to "Discover" and updates UI
+// ================================================================
 export async function loadImageById(imageId) {
     try {
         const resp = await fetch(`${API_URL}/media/${imageId}`);
@@ -300,6 +303,18 @@ export async function loadImageById(imageId) {
         state.hasMoreImages = true;
         state.imagesShownSinceLastAd = 0;
         state.currentAdIndex = 0;
+        
+        // --- NEW: Set category to "Discover" and update UI ---
+        state.currentCategory = "Discover";
+        state.activeSearchQuery = "";
+        // Update category bar active state
+        document.querySelectorAll('.cat-btn').forEach(b => 
+            b.classList.toggle('active', b.innerText === "Discover")
+        );
+        // Play music for Discover
+        await playRandomMusic("Discover");
+        // -----------------------------------------------------
+        
         const slides = buildSlides(state.allImages, state.isPremiumUser);
         renderSlides(slides);
         setTimeout(() => loadMoreImages(true), 500);
