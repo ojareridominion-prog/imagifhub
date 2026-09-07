@@ -556,6 +556,29 @@ async def music_cancel(call: CallbackQuery, state: FSMContext):
     await call.message.edit_text("❌ Music upload cancelled.")
 
 # ---------- NEW: CHECK BROKEN MUSIC LINKS (single delete button) ----------
+# Headers to mimic a real browser – fixes Pixabay 403 errors
+_CHECK_HEADERS = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+    "Referer": "https://pixabay.com/",
+    "Accept": "*/*"
+}
+
+async def _check_music_url_active(url: str) -> bool:
+    """Return True if the audio URL returns a 200 or 206 (partial content) with browser-like headers."""
+    try:
+        async with aiohttp.ClientSession(headers=_CHECK_HEADERS) as session:
+            # Request only the first byte to minimise bandwidth
+            headers = dict(_CHECK_HEADERS)
+            headers["Range"] = "bytes=0-0"
+            async with session.get(url, headers=headers, timeout=10, allow_redirects=True) as resp:
+                if resp.status in (200, 206):
+                    return True
+                logging.warning(f"Music link check failed for {url} with status {resp.status}")
+                return False
+    except Exception as e:
+        logging.error(f"Error checking music link {url}: {e}")
+        return False
+
 @dp.callback_query(F.data == "check_broken")
 async def check_broken_links(call: CallbackQuery, state: FSMContext):
     await call.answer("Checking...")
@@ -569,16 +592,10 @@ async def check_broken_links(call: CallbackQuery, state: FSMContext):
             return
 
         broken = []
-        timeout = aiohttp.ClientTimeout(total=10)
-        async with aiohttp.ClientSession(timeout=timeout) as session:
-            for track in tracks:
-                url = track["url"]
-                try:
-                    async with session.head(url, allow_redirects=True) as resp:
-                        if resp.status >= 400:
-                            broken.append((track, resp.status))
-                except Exception as e:
-                    broken.append((track, str(e)))
+        for track in tracks:
+            url = track["url"]
+            if not await _check_music_url_active(url):
+                broken.append((track, "HTTP error or timeout"))
 
         if not broken:
             await temp_msg.edit_text("✅ All music links are working!")
