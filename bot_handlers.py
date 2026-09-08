@@ -1,6 +1,7 @@
 import base64
 import logging
 import re
+import os
 import aiohttp
 import requests
 import json
@@ -12,6 +13,9 @@ from aiogram.fsm.state import State, StatesGroup
 from config import bot, dp, supabase, ADMIN_IDS, ADMIN_TOKEN, IMGBB_API_KEY, BOT_TOKEN, CATEGORIES
 from ad_utils import send_banner_ad
 from gifts_data import GIFTS
+
+# ---- Web App URL (set via env on Render) ----
+WEBAPP_URL = os.environ.get("WEBAPP_URL", "https://imagifhub.vercel.app")
 
 if not IMGBB_API_KEY:
     logging.warning("⚠️ IMGBB_API_KEY is not set in environment. Admin uploads will fail with 'forbidden' errors.")
@@ -158,8 +162,8 @@ async def on_successful_payment(message: Message):
         )
 
         keyboard = InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text="🔄 Refresh Mini App", web_app={"url": "https://ojareridominion-prog.github.io/imagifhub/"})],
-            [InlineKeyboardButton(text="🚀 Open IMAGIFHUB", web_app={"url": "https://ojareridominion-prog.github.io/imagifhub/"})]
+            [InlineKeyboardButton(text="🔄 Refresh Mini App", web_app={"url": WEBAPP_URL})],
+            [InlineKeyboardButton(text="🚀 Open IMAGIFHUB", web_app={"url": WEBAPP_URL})]
         ])
 
         await message.answer(
@@ -193,7 +197,7 @@ async def cmd_start(message: Message):
     await send_banner_ad(message.chat.id, telegram_id)
 
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="🚀 Let's Go!", web_app={"url": "https://ojareridominion-prog.github.io/imagifhub/"})],
+        [InlineKeyboardButton(text="🚀 Let's Go!", web_app={"url": WEBAPP_URL})],
         [InlineKeyboardButton(text="📢 Official Channel", url="https://t.me/imagifhub")]
     ])
     await message.answer(
@@ -258,7 +262,7 @@ async def cmd_premium(message: Message):
 
         keyboard = InlineKeyboardMarkup(inline_keyboard=[
             [InlineKeyboardButton(text="⭐ Get Premium", callback_data="get_premium")],
-            [InlineKeyboardButton(text="🚀 Open IMAGIFHUB", web_app={"url": "https://ojareridominion-prog.github.io/imagifhub/"})]
+            [InlineKeyboardButton(text="🚀 Open IMAGIFHUB", web_app={"url": WEBAPP_URL})]
         ])
         await message.answer(
             "✨ <b>IMAGIFHUB Premium</b>\n\n"
