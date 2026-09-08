@@ -80,7 +80,7 @@ export function updateWatchAdCard() {
     card.style.display = 'block';
     const tempExpiry = getTempPremiumExpiry();
     if (tempExpiry) {
-        progressDiv.innerText = "✨ 1-Hour Premium Active ✨";
+        progressDiv.innerText = "✨ 30-Min Premium Active ✨";
         if (watchBtn) watchBtn.style.display = 'none';
     } else {
         const count = getTempAdCount();
@@ -135,7 +135,7 @@ function updatePremiumUI(isPremium, expiryStr = null, daysLeft = null, isTemp = 
                 premiumBtn.disabled = true;
                 premiumBtn.onclick = null;
             } else if (isTemp) {
-                premiumBtn.innerText = "⏱️ TEMP PREMIUM (1h)";
+                premiumBtn.innerText = "⏱️ TEMP PREMIUM (30min)";
                 premiumBtn.style.background = "#ff8c00";
                 premiumBtn.style.color = "white";
                 premiumBtn.disabled = true;
@@ -160,7 +160,7 @@ function updatePremiumUI(isPremium, expiryStr = null, daysLeft = null, isTemp = 
             expiryDisplay.innerText = "admin";
         } else if (isPremium) {
             if (isTemp) {
-                expiryDisplay.innerText = "⏳ 1‑hour trial – see timer below";
+                expiryDisplay.innerText = "⏳ 30‑min trial – see timer below";
             } else if (daysLeft !== null) {
                 expiryDisplay.innerText = `${daysLeft} days left`;
             } else if (expiryStr) {
