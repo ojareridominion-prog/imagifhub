@@ -5,21 +5,26 @@ import logging
 import httpx
 import base64
 import time
-from fastapi import APIRouter, Request, HTTPException
+from fastapi import APIRouter, Request, HTTPException, Query
 from utils import get_user_id_from_init_data
 from config import supabase
 from datetime import datetime, timedelta
 
 router = APIRouter()
 
-# Configuration from environment
+# ---------- Environment config ----------
 TON_ADMIN_ADDRESS = os.environ.get("TON_ADMIN_ADDRESS", "").strip()
 TON_API_KEY = os.environ.get("TON_API_KEY", "")
 
-# USD constants for TON pricing
-USD_PRICE_NEW = 1.49      # actual payment amount
-USD_PRICE_OLD = 2.09      # struck-through "old" price (display only)
+# USD constants for TON pricing (keep for the old endpoint)
+USD_PRICE_NEW = 1.49
+USD_PRICE_OLD = 2.09
 
+# ---------- Caching for TonAPI events (new) ----------
+_cache = {"timestamp": 0.0, "events": []}
+CACHE_TTL = 3.0  # seconds – reuse events within this window
+
+# ---------- Polling config (old endpoint still uses this) ----------
 POLL_MAX_SECONDS = 60
 POLL_INTERVAL = 3
 EVENTS_LIMIT = 15
@@ -27,14 +32,14 @@ EVENTS_LIMIT = 15
 _payment_locks = {}
 logger = logging.getLogger(__name__)
 
-# ---------- TON/USD rate cache ----------
+# ---------- Rate cache (for USD/TON) ----------
 _rate_cache = {"rate": None, "timestamp": 0}
-CACHE_TTL = 60  # seconds
+CACHE_TTL_RATE = 60  # seconds
 
 async def get_ton_usd_rate() -> float:
     """Fetch current TON/USD rate from CoinGecko (or cached)."""
     now = time.time()
-    if _rate_cache["rate"] is not None and (now - _rate_cache["timestamp"]) < CACHE_TTL:
+    if _rate_cache["rate"] is not None and (now - _rate_cache["timestamp"]) < CACHE_TTL_RATE:
         return _rate_cache["rate"]
 
     url = "https://api.coingecko.com/api/v3/simple/price?ids=the-open-network&vs_currencies=usd"
@@ -52,10 +57,10 @@ async def get_ton_usd_rate() -> float:
     except Exception as e:
         logger.error(f"Failed to fetch TON rate: {e}")
 
-    # Fallback: if cache has old value, return it; else hardcoded fallback (~$1.12/TON from previous default)
     if _rate_cache["rate"] is not None:
         return _rate_cache["rate"]
-    return 1.12  # conservative fallback
+    return 1.12  # fallback
+
 
 # ---------- Address helpers (unchanged) ----------
 def to_raw_ton_address(address: str) -> str:
@@ -86,7 +91,7 @@ def to_raw_ton_address(address: str) -> str:
         return ""
 
 async def fetch_user_events(account_id: str, limit: int = EVENTS_LIMIT):
-    """Fetch recent account events from TonAPI."""
+    """Fetch recent account events from TonAPI (used by old endpoint)."""
     url = f"https://tonapi.io/v2/accounts/{account_id}/events?limit={limit}"
     headers = {"Authorization": f"Bearer {TON_API_KEY}"} if TON_API_KEY else {}
 
@@ -101,7 +106,7 @@ async def fetch_user_events(account_id: str, limit: int = EVENTS_LIMIT):
     return []
 
 def find_payment_in_events(events, admin_raw: str, expected_comment: str, min_nano: int):
-    """Search events for matching TonTransfer."""
+    """Search events for matching TonTransfer (old endpoint)."""
     target_address = admin_raw.lower()
     now_ts = int(datetime.utcnow().timestamp())
     two_hours_ago = now_ts - 7200
@@ -139,6 +144,7 @@ async def poll_user_wallet_for_payment(user_raw, admin_raw, comment, expected_na
     return None
 
 async def grant_premium(telegram_id: int, tx_hash: str, amount: int, comment: str):
+    """Idempotent premium grant – used by both old and new endpoints."""
     lock = _payment_locks.get(tx_hash)
     if lock is None:
         lock = asyncio.Lock()
@@ -186,9 +192,11 @@ async def grant_premium(telegram_id: int, tx_hash: str, amount: int, comment: st
         logger.info(f"Premium granted to {telegram_id} via TON, tx: {tx_hash}, amount_nano={amount}")
     _payment_locks.pop(tx_hash, None)
 
-# ---------- Endpoints ----------
+
+# ---------- OLD ENDPOINT (kept for backward compatibility) ----------
 @router.post("/api/ton-confirm-payment")
 async def ton_confirm_payment(request: Request):
+    """Legacy polling endpoint – kept for frontend fallback."""
     init_data_raw = request.headers.get("X-Telegram-Init-Data")
     user_id = get_user_id_from_init_data(init_data_raw)
     if not user_id:
@@ -211,7 +219,6 @@ async def ton_confirm_payment(request: Request):
     except Exception:
         raise HTTPException(status_code=400, detail="Invalid address format")
 
-    # Get current TON rate and compute expected nano amount (new price)
     rate = await get_ton_usd_rate()
     expected_ton = USD_PRICE_NEW / rate
     expected_nano = int(expected_ton * 1_000_000_000)
@@ -224,16 +231,97 @@ async def ton_confirm_payment(request: Request):
     await grant_premium(user_id, tx_hash, amount, comment)
     return {"status": "completed", "message": "Premium activated"}
 
+
+# ---------- NEW STATELESS VERIFICATION ENDPOINT (with caching & address normalisation) ----------
+async def fetch_admin_events() -> list:
+    """Fetch the latest events for the admin wallet from TonAPI (limit=30)."""
+    if not TON_API_KEY:
+        raise RuntimeError("TON_API_KEY not set")
+    # Increased limit to 30 to better handle high-volume environments
+    url = f"https://tonapi.io/v2/accounts/{TON_ADMIN_ADDRESS}/events?limit=30"
+    headers = {"Authorization": f"Bearer {TON_API_KEY}"}
+    async with httpx.AsyncClient() as client:
+        resp = await client.get(url, headers=headers, timeout=10)
+        resp.raise_for_status()
+        data = resp.json()
+        return data.get("events", [])
+
+@router.get("/api/verify-ton-payment")
+async def verify_ton_payment(
+    user_id: int = Query(..., description="Telegram user ID"),
+    expected_amount_ton: float = Query(..., description="Amount in TON expected")
+):
+    """
+    Single, non‑blocking check:
+      1) Use cached admin events if fresh (< 3s old)
+      2) Else fetch from TonAPI and update cache (limit=30)
+      3) Normalise admin and recipient addresses before comparison
+      4) Search for a transfer with matching comment and amount
+      5) If found → grant premium and return "completed"
+      6) Otherwise return "pending"
+    """
+    now = time.time()
+
+    # 1) Get cached events or fetch fresh
+    if (now - _cache["timestamp"]) < CACHE_TTL and _cache["events"]:
+        events = _cache["events"]
+    else:
+        try:
+            events = await fetch_admin_events()
+            _cache["events"] = events
+            _cache["timestamp"] = now
+        except Exception as e:
+            # If TonAPI fails, we still return "pending" – frontend will retry
+            return {"status": "pending", "error": str(e)}
+
+    # 2) Normalise admin address once
+    admin_raw = to_raw_ton_address(TON_ADMIN_ADDRESS)
+    if not admin_raw:
+        # Admin address is invalid – fail safely
+        return {"status": "pending", "error": "Invalid admin address"}
+
+    # 3) Normalise expected amount to nanoTON
+    expected_nano = int(expected_amount_ton * 1_000_000_000)
+    target_comment = f"user:{user_id}"
+
+    # 4) Scan events
+    for event in events:
+        if event.get("in_progress", False):
+            continue
+        for action in event.get("actions", []):
+            if action.get("type") != "TonTransfer":
+                continue
+            transfer = action.get("TonTransfer") or action.get("ton_transfer")
+            if not transfer:
+                continue
+            recipient = transfer.get("recipient", {}).get("address", "")
+            # Normalise recipient address
+            recipient_raw = to_raw_ton_address(recipient)
+            if recipient_raw != admin_raw:
+                continue
+            comment = transfer.get("comment", "").strip()
+            amount = int(transfer.get("amount", 0))
+            if comment == target_comment and amount >= expected_nano:
+                # 5) Payment found – grant premium
+                tx_hash = event.get("event_id")
+                await grant_premium(user_id, tx_hash, amount, comment)
+                return {"status": "completed", "tx_hash": tx_hash}
+
+    # 6) No match yet
+    return {"status": "pending"}
+
+
+# ---------- Other existing endpoints (unchanged) ----------
 @router.get("/api/ton-config")
 async def ton_config():
-    """Return admin address, current new price in TON, and old price in TON (for UI)."""
+    """Return admin address, current new price in TON, and old price in TON."""
     rate = await get_ton_usd_rate()
     ton_amount_new = round(USD_PRICE_NEW / rate, 4)
     ton_amount_old = round(USD_PRICE_OLD / rate, 4)
     return {
         "adminAddress": TON_ADMIN_ADDRESS,
-        "amount": ton_amount_new,          # actual payment amount
-        "oldAmount": ton_amount_old,       # for strike-through display
+        "amount": ton_amount_new,
+        "oldAmount": ton_amount_old,
         "usdPriceNew": USD_PRICE_NEW,
         "usdPriceOld": USD_PRICE_OLD
     }
