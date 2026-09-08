@@ -310,6 +310,14 @@
         </div>
     </div>
 
+    <!-- 🔽 SET YOUR BACKEND URLS 🔽 -->
+<script>
+    // Vercel (main API) is the same origin
+    window.API_URL = window.location.origin;
+    // Render handles admin/trigger endpoints
+    window.RENDER_API_URL = 'https://imagifhub.onrender.com';  // your Render base URL
+</script>
+
     <script type="module" src="script.js"></script>
     <script type="module" src="giftManager.js"></script>
 
