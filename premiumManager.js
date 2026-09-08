@@ -4,7 +4,7 @@ import { resetAndLoadFeed } from './feedManager.js';
 import { showRewardedAd } from './monetag.js';
 import { generateInitialsAvatar } from './utils.js';
 
-const API_URL = "https://imagifhub.onrender.com";
+const API_URL = window.API_URL || window.location.origin;
 const TEMP_PREMIUM_KEY = "imagifhub_temp_premium_expiry";
 const TEMP_AD_COUNT_KEY = "imagifhub_temp_ad_count";
 
