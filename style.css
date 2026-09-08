@@ -1383,15 +1383,15 @@ body.search-open {
 }
 .image-controls .ctrl-btn {
     pointer-events: auto;
-    width: 44px;
-    height: 44px;
+    width: 52px;
+    height: 52px;
     border-radius: 50%;
     background: transparent;          /* <-- was rgba(0,0,0,0.6) */
     backdrop-filter: none;            /* <-- removed blur */
     -webkit-backdrop-filter: none;    /* <-- removed blur */
     border: none;                     /* <-- removed border (optional) */
     color: #fff;
-    font-size: 20px;
+    font-size: 24px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -1410,9 +1410,11 @@ body.search-open {
     box-shadow: 0 0 12px rgba(255,255,255,0.2);
 }
 .image-controls .save-btn.saved {
-    background: rgba(255, 70, 70, 0.8);
-    border-color: #ff4444;
+    background: transparent;          /* ← was rgba(255,70,70,0.8) */
+    border: none;                     /* ← removes red border */
+    /* keep the heart color as red via the emoji itself, no background needed */
 }
+
 .image-controls .gift-btn {
     animation: none !important; /* override any existing pulse */
 }
