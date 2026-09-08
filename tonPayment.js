@@ -195,7 +195,7 @@ export async function updateTonPrices() {
     }
 }
 
-// ---------- Send TON payment (uses amount from config) ----------
+// ---------- Send TON payment with immediate first check and rounded amount ----------
 export async function sendTonPremiumPayment() {
     const tg = window.Telegram.WebApp;
     const statusEl = document.getElementById('paymentStatus');
@@ -223,8 +223,12 @@ export async function sendTonPremiumPayment() {
     }
 
     const userWallet = walletAddress;
-    const comment = `user:${tg.initDataUnsafe?.user?.id}`;
-    const amountNano = Math.floor(amountTon * 1e9);
+    const userId = tg.initDataUnsafe?.user?.id;
+    if (!userId) throw new Error("No user ID");
+    const comment = `user:${userId}`;
+    
+    // Round to avoid floating‑point precision issues
+    const amountNano = Math.round(amountTon * 1e9);
     
     let payloadBase64;
     try {
@@ -249,27 +253,55 @@ export async function sendTonPremiumPayment() {
         
         await ui.sendTransaction(transaction);
         
-        if (statusEl) statusEl.textContent = "⏳ Verifying payment (may take up to 45 seconds)...";
-        
-        const response = await fetch(`${API_URL}/api/ton-confirm-payment`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-Telegram-Init-Data': tg.initData
-            },
-            body: JSON.stringify({
-                user_wallet: userWallet,
-                comment: comment
-            })
-        });
-        
-        if (!response.ok) {
-            const errorData = await response.json().catch(() => ({}));
-            throw new Error(errorData.detail || "Verification failed");
+        if (statusEl) statusEl.textContent = "⏳ Verifying payment...";
+
+        // ---------- Immediate first check ----------
+        const checkPayment = async () => {
+            const resp = await fetch(
+                `${API_URL}/api/verify-ton-payment?user_id=${userId}&expected_amount_ton=${amountTon}`
+            );
+            return await resp.json();
+        };
+
+        let firstCheck = await checkPayment();
+        if (firstCheck.status === "completed") {
+            await verifyPremiumStatus();
+            if (statusEl) {
+                statusEl.textContent = "✅ Premium activated!";
+                statusEl.style.color = "#4CAF50";
+            }
+            setTimeout(() => { if (window.closePremium) window.closePremium(); }, 1500);
+            return true;
         }
-        
-        const data = await response.json();
-        if (data.status === 'completed') {
+
+        // ---------- If not immediate, start polling (5s interval, max 12 attempts) ----------
+        let pollAttempts = 0;
+        const maxAttempts = 12;        // 12 * 5s = 60s total
+        const intervalMs = 5000;
+
+        const pollResult = await new Promise((resolve, reject) => {
+            const timer = setInterval(async () => {
+                pollAttempts++;
+                try {
+                    const resp = await fetch(
+                        `${API_URL}/api/verify-ton-payment?user_id=${userId}&expected_amount_ton=${amountTon}`
+                    );
+                    const data = await resp.json();
+                    if (data.status === "completed") {
+                        clearInterval(timer);
+                        resolve(true);
+                    } else if (pollAttempts >= maxAttempts) {
+                        clearInterval(timer);
+                        reject(new Error("Verification timed out"));
+                    }
+                } catch (err) {
+                    console.warn("Poll error:", err);
+                    // Continue polling until max attempts
+                }
+            }, intervalMs);
+        });
+
+        if (pollResult) {
             await verifyPremiumStatus();
             if (statusEl) {
                 statusEl.textContent = "✅ Premium activated!";
@@ -278,11 +310,16 @@ export async function sendTonPremiumPayment() {
             setTimeout(() => { if (window.closePremium) window.closePremium(); }, 1500);
             return true;
         } else {
-            throw new Error("Unexpected response from server");
+            throw new Error("Verification failed");
         }
     } catch (err) {
         console.error("TON payment error:", err);
-        if (tg.showAlert) tg.showAlert("TON payment failed: " + err.message);
+        if (tg.showAlert) {
+            const msg = err.message === "Verification timed out"
+                ? "Payment may still be processing. Please check your balance in a few minutes."
+                : "TON payment failed: " + err.message;
+            tg.showAlert(msg);
+        }
         throw err;
     }
 }
@@ -298,7 +335,7 @@ async function fetchTonAdminAddress() {
     }
 }
 
-// Expose updateTonPrices globally for use in UI
+// Expose functions globally for use in UI
 window.updateTonPrices = updateTonPrices;
 window.initWalletUI = initWalletUI;
 window.sendTonPremiumPayment = sendTonPremiumPayment;
