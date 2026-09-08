@@ -2,7 +2,7 @@
 import { state } from './state.js';
 import { showMonetagInterstitial, showRewardedAd } from './monetag.js';
 
-const API_URL = "https://imagifhub.onrender.com";
+const API_URL = window.API_URL || window.location.origin;
 
 export async function fetchNativeAds() {
     try {
