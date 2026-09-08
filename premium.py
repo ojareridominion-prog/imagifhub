@@ -278,12 +278,12 @@ async def force_expire_premiums(request: Request):
     count = await update_expired_premiums()
     return {"updated": count, "message": f"Expired {count} premium users"}
 
-# ==================== NEW ENDPOINT: GRANT TEMPORARY PREMIUM (1 HOUR) ====================
+# ==================== NEW ENDPOINT: GRANT TEMPORARY PREMIUM (30 MINUTES) ====================
 
 @router.post("/api/grant-temp-premium")
 async def grant_temp_premium(request: Request):
     """
-    Grant 1 hour of temporary premium (e.g., after watching 3 ads).
+    Grant 30 minutes of temporary premium (e.g., after watching 3 ads).
     Does not override a longer existing paid premium.
     """
     init_data = request.headers.get("X-Telegram-Init-Data", "")
@@ -299,7 +299,7 @@ async def grant_temp_premium(request: Request):
         result = supabase.table("users").select("premium_expires_at").eq("telegram_id", user_id).execute()
         
         now = datetime.utcnow()
-        new_expiry = now + timedelta(hours=1)
+        new_expiry = now + timedelta(minutes=30)   # <--- CHANGED from hours=1
         
         # If user already has a valid premium that expires later than new_expiry, keep it
         if result.data and result.data[0].get("premium_expires_at"):
@@ -330,4 +330,4 @@ async def grant_temp_premium(request: Request):
     except Exception as e:
         logging.error(f"Error granting temp premium: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Internal server error")
-        
+
