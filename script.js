@@ -52,8 +52,22 @@ function showToast(message, type = 'info', duration = 3000) {
 }
 window.showToast = showToast;
 
-// ===== NEW: Saved images overlay functions =====
+// ===== MODIFIED: saved images overlay - premium check =====
 function openSavedOverlay() {
+    // Check premium status
+    if (!state.isPremiumUser) {
+        // Close menu if open
+        const panel = document.getElementById('menuPanel');
+        if (panel && panel.classList.contains('open')) {
+            panel.classList.remove('open');
+            document.getElementById('menuOverlay').classList.remove('active');
+            document.body.style.overflow = '';
+        }
+        // Open premium modal
+        openPremium();
+        return;
+    }
+
     // Close menu if open
     const panel = document.getElementById('menuPanel');
     if (panel && panel.classList.contains('open')) {
@@ -74,6 +88,11 @@ function closeSavedOverlay() {
 let savedSwiperInstance = null;
 
 function openSavedViewer(startIndex = 0) {
+    // Premium check (viewer is only opened from saved overlay, which already checks premium, but keep for safety)
+    if (!state.isPremiumUser) {
+        openPremium();
+        return;
+    }
     const viewerModal = document.getElementById('savedViewerModal');
     const swiperWrapper = document.getElementById('savedSwiperWrapper');
 
