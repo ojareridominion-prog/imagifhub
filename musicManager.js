@@ -1,7 +1,7 @@
 // musicManager.js
 import { state } from './state.js';
 
-const API_URL = "https://imagifhub.onrender.com";
+const API_URL = window.API_URL || window.location.origin;
 
 /**
  * Fetch music URLs for a category from Supabase via backend API.
