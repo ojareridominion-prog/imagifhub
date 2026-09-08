@@ -5,7 +5,7 @@ import { buildSlides, showMonetagInterstitial } from './adsManager.js';
 import { playRandomMusic } from './musicManager.js';
 import { showGiftDrawer } from './giftManager.js';
 
-const API_URL = "https://imagifhub.onrender.com";
+const API_URL = window.API_URL || window.location.origin;
 const PAGE_SIZE = 30;
 const MAX_RETRIES = 3;
 const AD_FREQUENCY = 3;
