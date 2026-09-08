@@ -10,7 +10,10 @@ import { toggleMenu, applyTheme, triggerSearch, shareBot, openPremium, closePrem
 import { initGiftSystem, refreshRecentGiftCard, showGiftDrawer } from './giftManager.js';
 import { initWalletUI, sendTonPremiumPayment } from './tonPayment.js';
 
-const API_URL = "https://imagifhub.onrender.com";
+// Use window.API_URL (set in index.html) – falls back to same origin
+const API_URL = window.API_URL || window.location.origin;
+// Render-specific endpoint for ad trigger
+const RENDER_API_URL = window.RENDER_API_URL || API_URL;
 
 // Expose globals for HTML onclick
 window.loadFeed = loadFeed;
@@ -462,7 +465,8 @@ window.onload = () => {
             
             welcomeOverlay.classList.add('hidden');
             
-            fetch(`${API_URL}/api/trigger-ad`, {
+            // Use RENDER_API_URL for ad trigger
+            fetch(`${RENDER_API_URL}/api/trigger-ad`, {
                 method: 'POST',
                 headers: { 'X-Telegram-Init-Data': tg.initData }
             }).catch(() => {});
