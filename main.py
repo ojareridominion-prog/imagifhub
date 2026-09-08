@@ -112,8 +112,8 @@ else:
     async def ton_manifest(request: Request):
         base_url = str(request.base_url).rstrip('/')
         return {
-            "url": "https://ojareridominion-prog.github.io/imagifhub",
+            "url": base_url,
             "name": "IMAGIFHUB",
-            "iconUrl": "https://ojareridominion-prog.github.io/imagifhub/assets/icon.png"
+            "iconUrl": f"{base_url}/assets/icon.png"
         }
         
