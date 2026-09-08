@@ -23,6 +23,18 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# ============================================================
+#  NEW: Serve TonConnect manifest on ALL environments
+# ============================================================
+@app.get("/ton-manifest.json")
+async def ton_manifest(request: Request):
+    base_url = str(request.base_url).rstrip('/')
+    return {
+        "url": base_url,
+        "name": "IMAGIFHUB",
+        "iconUrl": f"{base_url}/assets/icon.png"
+    }
+
 # ---- Import routers ----
 from invoice import router as invoice_router
 from premium import router as premium_router
@@ -107,13 +119,5 @@ else:
         # This will be overridden by the static mount, but just in case
         return {"status": "IMAGIFHUB API (Vercel) is running"}
 
-    # ---- Optional: TON manifest (already served via route) ----
-    @app.get("/ton-manifest.json")
-    async def ton_manifest(request: Request):
-        base_url = str(request.base_url).rstrip('/')
-        return {
-            "url": base_url,
-            "name": "IMAGIFHUB",
-            "iconUrl": f"{base_url}/assets/icon.png"
-        }
-        
+    # Note: /ton-manifest.json is now served globally, so we don't need it here.
+    
