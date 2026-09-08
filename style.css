@@ -1386,10 +1386,10 @@ body.search-open {
     width: 44px;
     height: 44px;
     border-radius: 50%;
-    background: rgba(0, 0, 0, 0.6);
-    backdrop-filter: blur(6px);
-    -webkit-backdrop-filter: blur(6px);
-    border: 1px solid rgba(255, 255, 255, 0.2);
+    background: transparent;          /* <-- was rgba(0,0,0,0.6) */
+    backdrop-filter: none;            /* <-- removed blur */
+    -webkit-backdrop-filter: none;    /* <-- removed blur */
+    border: none;                     /* <-- removed border (optional) */
     color: #fff;
     font-size: 20px;
     display: flex;
@@ -1398,7 +1398,7 @@ body.search-open {
     cursor: pointer;
     transition: transform 0.15s, background 0.2s, box-shadow 0.2s;
     touch-action: manipulation;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+    box-shadow: none;                 /* <-- removed shadow (optional) */
     padding: 0;
     line-height: 1;
 }
